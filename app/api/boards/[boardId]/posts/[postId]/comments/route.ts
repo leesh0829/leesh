@@ -1,0 +1,74 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/app/lib/prisma";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/options";
+
+export const runtime = "nodejs";
+
+export async function GET(
+  _req: Request,
+  { params }: { params: { boardId: string; postId: string } }
+) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.email) return NextResponse.json({ message: "unauthorized" }, { status: 401 });
+
+  const user = await prisma.user.findUnique({
+    where: { email: session.user.email },
+    select: { id: true },
+  });
+  if (!user) return NextResponse.json({ message: "unauthorized" }, { status: 401 });
+
+  const board = await prisma.board.findFirst({
+    where: { id: params.boardId, ownerId: user.id },
+    select: { id: true },
+  });
+  if (!board) return NextResponse.json({ message: "not found" }, { status: 404 });
+
+  const commentsRaw = await prisma.comment.findMany({
+    where: { postId: params.postId },
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      content: true,
+      createdAt: true,
+      author: { select: { name: true, email: true } },
+    },
+  });
+
+  const comments = commentsRaw.map(c => ({
+    ...c,
+    createdAt: c.createdAt.toISOString(),
+  }));
+
+  return NextResponse.json(comments);
+}
+
+export async function POST(
+  req: Request,
+  { params }: { params: { boardId: string; postId: string } }
+) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.email) return NextResponse.json({ message: "unauthorized" }, { status: 401 });
+
+  const user = await prisma.user.findUnique({
+    where: { email: session.user.email },
+    select: { id: true },
+  });
+  if (!user) return NextResponse.json({ message: "unauthorized" }, { status: 401 });
+
+  const board = await prisma.board.findFirst({
+    where: { id: params.boardId, ownerId: user.id },
+    select: { id: true },
+  });
+  if (!board) return NextResponse.json({ message: "not found" }, { status: 404 });
+
+  const { content } = await req.json();
+  if (!content?.trim()) return NextResponse.json({ message: "content required" }, { status: 400 });
+
+  const c = await prisma.comment.create({
+    data: { postId: params.postId, authorId: user.id, content: content.trim() },
+    select: { id: true },
+  });
+
+  return NextResponse.json(c, { status: 201 });
+}

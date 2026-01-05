@@ -6,9 +6,11 @@ import bcrypt from "bcrypt";
 
 export const runtime = "nodejs";
 
+type Ctx = { params: Promise<{ boardId: string }> };
+
 export async function GET(
   _req: Request,
-  ctx: { params: Promise<{ boardId: string }> }
+  ctx: Ctx
 ) {
   const { boardId } = await ctx.params;
 
@@ -47,7 +49,7 @@ export async function GET(
 
 export async function POST(
   req: Request,
-  ctx: { params: Promise<{ boardId: string }> }
+  ctx: Ctx
 ) {
   const { boardId } = await ctx.params;
 

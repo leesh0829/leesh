@@ -87,36 +87,29 @@ model Board {
 }
 
 model Post {
-  id          String   @id @default(cuid())
-  boardId     String
-  board       Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  boardId   String
+  authorId  String
+  title     String
+  contentMd String
+  status    PostStatus
+  priority  Int      @default(0)
 
-  authorId    String
-  author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  startAt   DateTime?
+  endAt     DateTime?
+  allDay    Boolean  @default(false)
 
-  title       String
-  contentMd   String   @default("") // 마크다운 본문(선택)
-
-  // Todo/일정 연동
-  status      PostStatus @default(TODO)
-  priority    Int        @default(0)
-  startAt     DateTime?
-  endAt       DateTime?
-  allDay      Boolean    @default(false)
-
-  // 비밀글
   isSecret            Boolean @default(false)
   secretPasswordHash  String?
 
-  comments    Comment[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
-  @@index([boardId, createdAt])
-  @@index([authorId, createdAt])
+  comments Comment[]
 }
-
 model Comment {
   id        String   @id @default(cuid())
 

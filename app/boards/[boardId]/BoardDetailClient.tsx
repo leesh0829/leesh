@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 
 type Board = { id: string; name: string; description: string | null };
 type Post = {
@@ -17,6 +18,9 @@ type CreatePostBody = {
   status: "TODO" | "DOING" | "DONE";
   isSecret: boolean;
   secretPassword?: string;
+  startAt?: string | null;
+  endAt?: string | null;
+  allDay?: boolean;
 };
 
 export default function BoardDetailClient({
@@ -31,6 +35,9 @@ export default function BoardDetailClient({
   const [isSecret, setIsSecret] = useState(false);
   const [secretPassword, setSecretPassword] = useState("");
   const [status, setStatus] = useState<Post["status"]>("TODO");
+  const [startAt, setStartAt] = useState<string>("");
+  const [endAt, setEndAt] = useState<string>("");
+  const [allDay, setAllDay] = useState(false);
 
   const reload = async () => {
     const res = await fetch(`/api/boards/${board.id}/posts`);
@@ -38,33 +45,43 @@ export default function BoardDetailClient({
   };
 
   const create = async () => {
-    const payload: CreatePostBody = { title, status, isSecret };
-    if (isSecret) payload.secretPassword = secretPassword;
-
-    const res = await fetch(`/api/boards/${board.id}/posts`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-
-    if (res.ok) {
-      setTitle("");
-      setIsSecret(false);
-      setSecretPassword("");
-      setStatus("TODO");
-      await reload();
-    } else {
-      const err = await res.json().catch(() => ({}));
-      alert(err.message ?? "생성 실패");
-    }
+  const payload: CreatePostBody = {
+    title,
+    status,
+    isSecret,
+    secretPassword: isSecret ? secretPassword : undefined,
+    startAt: startAt ? new Date(startAt).toISOString() : null,
+    endAt: endAt ? new Date(endAt).toISOString() : null,
+    allDay,
   };
+
+  const res = await fetch(`/api/boards/${board.id}/posts`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (res.ok) {
+    setTitle("");
+    setIsSecret(false);
+    setSecretPassword("");
+    setStatus("TODO");
+    setStartAt("");
+    setEndAt("");
+    setAllDay(false);
+    await reload();
+  } else {
+    const err = await res.json().catch(() => ({}));
+    alert(err.message ?? "생성 실패");
+  }
+};
 
   const isPostStatus = (v: string): v is Post["status"] =>
   v === "TODO" || v === "DOING" || v === "DONE";
 
   return (
     <main style={{ padding: 24, maxWidth: 900 }}>
-      <a href="/boards">← boards</a>
+      <Link href="/boards">← boards</Link>
       <h1 style={{ marginTop: 12 }}>{board.name}</h1>
       {board.description ? <p>{board.description}</p> : null}
 
@@ -79,10 +96,13 @@ export default function BoardDetailClient({
             style={{ minWidth: 260 }}
           />
 
-          <select value={status} onChange={(e) => {
+          <select
+            value={status}
+            onChange={(e) => {
               const v = e.target.value;
-              if(isPostStatus(v)) setStatus(v);
-            }}>
+              if (isPostStatus(v)) setStatus(v);
+            }}
+          >
             <option value="TODO">TODO</option>
             <option value="DOING">DOING</option>
             <option value="DONE">DONE</option>
@@ -107,6 +127,28 @@ export default function BoardDetailClient({
           ) : null}
 
           <button onClick={create}>생성</button>
+        </div>
+        <div>
+            <input
+              type="datetime-local"
+              value={startAt}
+              onChange={(e) => setStartAt(e.target.value)}
+            />
+
+            <input
+              type="datetime-local"
+              value={endAt}
+              onChange={(e) => setEndAt(e.target.value)}
+            />
+
+            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <input
+                type="checkbox"
+                checked={allDay}
+                onChange={(e) => setAllDay(e.target.checked)}
+              />
+              하루종일
+            </label>
         </div>
       </section>
 

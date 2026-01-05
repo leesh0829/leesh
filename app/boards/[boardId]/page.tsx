@@ -46,5 +46,13 @@ export default async function BoardDetailPage(
     createdAt: p.createdAt.toISOString(),
   }));
 
-  return <BoardDetailClient board={board} initialPosts={posts} />;
+  const safePosts = posts.map((p) => ({
+    ...p,
+    createdAt: p.createdAt,
+    startAt: p.startAt ? p.startAt : null,
+    endAt: p.endAt ? p.endAt : null,
+  }));
+
+
+  return <BoardDetailClient board={board} initialPosts={safePosts} />;
 }

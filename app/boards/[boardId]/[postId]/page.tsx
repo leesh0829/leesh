@@ -2,14 +2,17 @@ import { prisma } from "@/app/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/options";
 import PostDetailClient from "./PostDetailClient";
+import { toISOStringSafe } from "@/app/lib/date";
 
 export const runtime = "nodejs";
 
 export default async function PostDetailPage({
   params,
 }: {
-  params: { boardId: string; postId: string };
+  params: Promise<{ boardId: string; postId: string }>;
 }) {
+  const { boardId, postId } = await params;
+
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) return <main style={{ padding: 24 }}>로그인이 필요합니다.</main>;
 
@@ -20,13 +23,15 @@ export default async function PostDetailPage({
   if (!user) return <main style={{ padding: 24 }}>사용자 없음</main>;
 
   const board = await prisma.board.findFirst({
-    where: { id: params.boardId, ownerId: user.id },
+    //where: { id: params.boardId, ownerId: user.id },
+    where: { id: boardId, ownerId: user.id },
     select: { id: true, name: true },
   });
   if (!board) return <main style={{ padding: 24 }}>보드를 찾을 수 없습니다.</main>;
 
   const postRaw = await prisma.post.findFirst({
-    where: { id: params.postId, boardId: params.boardId },
+    //where: { id: params.postId, boardId: params.boardId },
+    where: { id: postId, boardId },
     select: {
       id: true,
       title: true,
@@ -42,7 +47,8 @@ export default async function PostDetailPage({
   const post = {
     ...postRaw,
     contentMd: postRaw.isSecret ? "" : postRaw.contentMd,
-    createdAt: postRaw.createdAt.toISOString(),
+    //createdAt: new Date(postRaw.createdAt as any).toISOString(),
+    createdAt: toISOStringSafe(postRaw.createdAt),
   };
 
   return (

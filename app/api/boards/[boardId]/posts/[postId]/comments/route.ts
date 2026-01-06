@@ -7,8 +7,10 @@ export const runtime = "nodejs";
 
 export async function GET(
   _req: Request,
-  { params }: { params: { boardId: string; postId: string } }
+  { params }: { params: Promise<{ boardId: string; postId: string }> }
 ) {
+  const { boardId, postId } = await params;
+
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) return NextResponse.json({ message: "unauthorized" }, { status: 401 });
 
@@ -19,13 +21,13 @@ export async function GET(
   if (!user) return NextResponse.json({ message: "unauthorized" }, { status: 401 });
 
   const board = await prisma.board.findFirst({
-    where: { id: params.boardId, ownerId: user.id },
+    where: { id: boardId, ownerId: user.id },
     select: { id: true },
   });
   if (!board) return NextResponse.json({ message: "not found" }, { status: 404 });
 
   const commentsRaw = await prisma.comment.findMany({
-    where: { postId: params.postId },
+    where: { postId: postId },
     orderBy: { createdAt: "asc" },
     select: {
       id: true,
@@ -45,8 +47,10 @@ export async function GET(
 
 export async function POST(
   req: Request,
-  { params }: { params: { boardId: string; postId: string } }
+  { params }: { params: Promise<{ boardId: string; postId: string }> }
 ) {
+  const { boardId, postId } = await params;
+
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) return NextResponse.json({ message: "unauthorized" }, { status: 401 });
 
@@ -57,7 +61,7 @@ export async function POST(
   if (!user) return NextResponse.json({ message: "unauthorized" }, { status: 401 });
 
   const board = await prisma.board.findFirst({
-    where: { id: params.boardId, ownerId: user.id },
+    where: { id: boardId, ownerId: user.id },
     select: { id: true },
   });
   if (!board) return NextResponse.json({ message: "not found" }, { status: 404 });
@@ -66,7 +70,7 @@ export async function POST(
   if (!content?.trim()) return NextResponse.json({ message: "content required" }, { status: 400 });
 
   const c = await prisma.comment.create({
-    data: { postId: params.postId, authorId: user.id, content: content.trim() },
+    data: { postId: postId, authorId: user.id, content: content.trim() },
     select: { id: true },
   });
 

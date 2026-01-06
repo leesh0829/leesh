@@ -2,6 +2,7 @@ import { prisma } from "@/app/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/options";
 import BoardDetailClient from "./BoardDetailClient";
+import { toISOStringNullable, toISOStringSafe } from "@/app/lib/date";
 
 export const runtime = "nodejs";
 
@@ -41,9 +42,9 @@ export default async function BoardDetailPage(
 
   const posts = postsRaw.map(p => ({
     ...p,
-    startAt: p.startAt ? p.startAt.toISOString() : null,
-    endAt: p.endAt ? p.endAt.toISOString() : null,
-    createdAt: p.createdAt.toISOString(),
+    createdAt: toISOStringSafe(p.createdAt),
+    startAt: toISOStringNullable(p.startAt),
+    endAt: toISOStringNullable(p.endAt),
   }));
 
   const safePosts = posts.map((p) => ({

@@ -8,8 +8,10 @@ export const runtime = "nodejs";
 
 export async function POST(
   req: Request,
-  { params }: { params: { boardId: string; postId: string } }
+  { params }: { params: Promise<{ boardId: string; postId: string }> }
 ) {
+  const { boardId, postId } = await params;
+
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) {
     return NextResponse.json({ message: "unauthorized" }, { status: 401 });
@@ -23,7 +25,7 @@ export async function POST(
 
   // 보드 소유자 확인
   const board = await prisma.board.findFirst({
-    where: { id: params.boardId, ownerId: user.id },
+    where: { id: boardId, ownerId: user.id },
     select: { id: true },
   });
   if (!board) return NextResponse.json({ message: "not found" }, { status: 404 });
@@ -31,7 +33,7 @@ export async function POST(
   const { password } = await req.json();
 
   const post = await prisma.post.findFirst({
-    where: { id: params.postId, boardId: params.boardId },
+    where: { id: postId, boardId: boardId },
     select: { isSecret: true, secretPasswordHash: true, contentMd: true },
   });
 

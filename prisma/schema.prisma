@@ -76,6 +76,7 @@ model Board {
   id          String   @id @default(cuid())
   name        String
   description String?
+  type        BoardType @default(GENERAL)
 
   ownerId     String
   owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
@@ -109,6 +110,8 @@ model Post {
   author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
   comments Comment[]
+
+  slug    String? @unique
 }
 model Comment {
   id        String   @id @default(cuid())
@@ -130,3 +133,10 @@ enum PostStatus {
   DONE
 }
 
+enum BoardType {
+  GENERAL
+  BLOG
+  PORTFOLIO
+  TODO
+  CALENDAR
+}

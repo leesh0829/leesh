@@ -5,7 +5,7 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
   engineType = "library"
 }
 
@@ -19,14 +19,14 @@ enum Role {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  name      String?
-  email     String?  @unique
-  password  String?  // credentials 사용 시 필요
-  role      Role     @default(USER)
+  id       String  @id @default(cuid())
+  name     String?
+  email    String? @unique
+  password String? // credentials 사용 시 필요
+  role     Role    @default(USER)
 
-  accounts  Account[]
-  sessions  Session[]
+  accounts Account[]
+  sessions Session[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -37,18 +37,18 @@ model User {
 }
 
 model Account {
-  id                 String  @id @default(cuid())
-  userId             String
-  type               String
-  provider           String
-  providerAccountId  String
-  refresh_token      String?
-  access_token       String?
-  expires_at         Int?
-  token_type         String?
-  scope              String?
-  id_token           String?
-  session_state      String?
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -73,56 +73,57 @@ model VerificationToken {
 }
 
 model Board {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   name        String
   description String?
   type        BoardType @default(GENERAL)
 
-  ownerId     String
-  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
-  posts       Post[]
+  posts Post[]
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Post {
-  id        String   @id @default(cuid())
+  id        String     @id @default(cuid())
   boardId   String
   authorId  String
   title     String
   contentMd String
   status    PostStatus
-  priority  Int      @default(0)
+  priority  Int        @default(0)
 
-  startAt   DateTime?
-  endAt     DateTime?
-  allDay    Boolean  @default(false)
+  startAt DateTime?
+  endAt   DateTime?
+  allDay  Boolean   @default(false)
 
-  isSecret            Boolean @default(false)
-  secretPasswordHash  String?
+  isSecret           Boolean @default(false)
+  secretPasswordHash String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  board  Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  author User  @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
   comments Comment[]
 
-  slug    String? @unique
+  slug String? @unique
 }
+
 model Comment {
-  id        String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  postId    String
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId String
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
 
-  authorId  String
-  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
-  content   String
+  content String
 
   createdAt DateTime @default(now())
 }

@@ -1,0 +1,102 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
+type CommentItem = {
+  id: string;
+  content: string;
+  authorName: string | null;
+  createdAt: string; // 서버에서 string으로 줄 거임
+};
+
+export default function BlogCommentsClient({
+  boardId,
+  postId,
+}: {
+  boardId: string;
+  postId: string;
+}) {
+  const [items, setItems] = useState<CommentItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [content, setContent] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  async function load() {
+    setLoading(true);
+    setError(null);
+    const res = await fetch(`/api/boards/${boardId}/posts/${postId}/comments`, {
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      setError("댓글 불러오기 실패");
+      setLoading(false);
+      return;
+    }
+    const data = await res.json();
+    setItems(data.comments ?? []);
+    setLoading(false);
+  }
+
+  async function submit() {
+    const text = content.trim();
+    if (!text) return;
+
+    setError(null);
+    const res = await fetch(`/api/boards/${boardId}/posts/${postId}/comments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: text }),
+    });
+
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      setError(d?.message ?? "댓글 작성 실패");
+      return;
+    }
+
+    setContent("");
+    await load();
+  }
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [boardId, postId]);
+
+  return (
+    <section style={{ marginTop: 32 }}>
+      <h2 style={{ marginBottom: 12 }}>댓글</h2>
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+        <input
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          placeholder="댓글 달기..."
+          style={{ flex: 1, padding: 10 }}
+        />
+        <button onClick={submit} style={{ padding: "10px 14px" }}>
+          등록
+        </button>
+      </div>
+
+      {error && <p style={{ color: "crimson" }}>{error}</p>}
+
+      {loading ? (
+        <p>불러오는 중...</p>
+      ) : items.length === 0 ? (
+        <p>댓글 없음</p>
+      ) : (
+        <ul style={{ lineHeight: 1.8 }}>
+          {items.map((c) => (
+            <li key={c.id} style={{ padding: "8px 0", borderTop: "1px solid #eee" }}>
+              <div style={{ fontSize: 13, opacity: 0.7 }}>
+                {c.authorName ?? "익명"} · {c.createdAt.slice(0, 16).replace("T", " ")}
+              </div>
+              <div style={{ whiteSpace: "pre-wrap" }}>{c.content}</div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}

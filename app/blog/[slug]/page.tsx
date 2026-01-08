@@ -6,6 +6,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import BlogCommentsClient from "./BlogCommentsClient";
+import Link from "next/link";
 
 export const runtime = "nodejs";
 
@@ -57,6 +58,8 @@ export default async function BlogDetailPage({
         <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
             {post.contentMd}
         </ReactMarkdown>
+
+        <Link href={`/blog/edit/${post.id}`}>수정</Link>
 
         <BlogCommentsClient boardId={post.boardId} postId={post.id} />
     </main>

@@ -46,7 +46,7 @@ export default async function BlogListPage() {
       <h1 style={{ marginBottom: 12 }}>{blogBoard.name}</h1>
       <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
         <Link href={`/boards/${blogBoard.id}`}>관리(보드로 이동)</Link>
-        <Link href={`/boards/${blogBoard.id}/new`}>글 작성(임시)</Link>
+        <Link href={`/blog/new`}>글 작성</Link>
       </div>
 
       {posts.length === 0 ? (

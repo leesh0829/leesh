@@ -1,104 +1,105 @@
-import { NextResponse } from "next/server";
-import { prisma } from "@/app/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/options";
+"use client";
 
-export const runtime = "nodejs";
+import { useState } from "react";
 
-function slugify(input: string): string {
-  return input
-    .trim()
-    .toLowerCase()
-    .replace(/[^\w\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
-}
+type EditPost = {
+  id: string;
+  title: string;
+  contentMd: string;
+  slug: string | null;
+  status: string; // PostStatus 타입 귀찮으면 string으로 둬도 됨
+};
 
-async function getUserIdOr401() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.email) return null;
+export default function BlogEditClient({ post }: { post: EditPost }) {
+  const [title, setTitle] = useState(post.title);
+  const [contentMd, setContentMd] = useState(post.contentMd);
+  const [regenerateSlug, setRegenerateSlug] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
-  });
+  async function save(publish: boolean) {
+    setSaving(true);
+    setMsg(null);
 
-  return user?.id ?? null;
-}
+    const res = await fetch(`/api/blog/posts/${post.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title, contentMd, publish, regenerateSlug }),
+    });
 
-export async function PUT(
-  req: Request,
-  { params }: { params: Promise<{ postId: string }> }
-) {
-  const { postId } = await params;
+    const data = await res.json().catch(() => null);
+    setSaving(false);
 
-  const userId = await getUserIdOr401();
-  if (!userId) return NextResponse.json({ message: "unauthorized" }, { status: 401 });
-
-  const body = await req.json().catch(() => null);
-  const title = body?.title as string | undefined;
-  const contentMd = body?.contentMd as string | undefined;
-  const publish = Boolean(body?.publish);
-  const regenerateSlug = Boolean(body?.regenerateSlug);
-
-  if (!title || contentMd == null) {
-    return NextResponse.json({ message: "invalid body" }, { status: 400 });
-  }
-
-  // 작성자 + BLOG 타입 보드 글만 수정 가능
-  const existing = await prisma.post.findFirst({
-    where: { id: postId, authorId: userId, board: { type: "BLOG" } },
-    select: { id: true, slug: true },
-  });
-  if (!existing) return NextResponse.json({ message: "not found" }, { status: 404 });
-
-  let nextSlug = existing.slug;
-
-  if (regenerateSlug) {
-    const baseSlug = slugify(title) || "post";
-    let slug = baseSlug;
-    for (let i = 2; i < 50; i++) {
-      const dup = await prisma.post.findFirst({
-        where: { slug, NOT: { id: postId } },
-        select: { id: true },
-      });
-      if (!dup) break;
-      slug = `${baseSlug}-${i}`;
+    if (!res.ok) {
+      setMsg(data?.message ?? "수정 실패");
+      return;
     }
-    nextSlug = slug;
+
+    const slug = data?.slug ?? post.id;
+    window.location.href = `/blog/${encodeURIComponent(slug)}`;
   }
 
-  const updated = await prisma.post.update({
-    where: { id: postId },
-    data: {
-      title,
-      contentMd,
-      slug: nextSlug ?? undefined,
-      status: publish ? "DONE" : "DOING",
-    },
-    select: { id: true, slug: true },
-  });
+  async function del() {
+    if (!confirm("진짜 삭제?")) return;
 
-  return NextResponse.json(updated);
-}
+    setSaving(true);
+    setMsg(null);
 
-export async function DELETE(
-  _req: Request,
-  { params }: { params: Promise<{ postId: string }> }
-) {
-  const { postId } = await params;
+    const res = await fetch(`/api/blog/posts/${post.id}`, { method: "DELETE" });
+    const data = await res.json().catch(() => null);
+    setSaving(false);
 
-  const userId = await getUserIdOr401();
-  if (!userId) return NextResponse.json({ message: "unauthorized" }, { status: 401 });
+    if (!res.ok) {
+      setMsg(data?.message ?? "삭제 실패");
+      return;
+    }
 
-  // 작성자 + BLOG 글만 삭제 가능
-  const existing = await prisma.post.findFirst({
-    where: { id: postId, authorId: userId, board: { type: "BLOG" } },
-    select: { id: true },
-  });
-  if (!existing) return NextResponse.json({ message: "not found" }, { status: 404 });
+    window.location.href = "/blog";
+  }
 
-  await prisma.post.delete({ where: { id: postId } });
-  return NextResponse.json({ ok: true });
+  return (
+    <div style={{ display: "grid", gap: 10, maxWidth: 900 }}>
+      <div style={{ fontSize: 13, opacity: 0.7 }}>
+        현재 slug: <b>{post.slug ?? "(없음)"}</b>
+      </div>
+
+      <input
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder="제목"
+        style={{ padding: 10, fontSize: 16 }}
+      />
+
+      <textarea
+        value={contentMd}
+        onChange={(e) => setContentMd(e.target.value)}
+        placeholder="마크다운으로 작성..."
+        rows={18}
+        style={{ padding: 10, fontSize: 14, lineHeight: 1.6 }}
+      />
+
+      <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <input
+          type="checkbox"
+          checked={regenerateSlug}
+          onChange={(e) => setRegenerateSlug(e.target.checked)}
+        />
+        제목 기준으로 slug 다시 생성
+      </label>
+
+      <div style={{ display: "flex", gap: 8 }}>
+        <button disabled={saving} onClick={() => save(false)}>
+          임시저장
+        </button>
+        <button disabled={saving} onClick={() => save(true)}>
+          발행
+        </button>
+        <button disabled={saving} onClick={del} style={{ marginLeft: "auto" }}>
+          삭제
+        </button>
+      </div>
+
+      {msg && <p style={{ color: "crimson" }}>{msg}</p>}
+    </div>
+  );
 }

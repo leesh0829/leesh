@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/options";
+import { toISOStringSafe } from "@/app/lib/date";
 
 export const runtime = "nodejs";
 
@@ -39,7 +40,7 @@ export async function GET(
 
   const comments = commentsRaw.map(c => ({
     ...c,
-    createdAt: c.createdAt.toISOString(),
+    createdAt: toISOStringSafe(c.createdAt),
   }));
 
   return NextResponse.json(comments);

@@ -43,6 +43,10 @@ export default async function BlogDetailPage({
 
   if (!post) return <main style={{ padding: 24 }}>글 없음</main>;
 
+  <p style={{ opacity: 0.6 }}>
+    debug: {post.boardId} / {post.id}
+  </p>
+
   return (
     <main style={{ padding: 24 }}>
         <h1 style={{ marginBottom: 4 }}>{post.title}</h1>

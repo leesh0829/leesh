@@ -5,8 +5,8 @@ import { useEffect, useState } from "react";
 type CommentItem = {
   id: string;
   content: string;
-  authorName: string | null;
-  createdAt: string; // 서버에서 string으로 줄 거임
+  createdAt: string;
+  author: { name: string | null; email: string | null};
 };
 
 export default function BlogCommentsClient({
@@ -33,7 +33,7 @@ export default function BlogCommentsClient({
       return;
     }
     const data = await res.json();
-    setItems(data.comments ?? []);
+    setItems(Array.isArray(data) ? data : []);
     setLoading(false);
   }
 
@@ -90,7 +90,7 @@ export default function BlogCommentsClient({
           {items.map((c) => (
             <li key={c.id} style={{ padding: "8px 0", borderTop: "1px solid #eee" }}>
               <div style={{ fontSize: 13, opacity: 0.7 }}>
-                {c.authorName ?? "익명"} · {c.createdAt.slice(0, 16).replace("T", " ")}
+                {c.author.name ?? "익명"} · {c.createdAt.slice(0, 16).replace("T", " ")}
               </div>
               <div style={{ whiteSpace: "pre-wrap" }}>{c.content}</div>
             </li>

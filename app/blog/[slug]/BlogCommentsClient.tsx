@@ -9,6 +9,25 @@ type CommentItem = {
   author: { name: string | null; email: string | null};
 };
 
+function extractApiMessage(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object") return null;
+
+  const record = payload as Record<string, unknown>;
+  const message = record["message"];
+
+  if (typeof message !== "string") return null;
+
+  return message.trim() || null;
+}
+
+async function readJsonSafely(res: Response): Promise<unknown> {
+  try {
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
 export default function BlogCommentsClient({
   boardId,
   postId,
@@ -28,7 +47,9 @@ export default function BlogCommentsClient({
       cache: "no-store",
     });
     if (!res.ok) {
-      setError("댓글 불러오기 실패");
+      const payload = await readJsonSafely(res);
+      const msg = extractApiMessage(payload) ?? "댓글 처리 실패";
+      setError(`${res.status} ${res.statusText} · ${msg}`);
       setLoading(false);
       return;
     }

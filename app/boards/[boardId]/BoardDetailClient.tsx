@@ -157,9 +157,9 @@ export default function BoardDetailClient({
         <ul>
           {posts.map((p) => (
             <li key={p.id} style={{ marginBottom: 8 }}>
-              <a href={`/boards/${board.id}/${p.id}`}>
+              <Link href={`/boards/${board.id}/${p.id}`}>
                 [{p.status}] {p.title} {p.isSecret ? "🔒" : ""}
-              </a>
+              </Link>
             </li>
           ))}
         </ul>

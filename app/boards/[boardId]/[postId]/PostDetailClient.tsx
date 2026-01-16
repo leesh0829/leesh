@@ -21,6 +21,25 @@ type Comment = {
   author: { name: string | null; email: string | null };
 };
 
+function extractApiMessage(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object") return null;
+
+  const record = payload as Record<string, unknown>;
+  const message = record["message"];
+
+  if (typeof message !== "string") return null;
+
+  return message.trim() || null;
+}
+
+async function readJsonSafely(res: Response): Promise<unknown> {
+  try {
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
 export default function PostDetailClient({
   boardName,
   boardId,
@@ -35,6 +54,7 @@ export default function PostDetailClient({
 
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
+  const [commentsError, setCommentsError] = useState<string | null>(null);
 
   const router = useRouter();
 
@@ -43,17 +63,33 @@ export default function PostDetailClient({
   }, [post.locked, post.isSecret]);
 
   const loadComments = async () => {
+    setCommentsError(null);
     const res = await fetch(`/api/boards/${boardId}/posts/${post.id}/comments`);
-    if (res.ok) setComments(await res.json());
+    if (res.ok) {
+      setComments(await res.json());
+      return;
+    }
+
+    const payload = await readJsonSafely(res);
+    const msg = extractApiMessage(payload) ?? "댓글 처리 실패";
+    setCommentsError(`${res.status} ${res.statusText} · ${msg}`);
   };
 
   useEffect(() => {
     let alive = true;
 
     (async () => {
+      setCommentsError(null);
       const res = await fetch(`/api/boards/${boardId}/posts/${post.id}/comments`);
       if (!alive) return;
-      if (res.ok) setComments(await res.json());
+      if (res.ok) {
+        setComments(await res.json());
+        return;
+      }
+
+      const payload = await readJsonSafely(res);
+      const msg = extractApiMessage(payload) ?? "댓글 처리 실패";
+      setCommentsError(`${res.status} ${res.statusText} · ${msg}`);
     })();
 
     return () => {
@@ -72,7 +108,6 @@ export default function PostDetailClient({
 
       if (res.ok) {
         setPw("");
-        // ✅ 서버가 쿠키 읽고 unlocked 상태로 다시 내려주게
         router.refresh();
       } else {
         const err = await res.json().catch(() => ({}));
@@ -94,8 +129,9 @@ export default function PostDetailClient({
       setNewComment("");
       loadComments();
     } else {
-      const err = await res.json().catch(() => ({}));
-      alert(err.message ?? "댓글 등록 실패");
+      const payload = await readJsonSafely(res);
+      const msg = extractApiMessage(payload) ?? "댓글 처리 실패";
+      setCommentsError(`${res.status} ${res.statusText} · ${msg}`);
     }
   };
 

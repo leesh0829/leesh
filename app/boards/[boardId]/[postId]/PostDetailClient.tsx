@@ -12,6 +12,10 @@ type Post = {
   status: string;
   createdAt: string;
   locked?: boolean;
+  startAt?: string | null;
+  endAt?: string | null;
+  allDay?: boolean;
+  canEdit?: boolean;
 };
 
 type Comment = {
@@ -20,6 +24,18 @@ type Comment = {
   createdAt: string;
   author: { name: string | null; email: string | null };
 };
+
+function toDatetimeLocalValue(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
+}
 
 function extractApiMessage(payload: unknown): string | null {
   if (!payload || typeof payload !== "object") return null;
@@ -55,6 +71,22 @@ export default function PostDetailClient({
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
   const [commentsError, setCommentsError] = useState<string | null>(null);
+  const [startLocal, setStartLocal] = useState(() => toDatetimeLocalValue(post.startAt ?? null));
+  const [endLocal, setEndLocal] = useState(() => toDatetimeLocalValue(post.endAt ?? null));
+  const [allDay, setAllDay] = useState(() => !!post.allDay);
+
+
+  const saveSchedule = async () => {
+    const startAt = startLocal ? new Date(startLocal).toISOString() : null;
+    const endAt = endLocal ? new Date(endLocal).toISOString() : null;
+      await fetch(`/api/boards/${boardId}/posts/${post.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ startAt, endAt, allDay }),
+    });
+
+    router.refresh();
+  };
 
   const router = useRouter();
 
@@ -143,6 +175,15 @@ export default function PostDetailClient({
         [{post.status}] {post.title} {post.isSecret ? "🔒" : ""}
       </h1>
 
+      {post.canEdit ? (
+        <section>
+          <input type="datetime-local" value={startLocal} onChange={(e)=>setStartLocal(e.target.value)} />
+          <input type="datetime-local" value={endLocal} onChange={(e)=>setEndLocal(e.target.value)} />
+          <label><input type="checkbox" checked={allDay} onChange={(e)=>setAllDay(e.target.checked)} /> allDay</label>
+          <button onClick={saveSchedule}>일정 저장</button>
+        </section>
+      ) : null}
+
       {locked ? (
         <section style={{ marginTop: 16 }}>
           <p>비밀글입니다. 비밀번호를 입력하세요.</p>
@@ -172,6 +213,10 @@ export default function PostDetailClient({
 
       <section>
         <h3>댓글</h3>
+
+        {commentsError && (
+          <p style={{ color: "crimson", marginTop: 8 }}>{commentsError}</p>
+        )}
 
         <div style={{ display: "flex", gap: 8 }}>
           <input

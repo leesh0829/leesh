@@ -13,8 +13,25 @@ type CalItem = {
   startAt: string | null;
   endAt: string | null;
   allDay: boolean;
-  createdAt: string;
+  createdAt?: string | null;
 };
+
+function extractApiMessage(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object") return null;
+  const record = payload as Record<string, unknown>;
+  const message = record["message"];
+  if (typeof message !== "string") return null;
+  const trimmed = message.trim();
+  return trimmed ? trimmed : null;
+}
+
+async function readJsonSafely(res: Response): Promise<unknown> {
+  try {
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
 
 function pad(n: number) {
   return String(n).padStart(2, "0");
@@ -35,11 +52,19 @@ function daysInMonth(d: Date) {
 export default function CalendarClient() {
   const [cursor, setCursor] = useState(() => new Date());
   const [items, setItems] = useState<CalItem[]>([]);
+  const [err, setErr] = useState<string | null>(null);
   const ym = useMemo(() => toYM(cursor), [cursor]);
 
   const load = async () => {
+    setErr(null);
     const res = await fetch(`/api/calendar?month=${ym}`);
-    if (res.ok) setItems(await res.json());
+    if (res.ok) {
+      setItems(await res.json());
+      return;
+    }
+    const payload = await readJsonSafely(res);
+    const msg = extractApiMessage(payload) ?? "캘린더 불러오기 실패";
+    setErr(`${res.status} ${res.statusText} · ${msg}`);
   };
 
   useEffect(() => {
@@ -47,7 +72,13 @@ export default function CalendarClient() {
     (async () => {
       const res = await fetch(`/api/calendar?month=${ym}`);
       if (!alive) return;
-      if (res.ok) setItems(await res.json());
+      if (res.ok) {
+        setItems(await res.json());
+        return;
+      }
+      const payload = await readJsonSafely(res);
+      const msg = extractApiMessage(payload) ?? "캘린더 불러오기 실패";
+      setErr(`${res.status} ${res.statusText} · ${msg}`);
     })();
     return () => {
       alive = false;
@@ -85,6 +116,8 @@ export default function CalendarClient() {
         <button onClick={goNext}>→</button>
         <button onClick={load} style={{ marginLeft: 12 }}>새로고침</button>
       </div>
+
+      {err && <p style={{ color: "crimson", marginTop: 10 }}>{err}</p>}
 
       <div
         style={{

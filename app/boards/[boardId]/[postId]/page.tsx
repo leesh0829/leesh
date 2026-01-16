@@ -40,6 +40,10 @@ export default async function PostDetailPage({
       status: true,
       createdAt: true,
       authorId: true,
+      priority: true,
+      startAt: true,
+      endAt: true,
+      allDay: true,
     },
   });
   if (!postRaw) return <div>글 없음</div>;
@@ -49,22 +53,25 @@ export default async function PostDetailPage({
   const unlockedByPassword = unlockedIds.includes(postRaw.id);
 
   const isAdmin = user?.role === "ADMIN";
-  const isOwnerOrAuthor =
-  !!user?.id && (postRaw.authorId === user.id || board.ownerId === user.id);
+  const isOwnerOrAuthor = !!user?.id && (postRaw.authorId === user.id || board.ownerId === user.id);
 
   const isPasswordLocked = postRaw.isSecret && !!postRaw.secretPasswordHash;
 
   const canView = isPasswordLocked ? unlockedByPassword || isAdmin : !postRaw.isSecret || isOwnerOrAuthor || isAdmin;
 
   const post = {
-    id: postRaw.id,
-    title: postRaw.title,
-    contentMd: canView ? postRaw.contentMd : "",
-    isSecret: postRaw.isSecret,
-    status: postRaw.status,
-    createdAt: toISOStringSafe(postRaw.createdAt),
-    locked: !canView,
-  };
+  id: postRaw.id,
+  title: postRaw.title,
+  contentMd: canView ? postRaw.contentMd : "",
+  isSecret: postRaw.isSecret,
+  status: postRaw.status,
+  createdAt: toISOStringSafe(postRaw.createdAt),
+  locked: !canView,
+  startAt: postRaw.startAt ? toISOStringSafe(postRaw.startAt) : null,
+  endAt: postRaw.endAt ? toISOStringSafe(postRaw.endAt) : null,
+  allDay: !!postRaw.allDay,
+  canEdit: isOwnerOrAuthor || isAdmin,
+};
 
   return (
     <PostDetailClient boardId={board.id} boardName={board.name} post={post} />

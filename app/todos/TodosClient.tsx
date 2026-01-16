@@ -9,6 +9,23 @@ type TodoItem = {
   createdAt: string;
 };
 
+function extractApiMessage(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object") return null;
+  const record = payload as Record<string, unknown>;
+  const message = record["message"];
+  if (typeof message !== "string") return null;
+  const trimmed = message.trim();
+  return trimmed ? trimmed : null;
+}
+
+async function readJsonSafely(res: Response): Promise<unknown> {
+  try {
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
 function TodoColumn({
   status,
   items,
@@ -63,13 +80,19 @@ export default function TodosClient() {
     setLoading(true);
     setErr(null);
     const res = await fetch("/api/todos", { cache: "no-store" });
-    const data = await res.json().catch(() => null);
     if (!res.ok) {
-      setErr(data?.message ?? "불러오기 실패");
+      const payload = await readJsonSafely(res);
+      const msg = extractApiMessage(payload) ?? "불러오기 실패";
+      setErr(`${res.status} ${res.statusText} · ${msg}`);
       setLoading(false);
       return;
     }
-    setItems(data.items ?? []);
+    const payload = await readJsonSafely(res);
+    const items =
+      payload && typeof payload === "object"
+        ? ((payload as Record<string, unknown>)["items"] as unknown)
+        : null;
+    setItems(Array.isArray(items) ? (items as TodoItem[]) : []);
     setLoading(false);
   }
 
@@ -83,8 +106,9 @@ export default function TodosClient() {
       body: JSON.stringify({ title: t }),
     });
     if (!res.ok) {
-      const d = await res.json().catch(() => ({}));
-      setErr(d?.message ?? "추가 실패");
+      const payload = await readJsonSafely(res);
+      const msg = extractApiMessage(payload) ?? "추가 실패";
+      setErr(`${res.status} ${res.statusText} · ${msg}`);
       return;
     }
     setTitle("");
@@ -98,8 +122,9 @@ export default function TodosClient() {
       body: JSON.stringify({ status }),
     });
     if (!res.ok) {
-      const d = await res.json().catch(() => ({}));
-      setErr(d?.message ?? "변경 실패");
+      const payload = await readJsonSafely(res);
+      const msg = extractApiMessage(payload) ?? "변경 실패";
+      setErr(`${res.status} ${res.statusText} · ${msg}`);
       return;
     }
     await load();
@@ -109,8 +134,9 @@ export default function TodosClient() {
     if (!confirm("삭제?")) return;
     const res = await fetch(`/api/todos/${id}`, { method: "DELETE" });
     if (!res.ok) {
-      const d = await res.json().catch(() => ({}));
-      setErr(d?.message ?? "삭제 실패");
+      const payload = await readJsonSafely(res);
+      const msg = extractApiMessage(payload) ?? "삭제 실패";
+      setErr(`${res.status} ${res.statusText} · ${msg}`);
       return;
     }
     await load();

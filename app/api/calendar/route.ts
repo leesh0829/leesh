@@ -76,7 +76,7 @@ export async function GET(req: Request) {
       startAt: p.startAt ? toISOStringSafe(p.startAt) : null,
       endAt: p.endAt ? toISOStringSafe(p.endAt) : null,
       allDay: p.allDay,
-      createAt: p.createdAt ? toISOStringSafe(p.createdAt) : null,
+      createdAt: p.createdAt ? toISOStringSafe(p.createdAt) : null,
     }));
 
   return NextResponse.json(data);

@@ -35,7 +35,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <div className="flex w-full">
             <Sidebar open={open} onClose={() => setOpen(false)} />
             <div className="flex-1 lg:pl-64">
-                <div className="mx-auto w-full max-w-[1200px] px-4 py-6 lg:px-10">
+                <div className="mx-auto w-full max-w-300 px-4 py-6 lg:px-10">
                     {children}
                 </div>
             </div>

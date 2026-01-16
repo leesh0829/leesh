@@ -45,7 +45,7 @@ export default function HomePage() {
         <Card title="블로그" desc="마크다운 기반 포스팅 + 로그인 댓글" href="/blog"
           actions={[{ label: "목록", href: "/blog" }, { label: "글쓰기", href: "/blog/new" }]}
         />
-        <Card title="게시판" desc="개인 보드(일상/공부로그 등) + 비밀글" href="/boards"
+        <Card title="게시판" desc="개인 보드(할일 정리) + TODO 아젠다와 캘린더 연동" href="/boards"
           actions={[{ label: "보드 보기", href: "/boards" }]}
         />
         <Card title="TODO" desc="TODO / DOING / DONE 관리" href="/todos"

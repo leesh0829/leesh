@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/options";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
+import { cookies } from "next/headers";
+import {
+  UNLOCK_COOKIE_NAME,
+  readUnlockedPostIds,
+  buildUnlockedCookieValue,
+} from "@/app/lib/unlockCookie";
 
 export const runtime = "nodejs";
 
@@ -12,38 +16,45 @@ export async function POST(
 ) {
   const { boardId, postId } = await params;
 
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.email) {
-    return NextResponse.json({ message: "unauthorized" }, { status: 401 });
+  const body = await req.json().catch(() => null);
+  const password = (body?.password as string | undefined)?.trim() ?? "";
+  if (!password) {
+    return NextResponse.json({ message: "password required" }, { status: 400 });
   }
 
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
-  });
-  if (!user) return NextResponse.json({ message: "unauthorized" }, { status: 401 });
-
-  // 보드 소유자 확인
-  const board = await prisma.board.findFirst({
-    where: { id: boardId, ownerId: user.id },
-    select: { id: true },
-  });
-  if (!board) return NextResponse.json({ message: "not found" }, { status: 404 });
-
-  const { password } = await req.json();
-
+  // 글 존재 확인
   const post = await prisma.post.findFirst({
-    where: { id: postId, boardId: boardId },
-    select: { isSecret: true, secretPasswordHash: true, contentMd: true },
+    where: { id: postId, boardId },
+    select: { id: true, isSecret: true, secretPasswordHash: true },
+  });
+  if (!post) return NextResponse.json({ message: "not found" }, { status: 404 });
+
+  // 잠금글이 아닌데 unlock 요청 → 그냥 ok
+  if (!post.isSecret) {
+    return NextResponse.json({ unlocked: true });
+  }
+
+  // 비밀글인데 비번 설정이 없으면(데이터 꼬임) → 잠금 해제 불가 처리
+  if (!post.secretPasswordHash) {
+    return NextResponse.json({ message: "no password set" }, { status: 400 });
+  }
+
+  const ok = await bcrypt.compare(password, post.secretPasswordHash);
+  if (!ok) return NextResponse.json({ message: "wrong password" }, { status: 401 });
+
+  // ✅ 쿠키에 unlock 기록 (세션 쿠키)
+  const jar = await cookies();
+  const current = readUnlockedPostIds(jar.get(UNLOCK_COOKIE_NAME)?.value);
+  const nextValue = buildUnlockedCookieValue([...current, postId]);
+
+  const res = NextResponse.json({ unlocked: true });
+  res.cookies.set(UNLOCK_COOKIE_NAME, nextValue, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    // expires/maxAge 안 줌 => 브라우저 세션 동안만 유지
   });
 
-  if (!post) return NextResponse.json({ message: "not found" }, { status: 404 });
-  if (!post.isSecret) return NextResponse.json({ unlocked: true });
-
-  const hash = post.secretPasswordHash ?? "";
-  const ok = await bcrypt.compare(password ?? "", hash);
-  if (!ok) return NextResponse.json({ message: "wrong password" }, { status: 403 });
-
-  // 통과하면 본문 반환 (세션 저장까지는 다음 단계에서)
-  return NextResponse.json({ unlocked: true, contentMd: post.contentMd });
+  return res;
 }

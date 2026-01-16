@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 type Post = {
   id: string;
@@ -9,6 +11,7 @@ type Post = {
   isSecret: boolean;
   status: string;
   createdAt: string;
+  locked?: boolean;
 };
 
 type Comment = {
@@ -27,11 +30,17 @@ export default function PostDetailClient({
   boardId: string;
   post: Post;
 }) {
-  const [content, setContent] = useState(post.contentMd);
-  const [locked, setLocked] = useState(post.isSecret);
   const [pw, setPw] = useState("");
+  const [unlocking, setUnlocking] = useState(false);
+
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
+
+  const router = useRouter();
+
+  const locked = useMemo(() => {
+    return post.locked ?? post.isSecret;
+  }, [post.locked, post.isSecret]);
 
   const loadComments = async () => {
     const res = await fetch(`/api/boards/${boardId}/posts/${post.id}/comments`);
@@ -39,35 +48,38 @@ export default function PostDetailClient({
   };
 
   useEffect(() => {
-  let alive = true;
+    let alive = true;
 
-  (async () => {
-    const res = await fetch(
-      `/api/boards/${boardId}/posts/${post.id}/comments`
-    );
-    if (!alive) return;
-    if (res.ok) setComments(await res.json());
-  })();
+    (async () => {
+      const res = await fetch(`/api/boards/${boardId}/posts/${post.id}/comments`);
+      if (!alive) return;
+      if (res.ok) setComments(await res.json());
+    })();
+
     return () => {
       alive = false;
     };
   }, [boardId, post.id]);
 
   const unlock = async () => {
-    const res = await fetch(`/api/boards/${boardId}/posts/${post.id}/unlock`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password: pw }),
-    });
+    setUnlocking(true);
+    try {
+      const res = await fetch(`/api/boards/${boardId}/posts/${post.id}/unlock`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: pw }),
+      });
 
-    if (res.ok) {
-      const data = await res.json();
-      setContent(data.contentMd ?? "");
-      setLocked(false);
-      setPw("");
-    } else {
-      const err = await res.json().catch(() => ({}));
-      alert(err.message ?? "비밀번호가 틀렸습니다.");
+      if (res.ok) {
+        setPw("");
+        // ✅ 서버가 쿠키 읽고 unlocked 상태로 다시 내려주게
+        router.refresh();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.message ?? "비밀번호가 틀렸습니다.");
+      }
+    } finally {
+      setUnlocking(false);
     }
   };
 
@@ -89,7 +101,7 @@ export default function PostDetailClient({
 
   return (
     <main style={{ padding: 24, maxWidth: 900 }}>
-      <a href={`/boards/${boardId}`}>← {boardName}</a>
+      <Link href={`/boards/${boardId}`}>← {boardName}</Link>
 
       <h1 style={{ marginTop: 12 }}>
         [{post.status}] {post.title} {post.isSecret ? "🔒" : ""}
@@ -104,13 +116,19 @@ export default function PostDetailClient({
             onChange={(e) => setPw(e.target.value)}
             placeholder="비밀번호"
           />
-          <button onClick={unlock} style={{ marginLeft: 8 }}>
-            열람
+          <button
+            onClick={unlock}
+            disabled={unlocking || !pw}
+            style={{ marginLeft: 8 }}
+          >
+            {unlocking ? "확인 중..." : "열람"}
           </button>
         </section>
       ) : (
         <section style={{ marginTop: 16 }}>
-          <pre style={{ whiteSpace: "pre-wrap" }}>{content || "(본문 없음)"}</pre>
+          <pre style={{ whiteSpace: "pre-wrap" }}>
+            {post.contentMd || "(본문 없음)"}
+          </pre>
         </section>
       )}
 

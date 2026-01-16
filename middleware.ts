@@ -5,7 +5,7 @@ export function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
 
   // 보호할 경로들
-  const protectedPaths = ["/boards", "/calendar"];
+  const protectedPaths = ["/boards", "/calendar", "/todos", "/dashboard"];
   const isProtected = protectedPaths.some(
     (p) => pathname === p || pathname.startsWith(p + "/")
   );
@@ -26,5 +26,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/boards/:path*", "/calendar/:path*"],
+  matcher: ["/boards/:path*", "/calendar/:path*", "/todos/:path*", "/dashboard/:path*"],
 };

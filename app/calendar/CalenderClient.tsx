@@ -53,7 +53,25 @@ export default function CalendarClient() {
   const [cursor, setCursor] = useState(() => new Date());
   const [items, setItems] = useState<CalItem[]>([]);
   const [err, setErr] = useState<string | null>(null);
+  const [boardFilter, setBoardFilter] = useState<string>("ALL");
+  const [statusFilter, setStatusFilter] = useState<"ALL" | CalItem["status"]>("ALL");
   const ym = useMemo(() => toYM(cursor), [cursor]);
+
+  const boardOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const it of items) map.set(it.boardId, it.boardName);
+    return Array.from(map.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [items]);
+
+  const filteredItems = useMemo(() => {
+    return items.filter((it) => {
+      if (boardFilter !== "ALL" && it.boardId !== boardFilter) return false;
+      if (statusFilter !== "ALL" && it.status !== statusFilter) return false;
+      return true;
+    });
+  }, [items, boardFilter, statusFilter]);
 
   const load = async () => {
     setErr(null);
@@ -91,17 +109,28 @@ export default function CalendarClient() {
   const cells = 42; // 6주 고정
 
   const byDay = useMemo(() => {
-    const map = new Map<string, CalItem[]>();
-    for (const it of items) {
-      if (!it.startAt) continue;
-      const d = new Date(it.startAt);
-      const key = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-      const arr = map.get(key) ?? [];
-      arr.push(it);
-      map.set(key, arr);
-    }
-    return map;
-  }, [items]);
+  const map = new Map<string, CalItem[]>();
+  for (const it of filteredItems) {
+    if (!it.startAt) continue;
+    const d = new Date(it.startAt);
+    const key = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const arr = map.get(key) ?? [];
+    arr.push(it);
+    map.set(key, arr);
+  }
+    
+  for (const [k, arr] of map) {
+    arr.sort((a, b) => {
+      const at = a.startAt ? new Date(a.startAt).getTime() : 0;
+      const bt = b.startAt ? new Date(b.startAt).getTime() : 0;
+      if (at !== bt) return at - bt;
+      return a.title.localeCompare(b.title);
+    });
+    map.set(k, arr);
+  }
+
+  return map;
+}, [filteredItems]);
 
   const goPrev = () => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1));
   const goNext = () => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1));
@@ -115,6 +144,32 @@ export default function CalendarClient() {
         <div style={{ fontWeight: 700 }}>{ym}</div>
         <button onClick={goNext}>→</button>
         <button onClick={load} style={{ marginLeft: 12 }}>새로고침</button>
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+          <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            보드
+            <select value={boardFilter} onChange={(e) => setBoardFilter(e.target.value)}>
+              <option value="ALL">전체</option>
+              {boardOptions.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            상태
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as "ALL" | CalItem["status"])}
+            >
+              <option value="ALL">전체</option>
+              <option value="TODO">TODO</option>
+              <option value="DOING">DOING</option>
+              <option value="DONE">DONE</option>
+            </select>
+          </label>
+        </div>
       </div>
 
       {err && <p style={{ color: "crimson", marginTop: 10 }}>{err}</p>}

@@ -1,65 +1,108 @@
-import Image from "next/image";
+import Link from "next/link";
 
-export default function Home() {
+export default function HomePage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <main className="mx-auto w-full max-w-4xl">
+      <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-black">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Leesh</h1>
+            <p className="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
+              Next.js(App Router) + TypeScript + PostgreSQL(Prisma)로 만드는 개인 사이트.
+              포트폴리오 / 블로그 / 게시판 / TODO / 캘린더까지 한 번에.
+            </p>
+          </div>
+
+          <div className="flex gap-2">
+            <Link
+              href="/dashboard"
+              className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-black dark:hover:bg-zinc-200"
+            >
+              대시보드
+            </Link>
+            <Link
+              href="/blog"
+              className="rounded-md border border-zinc-200 px-4 py-2 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-900"
+            >
+              블로그
+            </Link>
+          </div>
+        </div>
+
+        <div className="mt-5 flex flex-wrap gap-2">
+          {["Next.js 16","React 19","TypeScript","Prisma","PostgreSQL","NextAuth","Tailwind"].map((t) => (
+            <span
+              key={t}
+              className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300"
+            >
+              {t}
+            </span>
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-6 grid gap-4 sm:grid-cols-2">
+        <Card title="블로그" desc="마크다운 기반 포스팅 + 로그인 댓글" href="/blog"
+          actions={[{ label: "목록", href: "/blog" }, { label: "글쓰기", href: "/blog/new" }]}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+        <Card title="게시판" desc="개인 보드(일상/공부로그 등) + 비밀글" href="/boards"
+          actions={[{ label: "보드 보기", href: "/boards" }]}
+        />
+        <Card title="TODO" desc="TODO / DOING / DONE 관리" href="/todos"
+          actions={[{ label: "TODO 가기", href: "/todos" }]}
+        />
+        <Card title="캘린더" desc="월 단위 일정 뷰" href="/calendar"
+          actions={[{ label: "캘린더 가기", href: "/calendar" }]}
+        />
+      </section>
+
+      <section className="mt-6 rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-black">
+        <h2 className="text-base font-semibold">다음에 할 것들</h2>
+        <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-zinc-700 dark:text-zinc-300">
+          <li>할일1</li>
+          <li>할일2</li>
+          <li>할일3</li>
+          <li>할일4</li>
+        </ul>
+      </section>
+    </main>
+  );
+}
+
+function Card({
+  title, desc, href, actions,
+}: {
+  title: string;
+  desc: string;
+  href: string;
+  actions: Array<{ label: string; href: string }>;
+}) {
+  return (
+    <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-black">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-base font-semibold">{title}</h3>
+          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{desc}</p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+        <Link
+          href={href}
+          className="shrink-0 rounded-md border border-zinc-200 px-3 py-1.5 text-sm hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-900"
+        >
+          열기
+        </Link>
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        {actions.map((a) => (
+          <Link
+            key={a.href}
+            href={a.href}
+            className="rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-black dark:hover:bg-zinc-200"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+            {a.label}
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }

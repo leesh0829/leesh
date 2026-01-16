@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 
 type CalItem = {
   id: string;
@@ -122,8 +123,8 @@ export default function CalendarClient() {
 
               <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 6 }}>
                 {list.slice(0, 4).map((it) => (
-                  <a
-                    key={it.id}
+                  <Link 
+                    key={it.id} 
                     href={`/boards/${it.boardId}/${it.id}`}
                     style={{
                       display: "block",
@@ -133,9 +134,9 @@ export default function CalendarClient() {
                       textDecoration: "none",
                     }}
                     title={`${it.boardName} · ${it.status}`}
-                  >
+                    >
                     {it.isSecret ? "🔒 " : ""}[{it.status}] {it.title}
-                  </a>
+                    </Link>
                 ))}
                 {list.length > 4 ? (
                   <div style={{ fontSize: 12, opacity: 0.7 }}>+{list.length - 4} more</div>

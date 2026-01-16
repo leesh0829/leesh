@@ -7,8 +7,10 @@ export const runtime = "nodejs";
 
 export async function GET(
   _req: Request,
-  { params }: { params: { boardId: string } }
+  { params }: { params: Promise<{ boardId: string }> }
 ) {
+  const { boardId } = await params;
+
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) {
     return NextResponse.json({ message: "unauthorized" }, { status: 401 });
@@ -21,7 +23,7 @@ export async function GET(
   if (!user) return NextResponse.json({ message: "unauthorized" }, { status: 401 });
 
   const board = await prisma.board.findFirst({
-    where: { id: params.boardId, ownerId: user.id },
+    where: { id: boardId, ownerId: user.id },
   });
   if (!board) return NextResponse.json({ message: "not found" }, { status: 404 });
 

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/options";
+import { toISOStringSafe } from "@/app/lib/date";
 
 export const runtime = "nodejs";
 
@@ -41,11 +42,10 @@ export async function GET(req: Request) {
   const posts = await prisma.post.findMany({
     where: {
       boardId: { in: boardIds },
+      startAt: { not: null, lt: end },              // 시작이 다음달 CalenderClient.tsx시작보다 전
       OR: [
-        { startAt: { gte: start, lt: end } },
-        { endAt: { gte: start, lt: end } },
-        // startAt만 있는 경우 대비
-        { startAt: { not: null } },
+        { endAt: null, startAt: { gte: start } },   // endAt 없으면 시작이 이번달 안
+        { endAt: { gte: start } },                  // endAt 있으면 끝이 이번달 시작 이후
       ],
     },
     select: {
@@ -59,7 +59,7 @@ export async function GET(req: Request) {
       allDay: true,
       createdAt: true,
     },
-    orderBy: { startAt: "asc" },
+    orderBy: [{ startAt: "asc" }, {createdAt: "asc"}],
   });
 
   // Date -> string 직렬화
@@ -73,10 +73,10 @@ export async function GET(req: Request) {
       title: p.title,
       status: p.status,
       isSecret: p.isSecret,
-      startAt: p.startAt ? p.startAt.toISOString() : null,
-      endAt: p.endAt ? p.endAt.toISOString() : null,
+      startAt: p.startAt ? toISOStringSafe(p.startAt) : null,
+      endAt: p.endAt ? toISOStringSafe(p.endAt) : null,
       allDay: p.allDay,
-      createdAt: p.createdAt.toISOString(),
+      createAt: p.createdAt ? toISOStringSafe(p.createdAt) : null,
     }));
 
   return NextResponse.json(data);

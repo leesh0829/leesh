@@ -1,30 +1,41 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { getToken } from "next-auth/jwt";
 
-export function middleware(req: NextRequest) {
-  const { pathname, search } = req.nextUrl;
+const PUBLIC_PREFIXES = [
+  "/",
+  "/login",
+  "/sign-up",
+  "/blog",
+  "/boards",
+  "/api",
+  "/calendar",
+  "/dashboard",
+];
 
-  // 보호할 경로들
-  const protectedPaths = ["/boards", "/calendar", "/todos", "/dashboard"];
-  const isProtected = protectedPaths.some(
-    (p) => pathname === p || pathname.startsWith(p + "/")
-  );
+const PROTECTED_PREFIXES = [
+  "/permission", // 이것만 잠금 유지
+];
 
-  // next-auth 세션 쿠키(환경/버전에 따라 이름이 다름)
-  const hasSession =
-    req.cookies.has("next-auth.session-token") ||
-    req.cookies.has("__Secure-next-auth.session-token");
+export async function middleware(req: NextRequest) {
+  const { pathname } = req.nextUrl;
 
-  if (isProtected && !hasSession) {
-    const url = req.nextUrl.clone();
-    url.pathname = "/login";
-    url.search = `?next=${encodeURIComponent(pathname + search)}`;
-    return NextResponse.redirect(url);
+  if (PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
+    return NextResponse.next();
+  }
+
+  if (PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
+    const token = await getToken({ req });
+    if (!token) {
+      const url = req.nextUrl.clone();
+      url.pathname = "/login";
+      return NextResponse.redirect(url);
+    }
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/boards/:path*", "/calendar/:path*", "/todos/:path*", "/dashboard/:path*"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };

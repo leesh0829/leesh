@@ -15,11 +15,11 @@ export default function VerifyEmailPage() {
     (async () => {
       const res = await fetch(`/api/verify-email?email=${encodeURIComponent(email)}&token=${encodeURIComponent(token)}`);
       if (res.ok) {
-        setMsg("✅ 이메일 인증 완료! 로그인 페이지로 이동합니다...");
+        setMsg("이메일 인증 완료! 로그인 페이지로 이동합니다...");
         setTimeout(() => router.push("/login"), 800);
       } else {
         const d = await res.json().catch(() => ({}));
-        setMsg(`❌ 인증 실패: ${d?.message ?? "unknown"}`);
+        setMsg(`인증 실패: ${d?.message ?? "unknown"}`);
       }
     })();
   }, [sp, router]);

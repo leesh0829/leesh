@@ -11,20 +11,22 @@ export default async function BoardDetailPage(
 ) {
   const { boardId } = await props.params;
 
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.email) return <main style={{ padding: 24 }}>로그인이 필요합니다.</main>;
-
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
-  });
-  if (!user) return <main style={{ padding: 24 }}>사용자 없음</main>;
-
-  const board = await prisma.board.findFirst({
-    where: { id: boardId, ownerId: user.id },
-    select: { id: true, name: true, description: true },
+  const board = await prisma.board.findUnique({
+    where: { id: boardId },
+    select: { id: true, name: true, description: true, ownerId: true },
   });
   if (!board) return <main style={{ padding: 24 }}>보드를 찾을 수 없습니다.</main>;
+
+  const session = await getServerSession(authOptions);
+  const me =
+    session?.user?.email
+      ? await prisma.user.findUnique({
+          where: { email: session.user.email },
+          select: { id: true },
+        })
+      : null;
+
+  const canCreate = !!me?.id && me.id === board.ownerId;
 
   const postsRaw = await prisma.post.findMany({
     where: { boardId: board.id },
@@ -41,20 +43,18 @@ export default async function BoardDetailPage(
     },
   });
 
-  const posts = postsRaw.map(p => ({
+  const safePosts = postsRaw.map((p) => ({
     ...p,
     createdAt: toISOStringSafe(p.createdAt),
     startAt: toISOStringNullable(p.startAt),
     endAt: toISOStringNullable(p.endAt),
   }));
 
-  const safePosts = posts.map((p) => ({
-    ...p,
-    createdAt: p.createdAt,
-    startAt: p.startAt ? p.startAt : null,
-    endAt: p.endAt ? p.endAt : null,
-  }));
-
-
-  return <BoardDetailClient board={board} initialPosts={safePosts} />;
+  return (
+    <BoardDetailClient
+      board={{ id: board.id, name: board.name, description: board.description }}
+      initialPosts={safePosts}
+      canCreate={canCreate}
+    />
+  );
 }

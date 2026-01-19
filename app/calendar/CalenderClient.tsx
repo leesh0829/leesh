@@ -159,6 +159,33 @@ export default function CalendarClient() {
     closeEdit();
   };
 
+  const deleteEdit = async () => {
+    if (!editing) return;
+
+    // 브라우저 confirm 싫으면 빼도 됨
+    const ok = window.confirm("이 일정을 삭제할까요?");
+    if (!ok) return;
+
+    setSaving(true);
+    setErr(null);
+
+    const res = await fetch(`/api/boards/${editing.boardId}/posts/${editing.id}`, {
+      method: "DELETE",
+    });
+
+    if (!res.ok) {
+      const payload = await readJsonSafely(res);
+      const msg = extractApiMessage(payload) ?? "삭제 실패";
+      setErr(`${res.status} ${res.statusText} · ${msg}`);
+      setSaving(false);
+      return;
+    }
+
+    await load();
+    setSaving(false);
+    closeEdit();
+  };
+
   const shiftItemDays = async (it: CalItem, days: number) => {
     setErr(null);
 
@@ -428,10 +455,16 @@ export default function CalendarClient() {
               </label>
 
               <div style={{ display: "flex", gap: 8, justifyContent: "space-between", marginTop: 6 }}>
-                <Link href={`/boards/${editing.boardId}/${editing.id}`}>자세히 보기</Link>
+              <Link href={`/boards/${editing.boardId}/${editing.id}`}>자세히 보기</Link>
+
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={deleteEdit} disabled={saving}>
+                  삭제
+                </button>
                 <button onClick={saveEdit} disabled={saving}>
                   {saving ? "저장중..." : "저장"}
                 </button>
+              </div>
               </div>
             </div>
           </div>

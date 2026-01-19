@@ -3,6 +3,8 @@ import { prisma } from "@/app/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/options";
 import { toISOStringSafe } from "@/app/lib/date";
+import { unauthorized } from "next/navigation";
+import { kMaxLength } from "buffer";
 
 export const runtime = "nodejs";
 
@@ -128,4 +130,44 @@ export async function PATCH(
     endAt: updated.endAt ? toISOStringSafe(updated.endAt) : null,
     updatedAt: toISOStringSafe(updated.updatedAt),
   });
+}
+
+export async function DELETE(
+  req: Request,
+  { params }: { params: Promise<{ boardId: string; postId: string }> }
+) {
+  const { boardId, postId } = await params;
+
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.email) {
+    return NextResponse.json({ message: "unauthorized" }, { status: 401 });
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { email: session.user.email },
+    select: { id: true },
+  });
+  if (!user) return NextResponse.json({ message: "unauthorized" }, { status: 401 });
+
+  const post = await prisma.post.findFirst({
+    where: { id: postId, boardId },
+    select: { id: true, authorId: true },
+  });
+  if (!post) return NextResponse.json({ message: "not found" }, { status: 404 });
+
+  const board = await prisma.board.findUnique({
+    where: { id: boardId },
+    select: { ownerId: true },
+  });
+  if (!board) return NextResponse.json({ message: "aunauthorized"}, { status: 401 });
+
+  if (post.authorId !== user.id && board.ownerId !== user.id) {
+    return NextResponse.json({ message: "forbidden" }, { status: 403 });
+  }
+
+  await prisma.post.delete({
+    where: { id: postId },
+  });
+
+  return NextResponse.json({ ok: true });
 }

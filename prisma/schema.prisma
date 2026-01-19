@@ -112,7 +112,8 @@ model Post {
 
   comments Comment[]
 
-  slug String? @unique
+  slug String? 
+  @@unique([boardId, slug])
 }
 
 model Comment {

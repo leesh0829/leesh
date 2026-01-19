@@ -5,6 +5,7 @@ import Link from "next/link";
 
 type CalItem = {
   id: string;
+  slug: string|null;
   boardId: string;
   boardName: string;
   title: string;
@@ -344,48 +345,55 @@ export default function CalendarClient() {
 
               <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 6 }}>
                 {list.slice(0, 4).map((it) => (
-                    <button
-                      type="button"
-                      onClick={() => openEdit(it)}
-                      style={{
-                        width: "100%",
-                        textAlign: "left",
-                        padding: "4px 6px",
-                        borderRadius: 6,
-                        border: "1px solid #ddd",
-                        background: "white",
-                        cursor: "pointer",
-                      }}
-                      key={it.id}
-                      title={`${it.boardName} · ${it.status}`}
-                    >
-                      <div style={{ fontSize: 12, opacity: 0.8 }}>{it.isSecret ? "🔒 " : ""}{it.status}</div>
-                      <div style={{ fontWeight: 600 }}>{it.title}</div>
-                      <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            shiftItemDays(it, -1);
-                          }}
-                          style={{ padding: "2px 6px" }}
-                          title="하루 전으로"
-                        >
-                          ←
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            shiftItemDays(it, 1);
-                          }}
-                          style={{ padding: "2px 6px"}}
-                          title="하루 뒤로"
-                        >
-                          →
-                        </button>
-                      </div>
-                    </button>
+                  <div
+                    key={it.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => openEdit(it)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        openEdit(it);
+                      }
+                    }}
+                    style={{
+                      width: "100%",
+                      textAlign: "left",
+                      padding: "4px 6px",
+                      borderRadius: 6,
+                      border: "1px solid #ddd",
+                      background: "white",
+                      cursor: "pointer",
+                    }}
+                    title={it.title}
+                  >
+                    <div style={{ fontWeight: 600 }}>{it.title}</div>
+                    <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          shiftItemDays(it, -1);
+                        }}
+                        style={{ padding: "2px 6px" }}
+                        title="하루 전으로"
+                      >
+                        ←
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          shiftItemDays(it, 1);
+                        }}
+                        style={{ padding: "2px 6px" }}
+                        title="하루 후로"
+                      >
+                        →
+                      </button>
+                    </div>
+                  </div>
                 ))}
                 {list.length > 4 ? (
                   <div style={{ fontSize: 12, opacity: 0.7 }}>+{list.length - 4} more</div>
@@ -455,7 +463,7 @@ export default function CalendarClient() {
               </label>
 
               <div style={{ display: "flex", gap: 8, justifyContent: "space-between", marginTop: 6 }}>
-              <Link href={`/boards/${editing.boardId}/${editing.id}`}>자세히 보기</Link>
+              <Link href={`/boards/${editing.boardId}/${encodeURIComponent(editing.slug ?? editing.id)}`}>자세히 보기</Link>
 
               <div style={{ display: "flex", gap: 8 }}>
                 <button onClick={deleteEdit} disabled={saving}>

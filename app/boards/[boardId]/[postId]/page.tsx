@@ -30,7 +30,10 @@ export default async function PostDetailPage({
   if (!board) return <main style={{ padding: 24 }}>보드를 찾을 수 없습니다.</main>;
 
   const postRaw = await prisma.post.findFirst({
-    where: { id: postId, boardId },
+    where: {
+     boardId,
+     OR: [{ id: postId }, { slug: postId }],
+    },
     select: {
       id: true,
       title: true,

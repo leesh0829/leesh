@@ -49,7 +49,7 @@ export async function PUT(
   // 작성자 + BLOG 타입 보드 글만 수정 가능
   const existing = await prisma.post.findFirst({
     where: { id: postId, authorId: userId, board: { type: "BLOG" } },
-    select: { id: true, slug: true },
+    select: { id: true, boardId: true, slug: true },
   });
   if (!existing) return NextResponse.json({ message: "not found" }, { status: 404 });
 
@@ -60,7 +60,7 @@ export async function PUT(
     let slug = baseSlug;
     for (let i = 2; i < 50; i++) {
       const dup = await prisma.post.findFirst({
-        where: { slug, NOT: { id: postId } },
+        where: { boardId: existing.boardId, slug, NOT: { id: postId } },
         select: { id: true },
       });
       if (!dup) break;

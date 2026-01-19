@@ -37,6 +37,7 @@ export default async function BoardDetailPage(
       startAt: true,
       endAt: true,
       createdAt: true,
+      slug: true,
     },
   });
 

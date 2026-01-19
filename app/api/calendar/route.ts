@@ -50,6 +50,7 @@ export async function GET(req: Request) {
     },
     select: {
       id: true,
+      slug: true,
       boardId: true,
       title: true,
       status: true,
@@ -68,6 +69,7 @@ export async function GET(req: Request) {
     .filter((p) => p.startAt) // 캘린더는 startAt 기준으로 표시
     .map((p) => ({
       id: p.id,
+      slug: p.slug ?? null,
       boardId: p.boardId,
       boardName: boardNameMap.get(p.boardId) ?? "",
       title: p.title,

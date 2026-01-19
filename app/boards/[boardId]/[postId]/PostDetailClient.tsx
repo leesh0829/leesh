@@ -6,6 +6,7 @@ import Link from "next/link";
 
 type Post = {
   id: string;
+  slug?: string|null;
   title: string;
   contentMd: string;
   isSecret: boolean;

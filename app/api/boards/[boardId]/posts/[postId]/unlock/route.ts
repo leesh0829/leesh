@@ -24,7 +24,10 @@ export async function POST(
 
   // 글 존재 확인
   const post = await prisma.post.findFirst({
-    where: { id: postId, boardId },
+     where: {
+        boardId,
+        OR: [{ id: postId }, { slug: postId }],
+      },
     select: { id: true, isSecret: true, secretPasswordHash: true },
   });
   if (!post) return NextResponse.json({ message: "not found" }, { status: 404 });
@@ -42,10 +45,10 @@ export async function POST(
   const ok = await bcrypt.compare(password, post.secretPasswordHash);
   if (!ok) return NextResponse.json({ message: "wrong password" }, { status: 401 });
 
-  // ✅ 쿠키에 unlock 기록 (세션 쿠키)
+  // 쿠키에 unlock 기록 (세션 쿠키)
   const jar = await cookies();
   const current = readUnlockedPostIds(jar.get(UNLOCK_COOKIE_NAME)?.value);
-  const nextValue = buildUnlockedCookieValue([...current, postId]);
+  const nextValue = buildUnlockedCookieValue([...current, post.id]);
 
   const res = NextResponse.json({ unlocked: true });
   res.cookies.set(UNLOCK_COOKIE_NAME, nextValue, {

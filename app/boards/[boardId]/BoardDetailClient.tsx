@@ -6,6 +6,7 @@ import Link from "next/link";
 type Board = { id: string; name: string; description: string | null };
 type Post = {
   id: string;
+  slug?: string|null;
   title: string;
   status: "TODO" | "DOING" | "DONE";
   isSecret: boolean;
@@ -157,7 +158,7 @@ export default function BoardDetailClient({
         <ul>
           {posts.map((p) => (
             <li key={p.id} style={{ marginBottom: 8 }}>
-              <Link href={`/boards/${board.id}/${p.id}`}>
+              <Link href={`/boards/${board.id}/${encodeURIComponent(p.slug ?? p.id)}`}>
                 [{p.status}] {p.title} {p.isSecret ? "🔒" : ""}
               </Link>
             </li>

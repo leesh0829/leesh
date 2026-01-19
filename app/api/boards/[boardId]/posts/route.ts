@@ -8,6 +8,16 @@ export const runtime = "nodejs";
 
 type Ctx = { params: Promise<{ boardId: string }> };
 
+function slugify(input: string): string {
+  return input
+    .trim()
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
 export async function GET(
   _req: Request,
   ctx: Ctx
@@ -35,6 +45,7 @@ export async function GET(
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
+      slug: true,
       title: true,
       status: true,
       isSecret: true,
@@ -86,6 +97,18 @@ export async function POST(
     secretPasswordHash = await bcrypt.hash(secretPassword, 10);
   }
 
+  const baseSlug = slugify(title) || "post";
+  let slug = baseSlug;
+
+  for (let i = 2; i < 50; i++) {
+    const exists = await prisma.post.findFirst({
+      where: { boardId, slug },
+      select: { id: true },
+    });
+    if (!exists) break;
+    slug = `${baseSlug}-${i}`;
+  }
+
   const post = await prisma.post.create({
     data: {
       boardId,
@@ -99,8 +122,9 @@ export async function POST(
       allDay: !!body.allDay,
       isSecret,
       secretPasswordHash,
+      slug,
     },
-    select: { id: true },
+    select: { id: true, slug: true },
   });
 
   return NextResponse.json(post, { status: 201 });

@@ -48,7 +48,10 @@ export async function POST(req: Request) {
   // slug 충돌 방지: 있으면 -2, -3...
   let slug = baseSlug;
   for (let i = 2; i < 50; i++) {
-    const exists = await prisma.post.findFirst({ where: { slug } , select: { id: true } });
+    const exists = await prisma.post.findFirst({
+      where: { boardId, slug },
+      select: { id: true },
+    });
     if (!exists) break;
     slug = `${baseSlug}-${i}`;
   }

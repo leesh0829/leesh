@@ -57,7 +57,7 @@ export default async function PostDetailPage({
 
   const isPasswordLocked = postRaw.isSecret && !!postRaw.secretPasswordHash;
 
-  const canView = isPasswordLocked ? unlockedByPassword || isAdmin : !postRaw.isSecret || isOwnerOrAuthor || isAdmin;
+  const canView = isPasswordLocked ? unlockedByPassword || isOwnerOrAuthor || isAdmin : !postRaw.isSecret || isOwnerOrAuthor || isAdmin;
 
   const post = {
   id: postRaw.id,

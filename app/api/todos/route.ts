@@ -38,12 +38,15 @@ export async function GET() {
   const itemsRaw = await prisma.post.findMany({
     where: { boardId: board.id },
     orderBy: { createdAt: "desc" },
-    select: { id: true, title: true, status: true, createdAt: true },
+    select: { id: true, title: true, status: true, createdAt: true, startAt: true, endAt: true, allDay: true },
   });
 
   const items = itemsRaw.map((t) => ({
     ...t,
     createdAt: toISOStringSafe(t.createdAt),
+    startAt: t.startAt ? toISOStringSafe(t.startAt) : null,
+    endAt: t.endAt ? toISOStringSafe(t.endAt) : null,
+    allDay: !!t.allDay,
   }));
 
   return NextResponse.json({ boardId: board.id, items });
@@ -57,6 +60,12 @@ export async function POST(req: Request) {
   const title = (body?.title as string | undefined)?.trim();
   if (!title) return NextResponse.json({ message: "title required" }, { status: 400 });
 
+  const startAtRaw = body?.startAt as string | null | undefined;
+  const endAtRaw = body?.endAt as string | null | undefined;
+  const allDay = typeof body?.allDay === "boolean" ? body.allDay : true;
+  const startAt = typeof startAtRaw === "string" && startAtRaw ? new Date(startAtRaw) : startAtRaw === null ? null : null;
+  const endAt = typeof endAtRaw === "string" && endAtRaw ? new Date(endAtRaw) : endAtRaw === null ? null : null;
+
   const board = await getOrCreateTodoBoard(user.id);
 
   const created = await prisma.post.create({
@@ -68,7 +77,9 @@ export async function POST(req: Request) {
       status: "TODO",
       isSecret: false,
       priority: 0,
-      allDay: false,
+      allDay,
+      startAt,
+      endAt,
     },
     select: { id: true },
   });

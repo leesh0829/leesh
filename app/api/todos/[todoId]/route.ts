@@ -25,7 +25,19 @@ export async function PATCH(
 
   const body = await req.json().catch(() => null);
   const status = body?.status as "TODO" | "DOING" | "DONE" | undefined;
-  if (!status) return NextResponse.json({ message: "status required" }, { status: 400 });
+  const title = typeof body?.title === "string" ? body.title.trim() : undefined;
+  const allDay = typeof body?.allDay === "boolean" ? body.allDay : undefined;
+
+  const startAtRaw = body?.startAt as string | null | undefined;
+  const endAtRaw = body?.endAt as string | null | undefined;
+  const startAt =
+    typeof startAtRaw === "string" && startAtRaw ? new Date(startAtRaw) : startAtRaw === null ? null : undefined;
+  const endAt =
+    typeof endAtRaw === "string" && endAtRaw ? new Date(endAtRaw) : endAtRaw === null ? null : undefined;
+
+  if (!status && title === undefined && allDay === undefined && startAt === undefined && endAt === undefined) {
+    return NextResponse.json({ message: "nothing to update" }, { status: 400 });
+  }
 
   const todo = await prisma.post.findFirst({
     where: { id: todoId, authorId: userId, board: { type: "TODO" } },
@@ -33,7 +45,17 @@ export async function PATCH(
   });
   if (!todo) return NextResponse.json({ message: "not found" }, { status: 404 });
 
-  await prisma.post.update({ where: { id: todoId }, data: { status } });
+  await prisma.post.update({
+    where: { id: todoId },
+    data: {
+      ...(status ? { status } : {}),
+      ...(title !== undefined ? { title } : {}),
+      ...(allDay !== undefined ? { allDay } : {}),
+      ...(startAt !== undefined ? { startAt } : {}),
+      ...(endAt !== undefined ? { endAt } : {}),
+    },
+  });
+  
   return NextResponse.json({ ok: true });
 }
 

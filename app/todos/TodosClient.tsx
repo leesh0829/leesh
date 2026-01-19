@@ -7,6 +7,9 @@ type TodoItem = {
   title: string;
   status: "TODO" | "DOING" | "DONE";
   createdAt: string;
+  startAt?: string | null;
+  endAt?: string | null;
+  allDay?: boolean;
 };
 
 function extractApiMessage(payload: unknown): string | null {
@@ -73,6 +76,8 @@ function TodoColumn({
 export default function TodosClient() {
   const [items, setItems] = useState<TodoItem[]>([]);
   const [title, setTitle] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
 
@@ -100,10 +105,13 @@ export default function TodosClient() {
     const t = title.trim();
     if (!t) return;
 
+    const startAt = startDate ? new Date(`${startDate}T00:00:00`).toISOString() : null;
+    const endAt = endDate ? new Date(`${endDate}T23:59:59`).toISOString() : null;
+
     const res = await fetch("/api/todos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: t }),
+      body: JSON.stringify({ title: t, startAt, endAt, allDay: true }),
     });
     if (!res.ok) {
       const payload = await readJsonSafely(res);
@@ -112,6 +120,8 @@ export default function TodosClient() {
       return;
     }
     setTitle("");
+    setStartDate("");
+    setEndDate("");
     await load();
   }
 
@@ -162,6 +172,18 @@ export default function TodosClient() {
           onChange={(e) => setTitle(e.target.value)}
           placeholder="할 일 추가..."
           style={{ flex: 1, padding: 10 }}
+        />
+        <input
+          type="date"
+          value={startDate}
+          onChange={(e) => setStartDate(e.target.value)}
+          style={{ padding: 10 }}
+        />
+        <input
+          type="date"
+          value={endDate}
+          onChange={(e) => setEndDate(e.target.value)}
+          style={{ padding: 10 }}
         />
         <button onClick={add}>추가</button>
         <button onClick={load} disabled={loading}>

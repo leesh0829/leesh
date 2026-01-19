@@ -27,6 +27,7 @@ model User {
 
   accounts Account[]
   sessions Session[]
+  emailVerified DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -33,6 +33,18 @@ async function readJsonSafely(res: Response): Promise<unknown> {
   }
 }
 
+function toDatetimeLocalValue(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
+}
+
 function pad(n: number) {
   return String(n).padStart(2, "0");
 }
@@ -55,6 +67,13 @@ export default function CalendarClient() {
   const [err, setErr] = useState<string | null>(null);
   const [boardFilter, setBoardFilter] = useState<string>("ALL");
   const [statusFilter, setStatusFilter] = useState<"ALL" | CalItem["status"]>("ALL");
+  const [editing, setEditing] = useState<CalItem | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editStatus, setEditStatus] = useState<CalItem["status"]>("TODO");
+  const [editStart, setEditStart] = useState(""); // datetime-local
+  const [editEnd, setEditEnd] = useState("");     // datetime-local
+  const [editAllDay, setEditAllDay] = useState(false);
+  const [saving, setSaving] = useState(false);
   const ym = useMemo(() => toYM(cursor), [cursor]);
 
   const boardOptions = useMemo(() => {
@@ -83,6 +102,64 @@ export default function CalendarClient() {
     const payload = await readJsonSafely(res);
     const msg = extractApiMessage(payload) ?? "캘린더 불러오기 실패";
     setErr(`${res.status} ${res.statusText} · ${msg}`);
+  };
+
+  const openEdit = (it: CalItem) => {
+    setEditing(it);
+    setEditTitle(it.title);
+    setEditStatus(it.status);
+    setEditStart(toDatetimeLocalValue(it.startAt));
+    setEditEnd(toDatetimeLocalValue(it.endAt));
+    setEditAllDay(!!it.allDay);
+  };
+
+  const closeEdit = () => {
+    setEditing(null);
+  };
+
+  const saveEdit = async () => {
+    if (!editing) return;
+    setSaving(true);
+    setErr(null);
+
+    const startAt = editStart ? new Date(editStart).toISOString() : null;
+    const endAt = editEnd ? new Date(editEnd).toISOString() : null;
+
+    // 1) 일정(게시글) 날짜/allDay 업데이트
+    const r1 = await fetch(`/api/boards/${editing.boardId}/posts/${editing.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ startAt, endAt, allDay: editAllDay }),
+    });
+
+    if (!r1.ok) {
+      const payload = await readJsonSafely(r1);
+      const msg = extractApiMessage(payload) ?? "일정 저장 실패";
+      setErr(`${r1.status} ${r1.statusText} · ${msg}`);
+      setSaving(false);
+      return;
+    }
+
+    // 2) 제목/상태 업데이트 (너 프로젝트에 이미 posts PATCH 라우트가 제목/상태를 받는 구조면 여기서 같이 보내도 되는데,
+    //    안전하게 분리. (만약 이미 한 라우트에서 다 받으면 이 요청은 지워도 됨)
+    const r2 = await fetch(`/api/boards/${editing.boardId}/posts/${editing.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: editTitle, status: editStatus }),
+    });
+
+    if (!r2.ok) {
+      const payload = await readJsonSafely(r2);
+      const msg = extractApiMessage(payload) ?? "제목/상태 저장 실패";
+      setErr(`${r2.status} ${r2.statusText} · ${msg}`);
+      setSaving(false);
+      return;
+    }
+
+    // 반영
+    await load();
+    setSaving(false);
+    closeEdit();
   };
 
   useEffect(() => {
@@ -211,20 +288,25 @@ export default function CalendarClient() {
 
               <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 6 }}>
                 {list.slice(0, 4).map((it) => (
-                  <Link 
-                    key={it.id} 
-                    href={`/boards/${it.boardId}/${it.id}`}
-                    style={{
-                      display: "block",
-                      padding: "4px 6px",
-                      border: "1px solid #eee",
-                      borderRadius: 6,
-                      textDecoration: "none",
-                    }}
-                    title={`${it.boardName} · ${it.status}`}
+                    <button
+                      type="button"
+                      onClick={() => openEdit(it)}
+                      style={{
+                        width: "100%",
+                        textAlign: "left",
+                        padding: "4px 6px",
+                        borderRadius: 6,
+                        border: "1px solid #ddd",
+                        background: "white",
+                        cursor: "pointer",
+                      }}
+                      key={it.id}
+                      title={`${it.boardName} · ${it.status}`}
                     >
-                    {it.isSecret ? "🔒 " : ""}[{it.status}] {it.title}
-                    </Link>
+                      <div style={{ fontSize: 12, opacity: 0.8 }}>{it.isSecret ? "🔒 " : ""}{it.status}</div>
+                      <div style={{ fontWeight: 600 }}>{it.title}</div>
+                    </button>
+                   
                 ))}
                 {list.length > 4 ? (
                   <div style={{ fontSize: 12, opacity: 0.7 }}>+{list.length - 4} more</div>
@@ -234,6 +316,75 @@ export default function CalendarClient() {
           );
         })}
       </div>
+
+      {editing && (
+        <div
+          onClick={closeEdit}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.35)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 16,
+            zIndex: 50,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "min(520px, 100%)",
+              background: "white",
+              borderRadius: 12,
+              padding: 16,
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+              <h3 style={{ margin: 0 }}>일정 수정</h3>
+              <button onClick={closeEdit}>닫기</button>
+            </div>
+
+            <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
+              <label style={{ display: "grid", gap: 6 }}>
+                제목
+                <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} />
+              </label>
+
+              <label style={{ display: "grid", gap: 6 }}>
+                상태
+                <select value={editStatus} onChange={(e) => setEditStatus(e.target.value as CalItem["status"])}>
+                  <option value="TODO">TODO</option>
+                  <option value="DOING">DOING</option>
+                  <option value="DONE">DONE</option>
+                </select>
+              </label>
+
+              <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input type="checkbox" checked={editAllDay} onChange={(e) => setEditAllDay(e.target.checked)} />
+                allDay
+              </label>
+
+              <label style={{ display: "grid", gap: 6 }}>
+                시작
+                <input type="datetime-local" value={editStart} onChange={(e) => setEditStart(e.target.value)} />
+              </label>
+
+              <label style={{ display: "grid", gap: 6 }}>
+                종료
+                <input type="datetime-local" value={editEnd} onChange={(e) => setEditEnd(e.target.value)} />
+              </label>
+
+              <div style={{ display: "flex", gap: 8, justifyContent: "space-between", marginTop: 6 }}>
+                <Link href={`/boards/${editing.boardId}/${editing.id}`}>자세히 보기</Link>
+                <button onClick={saveEdit} disabled={saving}>
+                  {saving ? "저장중..." : "저장"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

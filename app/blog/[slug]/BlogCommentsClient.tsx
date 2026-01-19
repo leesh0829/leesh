@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { toHumanHttpError } from "@/app/lib/httpErrorText";
 
 type CommentItem = {
   id: string;
@@ -49,7 +50,8 @@ export default function BlogCommentsClient({
     if (!res.ok) {
       const payload = await readJsonSafely(res);
       const msg = extractApiMessage(payload) ?? "댓글 처리 실패";
-      setError(`${res.status} ${res.statusText} · ${msg}`);
+      const human = toHumanHttpError(res.status, msg);
+      setError(human ?? `${res.status} · ${msg}`);
       setLoading(false);
       return;
     }

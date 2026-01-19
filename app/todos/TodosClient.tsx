@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { toHumanHttpError } from "@/app/lib/httpErrorText";
 
 type TodoItem = {
   id: string;
@@ -88,7 +89,8 @@ export default function TodosClient() {
     if (!res.ok) {
       const payload = await readJsonSafely(res);
       const msg = extractApiMessage(payload) ?? "불러오기 실패";
-      setErr(`${res.status} ${res.statusText} · ${msg}`);
+      const human = toHumanHttpError(res.status, msg);
+      setErr(human ?? `${res.status} · ${msg}`);
       setLoading(false);
       return;
     }
@@ -116,7 +118,8 @@ export default function TodosClient() {
     if (!res.ok) {
       const payload = await readJsonSafely(res);
       const msg = extractApiMessage(payload) ?? "추가 실패";
-      setErr(`${res.status} ${res.statusText} · ${msg}`);
+      const human = toHumanHttpError(res.status, msg);
+      setErr(human ?? `${res.status} · ${msg}`);
       return;
     }
     setTitle("");
@@ -134,7 +137,8 @@ export default function TodosClient() {
     if (!res.ok) {
       const payload = await readJsonSafely(res);
       const msg = extractApiMessage(payload) ?? "변경 실패";
-      setErr(`${res.status} ${res.statusText} · ${msg}`);
+      const human = toHumanHttpError(res.status, msg);
+      setErr(human ?? `${res.status} · ${msg}`);
       return;
     }
     await load();
@@ -146,7 +150,8 @@ export default function TodosClient() {
     if (!res.ok) {
       const payload = await readJsonSafely(res);
       const msg = extractApiMessage(payload) ?? "삭제 실패";
-      setErr(`${res.status} ${res.statusText} · ${msg}`);
+      const human = toHumanHttpError(res.status, msg);
+      setErr(human ?? `${res.status} · ${msg}`);
       return;
     }
     await load();

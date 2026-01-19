@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { toHumanHttpError } from "@/app/lib/httpErrorText";
 
 type CalItem = {
   id: string;
@@ -110,7 +111,8 @@ export default function CalendarClient() {
     }
     const payload = await readJsonSafely(res);
     const msg = extractApiMessage(payload) ?? "캘린더 불러오기 실패";
-    setErr(`${res.status} ${res.statusText} · ${msg}`);
+    const human = toHumanHttpError(res.status, msg);
+    setErr(human ?? `${res.status} · ${msg}`);
   };
 
   const openEdit = (it: CalItem) => {
@@ -149,7 +151,8 @@ export default function CalendarClient() {
     if (!r.ok) {
       const payload = await readJsonSafely(r);
       const msg = extractApiMessage(payload) ?? "일정 수정 저장 실패";
-      setErr(`${r.status} ${r.statusText} · ${msg}`);
+      const human = toHumanHttpError(r.status, msg);
+      setErr(human ?? `${r.status} · ${msg}`);
       setSaving(false);
       return;
     }
@@ -177,7 +180,8 @@ export default function CalendarClient() {
     if (!res.ok) {
       const payload = await readJsonSafely(res);
       const msg = extractApiMessage(payload) ?? "삭제 실패";
-      setErr(`${res.status} ${res.statusText} · ${msg}`);
+      const human = toHumanHttpError(res.status, msg);
+      setErr(human ?? `${res.status} · ${msg}`);
       setSaving(false);
       return;
     }
@@ -212,7 +216,8 @@ export default function CalendarClient() {
     if (!res.ok) {
       const payload = await readJsonSafely(res);
       const msg = extractApiMessage(payload) ?? "날짜 이동 실패";
-      setErr(`${res.status} ${res.statusText} · ${msg}`);
+      const human = toHumanHttpError(res.status, msg);
+      setErr(human ?? `${res.status} · ${msg}`);
       return;
     }
 
@@ -230,7 +235,8 @@ export default function CalendarClient() {
       }
       const payload = await readJsonSafely(res);
       const msg = extractApiMessage(payload) ?? "캘린더 불러오기 실패";
-      setErr(`${res.status} ${res.statusText} · ${msg}`);
+      const human = toHumanHttpError(res.status, msg);
+      setErr(human ?? `${res.status} · ${msg}`);
     })();
     return () => {
       alive = false;

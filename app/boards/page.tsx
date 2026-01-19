@@ -18,8 +18,8 @@ export default async function BoardsPage() {
   if (!user) return <div>사용자 없음</div>;
 
   const boards = await prisma.board.findMany({
-    where: { ownerId: user.id },
     orderBy: { createdAt: "desc" },
+    include: { owner: { select: { name: true, email: true } } },
   });
 
   return <BoardsClient initialBoards={boards} />;

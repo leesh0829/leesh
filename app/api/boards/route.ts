@@ -7,17 +7,10 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/options"; // 아래에
 export const runtime = "nodejs";
 
 export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.email) return NextResponse.json({ message: "unauthorized" }, { status: 401 });
-
-  const user = await prisma.user.findUnique({ where: { email: session.user.email } });
-  if (!user) return NextResponse.json({ message: "unauthorized" }, { status: 401 });
-
   const boards = await prisma.board.findMany({
-    where: { ownerId: user.id },
     orderBy: { createdAt: "desc" },
+    include: { owner: { select: { name: true, email: true } } },
   });
-
   return NextResponse.json(boards);
 }
 

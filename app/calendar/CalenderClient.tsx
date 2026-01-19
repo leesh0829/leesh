@@ -45,6 +45,14 @@ function toDatetimeLocalValue(iso: string | null): string {
   return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
 }
 
+function shiftIsoByDays(iso: string | null, days: number): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  d.setDate(d.getDate() + days);
+  return d.toISOString();
+}
+
 function pad(n: number) {
   return String(n).padStart(2, "0");
 }
@@ -149,6 +157,38 @@ export default function CalendarClient() {
     await load();
     setSaving(false);
     closeEdit();
+  };
+
+  const shiftItemDays = async (it: CalItem, days: number) => {
+    setErr(null);
+
+    const startAt = shiftIsoByDays(it.startAt ?? null, days);
+    const endAt = shiftIsoByDays(it.endAt ?? null, days);
+
+    // startAt이 없는 일정이면 이동 의미 없어서 막기
+    if (!startAt) {
+      setErr("400 Bad Request · startAt이 없는 일정은 이동할 수 없음");
+      return;
+    }
+
+    const res = await fetch(`/api/boards/${it.boardId}/posts/${it.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        startAt,
+        endAt,
+        allDay: !!it.allDay,
+      }),
+    });
+
+    if (!res.ok) {
+      const payload = await readJsonSafely(res);
+      const msg = extractApiMessage(payload) ?? "날짜 이동 실패";
+      setErr(`${res.status} ${res.statusText} · ${msg}`);
+      return;
+    }
+
+    await load();
   };
 
   useEffect(() => {
@@ -294,8 +334,31 @@ export default function CalendarClient() {
                     >
                       <div style={{ fontSize: 12, opacity: 0.8 }}>{it.isSecret ? "🔒 " : ""}{it.status}</div>
                       <div style={{ fontWeight: 600 }}>{it.title}</div>
+                      <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            shiftItemDays(it, -1);
+                          }}
+                          style={{ padding: "2px 6px" }}
+                          title="하루 전으로"
+                        >
+                          ←
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            shiftItemDays(it, 1);
+                          }}
+                          style={{ padding: "2px 6px"}}
+                          title="하루 뒤로"
+                        >
+                          →
+                        </button>
+                      </div>
                     </button>
-                   
                 ))}
                 {list.length > 4 ? (
                   <div style={{ fontSize: 12, opacity: 0.7 }}>+{list.length - 4} more</div>

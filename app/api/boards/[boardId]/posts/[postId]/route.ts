@@ -100,6 +100,9 @@ export async function PATCH(
   }
   const b = body as Record<string, unknown>;
 
+  const title = typeof b.title === "string" ? b.title.trim() : undefined;
+  const status = b.status === "TODO" || b.status === "DOING" || b.status === "DONE" ? b.status : undefined;
+
   const allDay = typeof b.allDay === "boolean" ? b.allDay : undefined;
 
   const startAt =
@@ -110,11 +113,13 @@ export async function PATCH(
   const updated = await prisma.post.update({
     where: { id: postId, boardId },
     data: {
+      ...(title !== undefined ? { title } : {}),
+      ...(status !== undefined ? { status } : {}),
       ...(allDay !== undefined ? { allDay } : {}),
       ...(startAt !== undefined ? { startAt } : {}),
       ...(endAt !== undefined ? { endAt } : {}),
     },
-    select: { id: true, startAt: true, endAt: true, allDay: true, updatedAt: true },
+     select: { id: true, title: true, status: true, startAt: true, endAt: true, allDay: true, updatedAt: true },
   });
 
   return NextResponse.json({

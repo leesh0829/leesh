@@ -125,33 +125,22 @@ export default function CalendarClient() {
     const startAt = editStart ? new Date(editStart).toISOString() : null;
     const endAt = editEnd ? new Date(editEnd).toISOString() : null;
 
-    // 1) 일정(게시글) 날짜/allDay 업데이트
-    const r1 = await fetch(`/api/boards/${editing.boardId}/posts/${editing.id}`, {
+    const r = await fetch(`/api/boards/${editing.boardId}/posts/${editing.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ startAt, endAt, allDay: editAllDay }),
+      body: JSON.stringify({
+        title: editTitle,
+        status: editStatus,
+        startAt,
+        endAt,
+        allDay: editAllDay,
+      }),
     });
 
-    if (!r1.ok) {
-      const payload = await readJsonSafely(r1);
-      const msg = extractApiMessage(payload) ?? "일정 저장 실패";
-      setErr(`${r1.status} ${r1.statusText} · ${msg}`);
-      setSaving(false);
-      return;
-    }
-
-    // 2) 제목/상태 업데이트 (너 프로젝트에 이미 posts PATCH 라우트가 제목/상태를 받는 구조면 여기서 같이 보내도 되는데,
-    //    안전하게 분리. (만약 이미 한 라우트에서 다 받으면 이 요청은 지워도 됨)
-    const r2 = await fetch(`/api/boards/${editing.boardId}/posts/${editing.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: editTitle, status: editStatus }),
-    });
-
-    if (!r2.ok) {
-      const payload = await readJsonSafely(r2);
-      const msg = extractApiMessage(payload) ?? "제목/상태 저장 실패";
-      setErr(`${r2.status} ${r2.statusText} · ${msg}`);
+    if (!r.ok) {
+      const payload = await readJsonSafely(r);
+      const msg = extractApiMessage(payload) ?? "일정 수정 저장 실패";
+      setErr(`${r.status} ${r.statusText} · ${msg}`);
       setSaving(false);
       return;
     }

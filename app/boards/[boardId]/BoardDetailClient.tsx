@@ -16,6 +16,7 @@ type Post = {
 };
 type CreatePostBody = {
   title: string;
+  contentMd: string;
   status: "TODO" | "DOING" | "DONE";
   isSecret: boolean;
   secretPassword?: string;
@@ -35,6 +36,7 @@ export default function BoardDetailClient({
 }) {
   const [posts, setPosts] = useState<Post[]>(initialPosts);
   const [title, setTitle] = useState("");
+  const [contentMd, setContentMd] = useState("");
   const [isSecret, setIsSecret] = useState(false);
   const [secretPassword, setSecretPassword] = useState("");
   const [status, setStatus] = useState<Post["status"]>("TODO");
@@ -50,6 +52,7 @@ export default function BoardDetailClient({
   const create = async () => {
     const payload: CreatePostBody = {
       title,
+      contentMd,
       status,
       isSecret,
       secretPassword: isSecret ? secretPassword : undefined,
@@ -71,6 +74,7 @@ export default function BoardDetailClient({
 
     if (res.ok) {
       setTitle("");
+      setContentMd("");
       setIsSecret(false);
       setSecretPassword("");
       setStatus("TODO");
@@ -105,6 +109,20 @@ export default function BoardDetailClient({
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="제목"
                 style={{ minWidth: 260 }}
+              />
+              <textarea
+                value={contentMd}
+                onChange={(e) => setContentMd(e.target.value)}
+                placeholder="본문 (Markdown 지원)"
+                rows={6}
+                style={{
+                  width: "100%",
+                  marginTop: 10,
+                  padding: 10,
+                  borderRadius: 8,
+                  border: "1px solid #ddd",
+                  resize: "vertical",
+                }}
               />
 
               <select

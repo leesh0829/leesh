@@ -3,8 +3,6 @@ import { prisma } from "@/app/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/options";
 import { toISOStringSafe } from "@/app/lib/date";
-import { unauthorized } from "next/navigation";
-import { kMaxLength } from "buffer";
 
 export const runtime = "nodejs";
 
@@ -25,6 +23,7 @@ export async function GET(
   });
   if (!user) return NextResponse.json({ message: "unauthorized" }, { status: 401 });
 
+  // ✅ 기존 로직 유지: 보드 owner만 GET 허용
   const board = await prisma.board.findFirst({
     where: { id: boardId, ownerId: user.id },
     select: { id: true },
@@ -50,7 +49,6 @@ export async function GET(
 
   if (!post) return NextResponse.json({ message: "not found" }, { status: 404 });
 
-  // 비밀글이면 본문 숨김(클라에서 비번 검증 후 unlock API로 본문 받게)
   if (post.isSecret) {
     return NextResponse.json({
       ...post,
@@ -90,6 +88,7 @@ export async function PATCH(
   });
   if (!user) return NextResponse.json({ message: "unauthorized" }, { status: 401 });
 
+  // ✅ 기존 로직 유지: 보드 owner만 PATCH 허용
   const board = await prisma.board.findFirst({
     where: { id: boardId, ownerId: user.id },
     select: { id: true },
@@ -103,25 +102,48 @@ export async function PATCH(
   const b = body as Record<string, unknown>;
 
   const title = typeof b.title === "string" ? b.title.trim() : undefined;
-  const status = b.status === "TODO" || b.status === "DOING" || b.status === "DONE" ? b.status : undefined;
+  const status =
+    b.status === "TODO" || b.status === "DOING" || b.status === "DONE" ? b.status : undefined;
+
+  // ✅ 핵심: contentMd 업데이트 추가
+  const contentMd = typeof b.contentMd === "string" ? b.contentMd : undefined;
 
   const allDay = typeof b.allDay === "boolean" ? b.allDay : undefined;
 
   const startAt =
-    typeof b.startAt === "string" && b.startAt ? new Date(b.startAt) : b.startAt === null ? null : undefined;
+    typeof b.startAt === "string" && b.startAt
+      ? new Date(b.startAt)
+      : b.startAt === null
+      ? null
+      : undefined;
+
   const endAt =
-    typeof b.endAt === "string" && b.endAt ? new Date(b.endAt) : b.endAt === null ? null : undefined;
+    typeof b.endAt === "string" && b.endAt
+      ? new Date(b.endAt)
+      : b.endAt === null
+      ? null
+      : undefined;
 
   const updated = await prisma.post.update({
     where: { id: postId, boardId },
     data: {
       ...(title !== undefined ? { title } : {}),
+      ...(contentMd !== undefined ? { contentMd } : {}),
       ...(status !== undefined ? { status } : {}),
       ...(allDay !== undefined ? { allDay } : {}),
       ...(startAt !== undefined ? { startAt } : {}),
       ...(endAt !== undefined ? { endAt } : {}),
     },
-     select: { id: true, title: true, status: true, startAt: true, endAt: true, allDay: true, updatedAt: true },
+    select: {
+      id: true,
+      title: true,
+      contentMd: true,
+      status: true,
+      startAt: true,
+      endAt: true,
+      allDay: true,
+      updatedAt: true,
+    },
   });
 
   return NextResponse.json({
@@ -133,7 +155,7 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  req: Request,
+  _req: Request,
   { params }: { params: Promise<{ boardId: string; postId: string }> }
 ) {
   const { boardId, postId } = await params;
@@ -159,7 +181,7 @@ export async function DELETE(
     where: { id: boardId },
     select: { ownerId: true },
   });
-  if (!board) return NextResponse.json({ message: "aunauthorized"}, { status: 401 });
+  if (!board) return NextResponse.json({ message: "unauthorized" }, { status: 401 });
 
   if (post.authorId !== user.id && board.ownerId !== user.id) {
     return NextResponse.json({ message: "forbidden" }, { status: 403 });

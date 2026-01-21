@@ -3,28 +3,40 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/options";
 import BoardDetailClient from "./BoardDetailClient";
 import { toISOStringNullable, toISOStringSafe } from "@/app/lib/date";
+import { notFound } from "next/navigation";
 
 export const runtime = "nodejs";
 
-export default async function BoardDetailPage(
-  props: { params: Promise<{ boardId: string }> }
-) {
+export default async function BoardDetailPage(props: {
+  params: Promise<{ boardId: string }>;
+}) {
   const { boardId } = await props.params;
 
   const board = await prisma.board.findUnique({
     where: { id: boardId },
-    select: { id: true, name: true, description: true, ownerId: true },
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      ownerId: true,
+      type: true,
+    },
   });
-  if (!board) return <main style={{ padding: 24 }}>보드를 찾을 수 없습니다.</main>;
+  if (!board)
+    return <main style={{ padding: 24 }}>보드를 찾을 수 없습니다.</main>;
+
+  // PORTFOLIO(= /leesh 전용), HELP 등은 /boards에서 접근 금지
+  if (board.type !== "GENERAL") {
+    notFound();
+  }
 
   const session = await getServerSession(authOptions);
-  const me =
-    session?.user?.email
-      ? await prisma.user.findUnique({
-          where: { email: session.user.email },
-          select: { id: true },
-        })
-      : null;
+  const me = session?.user?.email
+    ? await prisma.user.findUnique({
+        where: { email: session.user.email },
+        select: { id: true },
+      })
+    : null;
 
   const canCreate = !!me?.id && me.id === board.ownerId;
 

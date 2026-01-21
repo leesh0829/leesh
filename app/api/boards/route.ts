@@ -8,7 +8,9 @@ export const runtime = "nodejs";
 
 export async function GET() {
   const boards = await prisma.board.findMany({
-    where: { NOT: { type: "HELP" } },
+    where: {
+      type: "GENERAL",
+    },
     orderBy: { createdAt: "desc" },
     include: { owner: { select: { name: true, email: true } } },
   });

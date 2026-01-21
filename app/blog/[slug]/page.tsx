@@ -4,6 +4,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/options";
 import { toISOStringSafe } from "@/app/lib/date";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
 import rehypeHighlight from "rehype-highlight";
 import BlogCommentsClient from "./BlogCommentsClient";
 import Link from "next/link";
@@ -40,13 +41,12 @@ export default async function BlogDetailPage({
   const session = await getServerSession(authOptions);
 
   // 로그인 안 했으면 me = null
-  const me =
-    session?.user?.email
-      ? await prisma.user.findUnique({
-          where: { email: session.user.email },
-          select: { id: true },
-        })
-      : null;
+  const me = session?.user?.email
+    ? await prisma.user.findUnique({
+        where: { email: session.user.email },
+        select: { id: true },
+      })
+    : null;
 
   const canEdit =
     !!me?.id && (me.id === post.authorId || me.id === post.board.ownerId);
@@ -60,7 +60,7 @@ export default async function BlogDetailPage({
       </div>
 
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
+        remarkPlugins={[remarkGfm, remarkBreaks]}
         rehypePlugins={[rehypeHighlight]}
       >
         {post.contentMd ?? ""}

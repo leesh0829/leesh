@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
 import rehypeHighlight from "rehype-highlight";
 import Link from "next/link";
 
@@ -97,7 +98,7 @@ export default function HelpDetailClient({ postId }: { postId: string }) {
         style={{ border: "1px solid #eee", borderRadius: 12, padding: 12 }}
       >
         <ReactMarkdown
-          remarkPlugins={[remarkGfm]}
+          remarkPlugins={[remarkGfm, remarkBreaks]}
           rehypePlugins={[rehypeHighlight]}
         >
           {post.contentMd}

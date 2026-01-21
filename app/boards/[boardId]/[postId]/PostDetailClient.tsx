@@ -6,6 +6,7 @@ import Link from "next/link";
 import { toHumanHttpError } from "@/app/lib/httpErrorText";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
 import rehypeHighlight from "rehype-highlight";
 
 type Post = {
@@ -487,7 +488,7 @@ export default function PostDetailClient({
             </div>
           ) : (
             <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
+              remarkPlugins={[remarkGfm, remarkBreaks]}
               rehypePlugins={[rehypeHighlight]}
               components={{
                 img: (props) => (

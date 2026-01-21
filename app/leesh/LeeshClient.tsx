@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
 import rehypeHighlight from "rehype-highlight";
 import { toHumanHttpError } from "@/app/lib/httpErrorText";
 import ImageUploadButton from "@/app/components/ImageUploadButton";
@@ -184,7 +185,7 @@ export default function LeeshClient() {
               />
             ) : (
               <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
+                remarkPlugins={[remarkGfm, remarkBreaks]}
                 rehypePlugins={[rehypeHighlight]}
               >
                 {doc?.contentMd ?? ""}

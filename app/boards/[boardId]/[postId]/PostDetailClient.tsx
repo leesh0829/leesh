@@ -4,6 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toHumanHttpError } from "@/app/lib/httpErrorText";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeHighlight from "rehype-highlight";
 
 type Post = {
   id: string;
@@ -76,7 +79,7 @@ export default function PostDetailClient({
 
   const locked = useMemo(
     () => postState.locked ?? postState.isSecret,
-    [postState.locked, postState.isSecret]
+    [postState.locked, postState.isSecret],
   );
 
   // 비밀글 unlock
@@ -95,7 +98,9 @@ export default function PostDetailClient({
 
   const [editTitle, setEditTitle] = useState(postState.title);
   const [editContent, setEditContent] = useState(postState.contentMd ?? "");
-  const [editStatus, setEditStatus] = useState<Post["status"]>(postState.status);
+  const [editStatus, setEditStatus] = useState<Post["status"]>(
+    postState.status,
+  );
 
   // postState가 변하면 편집 입력값도 동기화(편집중이 아닐 때만)
   useEffect(() => {
@@ -103,14 +108,20 @@ export default function PostDetailClient({
     setEditTitle(postState.title);
     setEditContent(postState.contentMd ?? "");
     setEditStatus(postState.status);
-  }, [postState.id, postState.title, postState.contentMd, postState.status, editing]);
+  }, [
+    postState.id,
+    postState.title,
+    postState.contentMd,
+    postState.status,
+    editing,
+  ]);
 
   // 일정 편집
   const [startLocal, setStartLocal] = useState(() =>
-    toDatetimeLocalValue(postState.startAt ?? null)
+    toDatetimeLocalValue(postState.startAt ?? null),
   );
   const [endLocal, setEndLocal] = useState(() =>
-    toDatetimeLocalValue(postState.endAt ?? null)
+    toDatetimeLocalValue(postState.endAt ?? null),
   );
   const [allDay, setAllDay] = useState(() => !!postState.allDay);
   const [scheduleError, setScheduleError] = useState<string | null>(null);
@@ -126,7 +137,9 @@ export default function PostDetailClient({
 
   const loadComments = async () => {
     setCommentsError(null);
-    const res = await fetch(`/api/boards/${boardId}/posts/${postState.id}/comments`);
+    const res = await fetch(
+      `/api/boards/${boardId}/posts/${postState.id}/comments`,
+    );
     if (res.ok) {
       setComments(await res.json());
       return;
@@ -141,7 +154,9 @@ export default function PostDetailClient({
     let alive = true;
     (async () => {
       setCommentsError(null);
-      const res = await fetch(`/api/boards/${boardId}/posts/${postState.id}/comments`);
+      const res = await fetch(
+        `/api/boards/${boardId}/posts/${postState.id}/comments`,
+      );
       if (!alive) return;
       if (res.ok) {
         setComments(await res.json());
@@ -181,16 +196,19 @@ export default function PostDetailClient({
       }
 
       // 서버 응답 반영(즉시 화면 반영)
-      const updated = (await res.json().catch(() => null)) as
-        | { startAt?: string | null; endAt?: string | null; allDay?: boolean }
-        | null;
+      const updated = (await res.json().catch(() => null)) as {
+        startAt?: string | null;
+        endAt?: string | null;
+        allDay?: boolean;
+      } | null;
 
       if (updated) {
         setPostState((prev) => ({
           ...prev,
           startAt: updated.startAt ?? prev.startAt ?? null,
           endAt: updated.endAt ?? prev.endAt ?? null,
-          allDay: typeof updated.allDay === "boolean" ? updated.allDay : prev.allDay,
+          allDay:
+            typeof updated.allDay === "boolean" ? updated.allDay : prev.allDay,
         }));
       }
 
@@ -225,9 +243,11 @@ export default function PostDetailClient({
       }
 
       // 서버 응답(이제 contentMd도 내려옴) 반영 -> 즉시 화면 반영
-      const updated = (await res.json().catch(() => null)) as
-        | { title?: string; contentMd?: string | null; status?: Post["status"] }
-        | null;
+      const updated = (await res.json().catch(() => null)) as {
+        title?: string;
+        contentMd?: string | null;
+        status?: Post["status"];
+      } | null;
 
       setPostState((prev) => ({
         ...prev,
@@ -274,11 +294,14 @@ export default function PostDetailClient({
   const unlock = async () => {
     setUnlocking(true);
     try {
-      const res = await fetch(`/api/boards/${boardId}/posts/${postState.id}/unlock`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: pw }),
-      });
+      const res = await fetch(
+        `/api/boards/${boardId}/posts/${postState.id}/unlock`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ password: pw }),
+        },
+      );
 
       if (res.ok) {
         setPw("");
@@ -293,11 +316,14 @@ export default function PostDetailClient({
   };
 
   const addComment = async () => {
-    const res = await fetch(`/api/boards/${boardId}/posts/${postState.id}/comments`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: newComment }),
-    });
+    const res = await fetch(
+      `/api/boards/${boardId}/posts/${postState.id}/comments`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: newComment }),
+      },
+    );
 
     if (res.ok) {
       setNewComment("");
@@ -321,7 +347,9 @@ export default function PostDetailClient({
 
       {/* 수정/삭제 버튼 */}
       {postState.canEdit ? (
-        <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+        <div
+          style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}
+        >
           <button type="button" onClick={() => setEditing((v) => !v)}>
             {editing ? "편집 닫기" : "수정"}
           </button>
@@ -331,11 +359,20 @@ export default function PostDetailClient({
         </div>
       ) : null}
 
-      {editError ? <p style={{ color: "crimson", marginTop: 10 }}>{editError}</p> : null}
+      {editError ? (
+        <p style={{ color: "crimson", marginTop: 10 }}>{editError}</p>
+      ) : null}
 
       {/* 일정 */}
       {postState.canEdit ? (
-        <section style={{ marginTop: 12, padding: 12, border: "1px solid #eee", borderRadius: 10 }}>
+        <section
+          style={{
+            marginTop: 12,
+            padding: 12,
+            border: "1px solid #eee",
+            borderRadius: 10,
+          }}
+        >
           <div style={{ fontWeight: 700, marginBottom: 8 }}>일정</div>
 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -363,7 +400,9 @@ export default function PostDetailClient({
             </button>
           </div>
 
-          {scheduleError ? <p style={{ color: "crimson", marginTop: 10 }}>{scheduleError}</p> : null}
+          {scheduleError ? (
+            <p style={{ color: "crimson", marginTop: 10 }}>{scheduleError}</p>
+          ) : null}
         </section>
       ) : null}
 
@@ -391,14 +430,19 @@ export default function PostDetailClient({
             <div style={{ display: "grid", gap: 10 }}>
               <label style={{ display: "grid", gap: 6 }}>
                 제목
-                <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} />
+                <input
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                />
               </label>
 
               <label style={{ display: "grid", gap: 6 }}>
                 상태
                 <select
                   value={editStatus}
-                  onChange={(e) => setEditStatus(e.target.value as Post["status"])}
+                  onChange={(e) =>
+                    setEditStatus(e.target.value as Post["status"])
+                  }
                 >
                   <option value="TODO">TODO</option>
                   <option value="DOING">DOING</option>
@@ -442,7 +486,24 @@ export default function PostDetailClient({
               </div>
             </div>
           ) : (
-            <pre style={{ whiteSpace: "pre-wrap" }}>{postState.contentMd || "(본문 없음)"}</pre>
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              rehypePlugins={[rehypeHighlight]}
+              components={{
+                img: (props) => (
+                  <img
+                    {...props}
+                    style={{
+                      maxWidth: "100%",
+                      height: "auto",
+                      borderRadius: 8,
+                    }}
+                  />
+                ),
+              }}
+            >
+              {postState.contentMd || "(본문 없음)"}
+            </ReactMarkdown>
           )}
         </section>
       )}

@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import ImageUploadButton from "@/app/components/ImageUploadButton";
 
 type EditPost = {
   id: string;
   title: string;
   contentMd: string;
   slug: string | null;
-  status: string; // PostStatus 타입 귀찮으면 string으로 둬도 됨
+  status: string;
 };
 
 export default function BlogEditClient({ post }: { post: EditPost }) {
@@ -69,6 +70,14 @@ export default function BlogEditClient({ post }: { post: EditPost }) {
         placeholder="제목"
         style={{ padding: 10, fontSize: 16 }}
       />
+
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <ImageUploadButton
+          onUploaded={(url) => {
+            setContentMd((prev) => `${prev}\n\n![](${url})\n`);
+          }}
+        />
+      </div>
 
       <textarea
         value={contentMd}

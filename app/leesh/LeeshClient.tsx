@@ -5,6 +5,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import { toHumanHttpError } from "@/app/lib/httpErrorText";
+import ImageUploadButton from "@/app/components/ImageUploadButton";
 
 function extractApiMessage(payload: unknown): string | null {
   if (!payload || typeof payload !== "object") return null;
@@ -110,7 +111,6 @@ export default function LeeshClient() {
     }
 
     const updated = (await res.json()) as LeeshDoc;
-    // 즉시 반영
     setDoc((prev) => (prev ? { ...prev, contentMd: updated.contentMd } : prev));
     setEditing(false);
     setSaving(false);
@@ -152,10 +152,18 @@ export default function LeeshClient() {
               <button type="button" onClick={() => setEditing((v) => !v)}>
                 {editing ? "편집 닫기" : "편집"}
               </button>
+
               {editing ? (
-                <button type="button" onClick={save} disabled={saving}>
-                  {saving ? "저장중..." : "저장"}
-                </button>
+                <>
+                  <ImageUploadButton
+                    onUploaded={(url) => {
+                      setDraft((prev) => `${prev}\n\n![](${url})\n`);
+                    }}
+                  />
+                  <button type="button" onClick={save} disabled={saving}>
+                    {saving ? "저장중..." : "저장"}
+                  </button>
+                </>
               ) : null}
             </div>
           ) : null}

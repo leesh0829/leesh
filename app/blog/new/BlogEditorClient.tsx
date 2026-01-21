@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import ImageUploadButton from "@/app/components/ImageUploadButton";
 
 export default function BlogEditorClient({ boardId }: { boardId: string }) {
   const [title, setTitle] = useState("");
@@ -26,7 +27,6 @@ export default function BlogEditorClient({ boardId }: { boardId: string }) {
       return;
     }
 
-    // 저장 후 상세로 이동
     const slug = data.slug ?? data.id;
     window.location.href = `/blog/${encodeURIComponent(slug)}`;
   }
@@ -39,6 +39,15 @@ export default function BlogEditorClient({ boardId }: { boardId: string }) {
         placeholder="제목"
         style={{ padding: 10, fontSize: 16 }}
       />
+
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <ImageUploadButton
+          onUploaded={(url) => {
+            setContentMd((prev) => `${prev}\n\n![](${url})\n`);
+          }}
+        />
+      </div>
+
       <textarea
         value={contentMd}
         onChange={(e) => setContentMd(e.target.value)}
@@ -46,6 +55,7 @@ export default function BlogEditorClient({ boardId }: { boardId: string }) {
         rows={18}
         style={{ padding: 10, fontSize: 14, lineHeight: 1.6 }}
       />
+
       <div style={{ display: "flex", gap: 8 }}>
         <button disabled={saving} onClick={() => save(false)}>
           임시저장
@@ -54,6 +64,7 @@ export default function BlogEditorClient({ boardId }: { boardId: string }) {
           발행
         </button>
       </div>
+
       {msg && <p style={{ color: "crimson" }}>{msg}</p>}
     </div>
   );

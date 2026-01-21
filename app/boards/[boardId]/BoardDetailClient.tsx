@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import ImageUploadButton from "@/app/components/ImageUploadButton";
 
 type Board = { id: string; name: string; description: string | null };
 type Post = {
@@ -98,7 +99,9 @@ export default function BoardDetailClient({
       <h1 style={{ marginTop: 12 }}>{board.name}</h1>
       {board.description ? <p>{board.description}</p> : null}
 
-      <section style={{ marginTop: 16, borderTop: "1px solid #ddd", paddingTop: 16 }}>
+      <section
+        style={{ marginTop: 16, borderTop: "1px solid #ddd", paddingTop: 16 }}
+      >
         <h3>새 일정/할일</h3>
 
         {canCreate ? (
@@ -110,6 +113,14 @@ export default function BoardDetailClient({
                 placeholder="제목"
                 style={{ minWidth: 260 }}
               />
+
+              <ImageUploadButton
+                onUploaded={(url) => {
+                  // 마크다운 이미지 삽입
+                  setContentMd((prev) => `${prev}\n\n![](${url})\n`);
+                }}
+              />
+
               <textarea
                 value={contentMd}
                 onChange={(e) => setContentMd(e.target.value)}
@@ -158,7 +169,14 @@ export default function BoardDetailClient({
               <button onClick={create}>생성</button>
             </div>
 
-            <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <div
+              style={{
+                marginTop: 10,
+                display: "flex",
+                gap: 8,
+                flexWrap: "wrap",
+              }}
+            >
               <input
                 type="datetime-local"
                 value={startAt}
@@ -193,7 +211,9 @@ export default function BoardDetailClient({
         <ul>
           {posts.map((p) => (
             <li key={p.id} style={{ marginBottom: 8 }}>
-              <Link href={`/boards/${board.id}/${encodeURIComponent(p.slug ?? p.id)}`}>
+              <Link
+                href={`/boards/${board.id}/${encodeURIComponent(p.slug ?? p.id)}`}
+              >
                 [{p.status}] {p.title} {p.isSecret ? "🔒" : ""}
               </Link>
             </li>

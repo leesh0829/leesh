@@ -142,4 +142,5 @@ enum BoardType {
   PORTFOLIO
   TODO
   CALENDAR
+  HELP
 }

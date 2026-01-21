@@ -8,6 +8,7 @@ export const runtime = "nodejs";
 
 export async function GET() {
   const boards = await prisma.board.findMany({
+    where: { NOT: { type: "HELP" } },
     orderBy: { createdAt: "desc" },
     include: { owner: { select: { name: true, email: true } } },
   });
@@ -16,13 +17,18 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.email) return NextResponse.json({ message: "unauthorized" }, { status: 401 });
+  if (!session?.user?.email)
+    return NextResponse.json({ message: "unauthorized" }, { status: 401 });
 
-  const user = await prisma.user.findUnique({ where: { email: session.user.email } });
-  if (!user) return NextResponse.json({ message: "unauthorized" }, { status: 401 });
+  const user = await prisma.user.findUnique({
+    where: { email: session.user.email },
+  });
+  if (!user)
+    return NextResponse.json({ message: "unauthorized" }, { status: 401 });
 
   const { name, description } = await req.json();
-  if (!name) return NextResponse.json({ message: "name required" }, { status: 400 });
+  if (!name)
+    return NextResponse.json({ message: "name required" }, { status: 400 });
 
   const board = await prisma.board.create({
     data: { name, description: description ?? null, ownerId: user.id },

@@ -10,6 +10,7 @@ export default async function BoardsPage() {
   const canCreate = !!session?.user?.email;
 
   const boards = await prisma.board.findMany({
+    where: { NOT: { type: "HELP" } },
     orderBy: { createdAt: "desc" },
     include: { owner: { select: { name: true, email: true } } },
   });

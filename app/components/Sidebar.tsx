@@ -16,6 +16,7 @@ const NAV = [
   { href: "/boards", label: "게시판" },
   { href: "/todos", label: "TODO" },
   { href: "/calendar", label: "캘린더" },
+  { href: "/help", label: "고객 센터" },
 ];
 
 function NavItem({
@@ -91,7 +92,10 @@ export default function Sidebar({ open, onClose }: Props) {
               key={n.href}
               href={n.href}
               label={n.label}
-              active={pathname === n.href || (n.href !== "/" && pathname.startsWith(n.href))}
+              active={
+                pathname === n.href ||
+                (n.href !== "/" && pathname.startsWith(n.href))
+              }
               onNavigate={onClose}
             />
           ))}

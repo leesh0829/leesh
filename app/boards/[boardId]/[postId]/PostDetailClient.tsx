@@ -1,61 +1,61 @@
-"use client";
+'use client'
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { toHumanHttpError } from "@/app/lib/httpErrorText";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import remarkBreaks from "remark-breaks";
-import rehypeHighlight from "rehype-highlight";
+import { useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { toHumanHttpError } from '@/app/lib/httpErrorText'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import remarkBreaks from 'remark-breaks'
+import rehypeHighlight from 'rehype-highlight'
 
 type Post = {
-  id: string;
-  title: string;
-  contentMd: string | null;
-  isSecret: boolean;
-  status: "TODO" | "DOING" | "DONE";
-  createdAt: string;
-  locked?: boolean;
-  startAt?: string | null;
-  endAt?: string | null;
-  allDay?: boolean;
-  canEdit?: boolean;
-};
+  id: string
+  title: string
+  contentMd: string | null
+  isSecret: boolean
+  status: 'TODO' | 'DOING' | 'DONE'
+  createdAt: string
+  locked?: boolean
+  startAt?: string | null
+  endAt?: string | null
+  allDay?: boolean
+  canEdit?: boolean
+}
 
 type Comment = {
-  id: string;
-  content: string;
-  createdAt: string;
-  author: { name: string | null; email: string | null };
-};
+  id: string
+  content: string
+  createdAt: string
+  author: { name: string | null; email: string | null }
+}
 
 function toDatetimeLocalValue(iso: string | null): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mi = String(d.getMinutes()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const yyyy = d.getFullYear()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mi = String(d.getMinutes()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}T${hh}:${mi}`
 }
 
 function extractApiMessage(payload: unknown): string | null {
-  if (!payload || typeof payload !== "object") return null;
-  const record = payload as Record<string, unknown>;
-  const message = record["message"];
-  if (typeof message !== "string") return null;
-  const trimmed = message.trim();
-  return trimmed ? trimmed : null;
+  if (!payload || typeof payload !== 'object') return null
+  const record = payload as Record<string, unknown>
+  const message = record['message']
+  if (typeof message !== 'string') return null
+  const trimmed = message.trim()
+  return trimmed ? trimmed : null
 }
 
 async function readJsonSafely(res: Response): Promise<unknown> {
   try {
-    return await res.json();
+    return await res.json()
   } catch {
-    return null;
+    return null
   }
 }
 
@@ -64,144 +64,142 @@ export default function PostDetailClient({
   boardId,
   post,
 }: {
-  boardName: string;
-  boardId: string;
-  post: Post;
+  boardName: string
+  boardId: string
+  post: Post
 }) {
-  const router = useRouter();
+  const router = useRouter()
 
   // 화면 즉시 반영용: 로컬 post state
-  const [postState, setPostState] = useState<Post>(post);
+  const [postState, setPostState] = useState<Post>(post)
 
   // 서버에서 refresh로 props가 바뀌면 동기화
   useEffect(() => {
-    setPostState(post);
-  }, [post]);
+    setPostState(post)
+  }, [post])
 
   const locked = useMemo(
     () => postState.locked ?? postState.isSecret,
-    [postState.locked, postState.isSecret],
-  );
+    [postState.locked, postState.isSecret]
+  )
 
   // 비밀글 unlock
-  const [pw, setPw] = useState("");
-  const [unlocking, setUnlocking] = useState(false);
+  const [pw, setPw] = useState('')
+  const [unlocking, setUnlocking] = useState(false)
 
   // 댓글
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [newComment, setNewComment] = useState("");
-  const [commentsError, setCommentsError] = useState<string | null>(null);
+  const [comments, setComments] = useState<Comment[]>([])
+  const [newComment, setNewComment] = useState('')
+  const [commentsError, setCommentsError] = useState<string | null>(null)
 
   // 수정/삭제 (제목/본문/상태)
-  const [editing, setEditing] = useState(false);
-  const [savingEdit, setSavingEdit] = useState(false);
-  const [editError, setEditError] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false)
+  const [savingEdit, setSavingEdit] = useState(false)
+  const [editError, setEditError] = useState<string | null>(null)
 
-  const [editTitle, setEditTitle] = useState(postState.title);
-  const [editContent, setEditContent] = useState(postState.contentMd ?? "");
-  const [editStatus, setEditStatus] = useState<Post["status"]>(
-    postState.status,
-  );
+  const [editTitle, setEditTitle] = useState(postState.title)
+  const [editContent, setEditContent] = useState(postState.contentMd ?? '')
+  const [editStatus, setEditStatus] = useState<Post['status']>(postState.status)
 
   // postState가 변하면 편집 입력값도 동기화(편집중이 아닐 때만)
   useEffect(() => {
-    if (editing) return;
-    setEditTitle(postState.title);
-    setEditContent(postState.contentMd ?? "");
-    setEditStatus(postState.status);
+    if (editing) return
+    setEditTitle(postState.title)
+    setEditContent(postState.contentMd ?? '')
+    setEditStatus(postState.status)
   }, [
     postState.id,
     postState.title,
     postState.contentMd,
     postState.status,
     editing,
-  ]);
+  ])
 
   // 일정 편집
   const [startLocal, setStartLocal] = useState(() =>
-    toDatetimeLocalValue(postState.startAt ?? null),
-  );
+    toDatetimeLocalValue(postState.startAt ?? null)
+  )
   const [endLocal, setEndLocal] = useState(() =>
-    toDatetimeLocalValue(postState.endAt ?? null),
-  );
-  const [allDay, setAllDay] = useState(() => !!postState.allDay);
-  const [scheduleError, setScheduleError] = useState<string | null>(null);
-  const [scheduleSaving, setScheduleSaving] = useState(false);
+    toDatetimeLocalValue(postState.endAt ?? null)
+  )
+  const [allDay, setAllDay] = useState(() => !!postState.allDay)
+  const [scheduleError, setScheduleError] = useState<string | null>(null)
+  const [scheduleSaving, setScheduleSaving] = useState(false)
 
   // postState 변경 시 일정 입력도 동기화
   useEffect(() => {
-    setStartLocal(toDatetimeLocalValue(postState.startAt ?? null));
-    setEndLocal(toDatetimeLocalValue(postState.endAt ?? null));
-    setAllDay(!!postState.allDay);
-    setScheduleError(null);
-  }, [postState.id, postState.startAt, postState.endAt, postState.allDay]);
+    setStartLocal(toDatetimeLocalValue(postState.startAt ?? null))
+    setEndLocal(toDatetimeLocalValue(postState.endAt ?? null))
+    setAllDay(!!postState.allDay)
+    setScheduleError(null)
+  }, [postState.id, postState.startAt, postState.endAt, postState.allDay])
 
   const loadComments = async () => {
-    setCommentsError(null);
+    setCommentsError(null)
     const res = await fetch(
-      `/api/boards/${boardId}/posts/${postState.id}/comments`,
-    );
+      `/api/boards/${boardId}/posts/${postState.id}/comments`
+    )
     if (res.ok) {
-      setComments(await res.json());
-      return;
+      setComments(await res.json())
+      return
     }
-    const payload = await readJsonSafely(res);
-    const msg = extractApiMessage(payload) ?? "댓글 처리 실패";
-    const human = toHumanHttpError(res.status, msg);
-    setCommentsError(human ?? `${res.status} · ${msg}`);
-  };
+    const payload = await readJsonSafely(res)
+    const msg = extractApiMessage(payload) ?? '댓글 처리 실패'
+    const human = toHumanHttpError(res.status, msg)
+    setCommentsError(human ?? `${res.status} · ${msg}`)
+  }
 
   useEffect(() => {
-    let alive = true;
-    (async () => {
-      setCommentsError(null);
+    let alive = true
+    ;(async () => {
+      setCommentsError(null)
       const res = await fetch(
-        `/api/boards/${boardId}/posts/${postState.id}/comments`,
-      );
-      if (!alive) return;
+        `/api/boards/${boardId}/posts/${postState.id}/comments`
+      )
+      if (!alive) return
       if (res.ok) {
-        setComments(await res.json());
-        return;
+        setComments(await res.json())
+        return
       }
-      const payload = await readJsonSafely(res);
-      const msg = extractApiMessage(payload) ?? "댓글 처리 실패";
-      const human = toHumanHttpError(res.status, msg);
-      setCommentsError(human ?? `${res.status} · ${msg}`);
-    })();
+      const payload = await readJsonSafely(res)
+      const msg = extractApiMessage(payload) ?? '댓글 처리 실패'
+      const human = toHumanHttpError(res.status, msg)
+      setCommentsError(human ?? `${res.status} · ${msg}`)
+    })()
 
     return () => {
-      alive = false;
-    };
-  }, [boardId, postState.id]);
+      alive = false
+    }
+  }, [boardId, postState.id])
 
   const saveSchedule = async () => {
-    setScheduleSaving(true);
-    setScheduleError(null);
+    setScheduleSaving(true)
+    setScheduleError(null)
 
-    const startAt = startLocal ? new Date(startLocal).toISOString() : null;
-    const endAt = endLocal ? new Date(endLocal).toISOString() : null;
+    const startAt = startLocal ? new Date(startLocal).toISOString() : null
+    const endAt = endLocal ? new Date(endLocal).toISOString() : null
 
     try {
       const res = await fetch(`/api/boards/${boardId}/posts/${postState.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ startAt, endAt, allDay }),
-      });
+      })
 
       if (!res.ok) {
-        const payload = await readJsonSafely(res);
-        const msg = extractApiMessage(payload) ?? "일정 저장 실패";
-        const human = toHumanHttpError(res.status, msg);
-        setScheduleError(human ?? `${res.status} · ${msg}`);
-        return;
+        const payload = await readJsonSafely(res)
+        const msg = extractApiMessage(payload) ?? '일정 저장 실패'
+        const human = toHumanHttpError(res.status, msg)
+        setScheduleError(human ?? `${res.status} · ${msg}`)
+        return
       }
 
       // 서버 응답 반영(즉시 화면 반영)
       const updated = (await res.json().catch(() => null)) as {
-        startAt?: string | null;
-        endAt?: string | null;
-        allDay?: boolean;
-      } | null;
+        startAt?: string | null
+        endAt?: string | null
+        allDay?: boolean
+      } | null
 
       if (updated) {
         setPostState((prev) => ({
@@ -209,150 +207,150 @@ export default function PostDetailClient({
           startAt: updated.startAt ?? prev.startAt ?? null,
           endAt: updated.endAt ?? prev.endAt ?? null,
           allDay:
-            typeof updated.allDay === "boolean" ? updated.allDay : prev.allDay,
-        }));
+            typeof updated.allDay === 'boolean' ? updated.allDay : prev.allDay,
+        }))
       }
 
-      router.refresh();
+      router.refresh()
     } finally {
-      setScheduleSaving(false);
+      setScheduleSaving(false)
     }
-  };
+  }
 
   const saveEdit = async () => {
-    if (!postState.canEdit) return;
-    setSavingEdit(true);
-    setEditError(null);
+    if (!postState.canEdit) return
+    setSavingEdit(true)
+    setEditError(null)
 
     try {
       const res = await fetch(`/api/boards/${boardId}/posts/${postState.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: editTitle,
           contentMd: editContent,
           status: editStatus,
         }),
-      });
+      })
 
       if (!res.ok) {
-        const payload = await readJsonSafely(res);
-        const msg = extractApiMessage(payload) ?? "수정 저장 실패";
-        const human = toHumanHttpError(res.status, msg);
-        setEditError(human ?? `${res.status} · ${msg}`);
-        return;
+        const payload = await readJsonSafely(res)
+        const msg = extractApiMessage(payload) ?? '수정 저장 실패'
+        const human = toHumanHttpError(res.status, msg)
+        setEditError(human ?? `${res.status} · ${msg}`)
+        return
       }
 
       // 서버 응답(이제 contentMd도 내려옴) 반영 -> 즉시 화면 반영
       const updated = (await res.json().catch(() => null)) as {
-        title?: string;
-        contentMd?: string | null;
-        status?: Post["status"];
-      } | null;
+        title?: string
+        contentMd?: string | null
+        status?: Post['status']
+      } | null
 
       setPostState((prev) => ({
         ...prev,
         title: updated?.title ?? editTitle,
         contentMd: updated?.contentMd ?? editContent,
         status: updated?.status ?? editStatus,
-      }));
+      }))
 
-      setEditing(false);
-      router.refresh();
+      setEditing(false)
+      router.refresh()
     } finally {
-      setSavingEdit(false);
+      setSavingEdit(false)
     }
-  };
+  }
 
   const deletePost = async () => {
-    if (!postState.canEdit) return;
-    const ok = window.confirm("이 글을 삭제할까요?");
-    if (!ok) return;
+    if (!postState.canEdit) return
+    const ok = window.confirm('이 글을 삭제할까요?')
+    if (!ok) return
 
-    setSavingEdit(true);
-    setEditError(null);
+    setSavingEdit(true)
+    setEditError(null)
 
     try {
       const res = await fetch(`/api/boards/${boardId}/posts/${postState.id}`, {
-        method: "DELETE",
-      });
+        method: 'DELETE',
+      })
 
       if (!res.ok) {
-        const payload = await readJsonSafely(res);
-        const msg = extractApiMessage(payload) ?? "삭제 실패";
-        const human = toHumanHttpError(res.status, msg);
-        setEditError(human ?? `${res.status} · ${msg}`);
-        return;
+        const payload = await readJsonSafely(res)
+        const msg = extractApiMessage(payload) ?? '삭제 실패'
+        const human = toHumanHttpError(res.status, msg)
+        setEditError(human ?? `${res.status} · ${msg}`)
+        return
       }
 
-      router.push(`/boards/${boardId}`);
-      router.refresh();
+      router.push(`/boards/${boardId}`)
+      router.refresh()
     } finally {
-      setSavingEdit(false);
+      setSavingEdit(false)
     }
-  };
+  }
 
   const unlock = async () => {
-    setUnlocking(true);
+    setUnlocking(true)
     try {
       const res = await fetch(
         `/api/boards/${boardId}/posts/${postState.id}/unlock`,
         {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ password: pw }),
-        },
-      );
+        }
+      )
 
       if (res.ok) {
-        setPw("");
-        router.refresh();
+        setPw('')
+        router.refresh()
       } else {
-        const err = await res.json().catch(() => ({}));
-        alert(err.message ?? "비밀번호가 틀렸습니다.");
+        const err = await res.json().catch(() => ({}))
+        alert(err.message ?? '비밀번호가 틀렸습니다.')
       }
     } finally {
-      setUnlocking(false);
+      setUnlocking(false)
     }
-  };
+  }
 
   const addComment = async () => {
     const res = await fetch(
       `/api/boards/${boardId}/posts/${postState.id}/comments`,
       {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: newComment }),
-      },
-    );
+      }
+    )
 
     if (res.ok) {
-      setNewComment("");
-      loadComments();
-      return;
+      setNewComment('')
+      loadComments()
+      return
     }
 
-    const payload = await readJsonSafely(res);
-    const msg = extractApiMessage(payload) ?? "댓글 처리 실패";
-    const human = toHumanHttpError(res.status, msg);
-    setCommentsError(human ?? `${res.status} · ${msg}`);
-  };
+    const payload = await readJsonSafely(res)
+    const msg = extractApiMessage(payload) ?? '댓글 처리 실패'
+    const human = toHumanHttpError(res.status, msg)
+    setCommentsError(human ?? `${res.status} · ${msg}`)
+  }
 
   return (
     <main style={{ padding: 24, maxWidth: 900 }}>
       <Link href={`/boards/${boardId}`}>← {boardName}</Link>
 
       <h1 style={{ marginTop: 12 }}>
-        [{postState.status}] {postState.title} {postState.isSecret ? "🔒" : ""}
+        [{postState.status}] {postState.title} {postState.isSecret ? '🔒' : ''}
       </h1>
 
       {/* 수정/삭제 버튼 */}
       {postState.canEdit ? (
         <div
-          style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}
+          style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}
         >
           <button type="button" onClick={() => setEditing((v) => !v)}>
-            {editing ? "편집 닫기" : "수정"}
+            {editing ? '편집 닫기' : '수정'}
           </button>
           <button type="button" onClick={deletePost} disabled={savingEdit}>
             삭제
@@ -361,7 +359,7 @@ export default function PostDetailClient({
       ) : null}
 
       {editError ? (
-        <p style={{ color: "crimson", marginTop: 10 }}>{editError}</p>
+        <p style={{ color: 'crimson', marginTop: 10 }}>{editError}</p>
       ) : null}
 
       {/* 일정 */}
@@ -370,13 +368,13 @@ export default function PostDetailClient({
           style={{
             marginTop: 12,
             padding: 12,
-            border: "1px solid #eee",
+            border: '1px solid #eee',
             borderRadius: 10,
           }}
         >
           <div style={{ fontWeight: 700, marginBottom: 8 }}>일정</div>
 
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <input
               type="datetime-local"
               value={startLocal}
@@ -387,7 +385,7 @@ export default function PostDetailClient({
               value={endLocal}
               onChange={(e) => setEndLocal(e.target.value)}
             />
-            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <input
                 type="checkbox"
                 checked={allDay}
@@ -397,12 +395,12 @@ export default function PostDetailClient({
             </label>
 
             <button onClick={saveSchedule} disabled={scheduleSaving}>
-              {scheduleSaving ? "저장중..." : "일정 저장"}
+              {scheduleSaving ? '저장중...' : '일정 저장'}
             </button>
           </div>
 
           {scheduleError ? (
-            <p style={{ color: "crimson", marginTop: 10 }}>{scheduleError}</p>
+            <p style={{ color: 'crimson', marginTop: 10 }}>{scheduleError}</p>
           ) : null}
         </section>
       ) : null}
@@ -422,14 +420,14 @@ export default function PostDetailClient({
             disabled={unlocking || !pw}
             style={{ marginLeft: 8 }}
           >
-            {unlocking ? "확인 중..." : "열람"}
+            {unlocking ? '확인 중...' : '열람'}
           </button>
         </section>
       ) : (
         <section style={{ marginTop: 16 }}>
           {editing ? (
-            <div style={{ display: "grid", gap: 10 }}>
-              <label style={{ display: "grid", gap: 6 }}>
+            <div style={{ display: 'grid', gap: 10 }}>
+              <label style={{ display: 'grid', gap: 6 }}>
                 제목
                 <input
                   value={editTitle}
@@ -437,12 +435,12 @@ export default function PostDetailClient({
                 />
               </label>
 
-              <label style={{ display: "grid", gap: 6 }}>
+              <label style={{ display: 'grid', gap: 6 }}>
                 상태
                 <select
                   value={editStatus}
                   onChange={(e) =>
-                    setEditStatus(e.target.value as Post["status"])
+                    setEditStatus(e.target.value as Post['status'])
                   }
                 >
                   <option value="TODO">TODO</option>
@@ -451,34 +449,34 @@ export default function PostDetailClient({
                 </select>
               </label>
 
-              <label style={{ display: "grid", gap: 6 }}>
+              <label style={{ display: 'grid', gap: 6 }}>
                 본문 (Markdown)
                 <textarea
                   value={editContent}
                   onChange={(e) => setEditContent(e.target.value)}
                   rows={10}
                   style={{
-                    width: "100%",
+                    width: '100%',
                     padding: 10,
                     borderRadius: 8,
-                    border: "1px solid #ddd",
-                    resize: "vertical",
+                    border: '1px solid #ddd',
+                    resize: 'vertical',
                   }}
                 />
               </label>
 
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <button type="button" onClick={saveEdit} disabled={savingEdit}>
-                  {savingEdit ? "저장중..." : "저장"}
+                  {savingEdit ? '저장중...' : '저장'}
                 </button>
                 <button
                   type="button"
                   onClick={() => {
-                    setEditTitle(postState.title);
-                    setEditContent(postState.contentMd ?? "");
-                    setEditStatus(postState.status);
-                    setEditing(false);
-                    setEditError(null);
+                    setEditTitle(postState.title)
+                    setEditContent(postState.contentMd ?? '')
+                    setEditStatus(postState.status)
+                    setEditing(false)
+                    setEditError(null)
                   }}
                   disabled={savingEdit}
                 >
@@ -495,52 +493,68 @@ export default function PostDetailClient({
                   <img
                     {...props}
                     style={{
-                      maxWidth: "100%",
-                      height: "auto",
+                      maxWidth: '100%',
+                      height: 'auto',
                       borderRadius: 8,
                     }}
                   />
                 ),
               }}
             >
-              {postState.contentMd || "(본문 없음)"}
+              {postState.contentMd || '(본문 없음)'}
             </ReactMarkdown>
           )}
         </section>
       )}
 
-      <hr style={{ margin: "24px 0" }} />
+      <hr style={{ margin: '24px 0' }} />
 
       {/* 댓글 */}
       <section>
         <h3>댓글</h3>
 
         {commentsError ? (
-          <p style={{ color: "crimson", marginTop: 8 }}>{commentsError}</p>
+          <p style={{ color: 'crimson', marginTop: 8 }}>{commentsError}</p>
         ) : null}
 
-        <div style={{ display: "flex", gap: 8 }}>
-          <input
+        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+          <textarea
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
-            placeholder="댓글 입력"
-            style={{ flex: 1 }}
+            onKeyDown={(e) => {
+              if (e.nativeEvent?.isComposing) return
+
+              // Enter 단독 = 전송, Shift+Enter = 줄바꿈(기본동작)
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                addComment()
+              }
+            }}
+            placeholder="댓글 입력 (Enter=전송, Shift+Enter=줄바꿈)"
+            rows={3}
+            style={{
+              flex: 1,
+              resize: 'vertical',
+              lineHeight: 1.4,
+            }}
           />
-          <button onClick={addComment}>등록</button>
+          <button onClick={addComment} style={{ marginTop: 2 }}>
+            등록
+          </button>
         </div>
 
         <ul style={{ marginTop: 16 }}>
           {comments.map((c) => (
             <li key={c.id} style={{ marginBottom: 10 }}>
               <div style={{ fontSize: 12, opacity: 0.8 }}>
-                {c.author?.name ?? c.author?.email ?? "unknown"} ·{" "}
+                {c.author?.name ?? c.author?.email ?? 'unknown'} ·{' '}
                 {new Date(c.createdAt).toLocaleString()}
               </div>
-              <div>{c.content}</div>
+              <div style={{ whiteSpace: 'pre-wrap' }}>{c.content}</div>
             </li>
           ))}
         </ul>
       </section>
     </main>
-  );
+  )
 }

@@ -1,31 +1,31 @@
-"use client";
+'use client'
 
-import { useEffect, useState } from "react";
-import { toHumanHttpError } from "@/app/lib/httpErrorText";
+import { useEffect, useState } from 'react'
+import { toHumanHttpError } from '@/app/lib/httpErrorText'
 
 type CommentItem = {
-  id: string;
-  content: string;
-  createdAt: string;
-  author: { name: string | null; email: string | null};
-};
+  id: string
+  content: string
+  createdAt: string
+  author: { name: string | null; email: string | null }
+}
 
 function extractApiMessage(payload: unknown): string | null {
-  if (!payload || typeof payload !== "object") return null;
+  if (!payload || typeof payload !== 'object') return null
 
-  const record = payload as Record<string, unknown>;
-  const message = record["message"];
+  const record = payload as Record<string, unknown>
+  const message = record['message']
 
-  if (typeof message !== "string") return null;
+  if (typeof message !== 'string') return null
 
-  return message.trim() || null;
+  return message.trim() || null
 }
 
 async function readJsonSafely(res: Response): Promise<unknown> {
   try {
-    return await res.json();
+    return await res.json()
   } catch {
-    return null;
+    return null
   }
 }
 
@@ -33,76 +33,90 @@ export default function BlogCommentsClient({
   boardId,
   postId,
 }: {
-  boardId: string;
-  postId: string;
+  boardId: string
+  postId: string
 }) {
-  const [items, setItems] = useState<CommentItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [content, setContent] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [items, setItems] = useState<CommentItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [content, setContent] = useState('')
+  const [error, setError] = useState<string | null>(null)
 
   async function load() {
-    setLoading(true);
-    setError(null);
+    setLoading(true)
+    setError(null)
     const res = await fetch(`/api/boards/${boardId}/posts/${postId}/comments`, {
-      cache: "no-store",
-    });
+      cache: 'no-store',
+    })
     if (!res.ok) {
-      const payload = await readJsonSafely(res);
-      const msg = extractApiMessage(payload) ?? "댓글 처리 실패";
-      const human = toHumanHttpError(res.status, msg);
-      setError(human ?? `${res.status} · ${msg}`);
-      setLoading(false);
-      return;
+      const payload = await readJsonSafely(res)
+      const msg = extractApiMessage(payload) ?? '댓글 처리 실패'
+      const human = toHumanHttpError(res.status, msg)
+      setError(human ?? `${res.status} · ${msg}`)
+      setLoading(false)
+      return
     }
-    const data = await res.json();
-    setItems(Array.isArray(data) ? data : []);
-    setLoading(false);
+    const data = await res.json()
+    setItems(Array.isArray(data) ? data : [])
+    setLoading(false)
   }
 
   async function submit() {
-    const text = content.trim();
-    if (!text) return;
+    const text = content.trim()
+    if (!text) return
 
-    setError(null);
+    setError(null)
     const res = await fetch(`/api/boards/${boardId}/posts/${postId}/comments`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content: text }),
-    });
+    })
 
     if (!res.ok) {
-      const d = await res.json().catch(() => ({}));
-      setError(d?.message ?? "댓글 작성 실패");
-      return;
+      const d = await res.json().catch(() => ({}))
+      setError(d?.message ?? '댓글 작성 실패')
+      return
     }
 
-    setContent("");
-    await load();
+    setContent('')
+    await load()
   }
 
   useEffect(() => {
-    load();
+    load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [boardId, postId]);
+  }, [boardId, postId])
 
   return (
     <section style={{ marginTop: 32 }}>
       <h2 style={{ marginBottom: 12 }}>댓글</h2>
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-        <input
+      <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+        <textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          placeholder="댓글 달기..."
-          style={{ flex: 1, padding: 10 }}
+          onKeyDown={(e) => {
+            if (e.nativeEvent?.isComposing) return
+
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault()
+              submit()
+            }
+          }}
+          placeholder="댓글 달기... (Enter=전송, Shift+Enter=줄바꿈)"
+          rows={3}
+          style={{
+            flex: 1,
+            padding: 10,
+            resize: 'vertical',
+            lineHeight: 1.4,
+          }}
         />
-        <button onClick={submit} style={{ padding: "10px 14px" }}>
+        <button onClick={submit} style={{ padding: '10px 14px' }}>
           등록
         </button>
       </div>
 
-      {error && <p style={{ color: "crimson" }}>{error}</p>}
+      {error && <p style={{ color: 'crimson' }}>{error}</p>}
 
       {loading ? (
         <p>불러오는 중...</p>
@@ -111,15 +125,19 @@ export default function BlogCommentsClient({
       ) : (
         <ul style={{ lineHeight: 1.8 }}>
           {items.map((c) => (
-            <li key={c.id} style={{ padding: "8px 0", borderTop: "1px solid #eee" }}>
+            <li
+              key={c.id}
+              style={{ padding: '8px 0', borderTop: '1px solid #eee' }}
+            >
               <div style={{ fontSize: 13, opacity: 0.7 }}>
-                {c.author.name ?? "익명"} · {c.createdAt.slice(0, 16).replace("T", " ")}
+                {c.author.name ?? '익명'} ·{' '}
+                {c.createdAt.slice(0, 16).replace('T', ' ')}
               </div>
-              <div style={{ whiteSpace: "pre-wrap" }}>{c.content}</div>
+              <div style={{ whiteSpace: 'pre-wrap' }}>{c.content}</div>
             </li>
           ))}
         </ul>
       )}
     </section>
-  );
+  )
 }

@@ -25,8 +25,8 @@ model User {
   password String? // credentials 사용 시 필요
   role     Role    @default(USER)
 
-  accounts Account[]
-  sessions Session[]
+  accounts      Account[]
+  sessions      Session[]
   emailVerified DateTime?
 
   createdAt DateTime @default(now())
@@ -35,6 +35,8 @@ model User {
   boards   Board[]
   posts    Post[]
   comments Comment[]
+
+  menuOverrides UserMenuPermission[]
 }
 
 model Account {
@@ -112,7 +114,8 @@ model Post {
 
   comments Comment[]
 
-  slug String? 
+  slug String?
+
   @@unique([boardId, slug])
 }
 
@@ -143,4 +146,40 @@ enum BoardType {
   TODO
   CALENDAR
   HELP
+}
+
+enum PermissionOverrideMode {
+  ALLOW
+  DENY
+}
+
+model UserMenuPermission {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  menuKey String
+  menu    MenuPermission @relation(fields: [menuKey], references: [key], onDelete: Cascade)
+
+  mode PermissionOverrideMode
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, menuKey])
+}
+
+model MenuPermission {
+  id           String  @id @default(cuid())
+  key          String  @unique
+  label        String
+  path         String
+  requireLogin Boolean @default(true)
+  minRole      Role    @default(USER)
+  visible      Boolean @default(true)
+
+  userOverrides UserMenuPermission[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

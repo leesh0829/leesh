@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useSession } from 'next-auth/react'
 import { toHumanHttpError } from '@/app/lib/httpErrorText'
 
 type CommentItem = {
@@ -40,6 +41,69 @@ export default function BlogCommentsClient({
   const [loading, setLoading] = useState(true)
   const [content, setContent] = useState('')
   const [error, setError] = useState<string | null>(null)
+
+  const { data: session } = useSession()
+  const myEmail = session?.user?.email ?? null
+
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editText, setEditText] = useState('')
+  const [savingEdit, setSavingEdit] = useState(false)
+
+  async function startEdit(c: CommentItem) {
+    setEditingId(c.id)
+    setEditText(c.content)
+  }
+
+  async function saveEdit() {
+    if (!editingId) return
+    const text = editText.trim()
+    if (!text) return
+
+    setSavingEdit(true)
+    setError(null)
+
+    const res = await fetch(
+      `/api/boards/${boardId}/posts/${postId}/comments/${editingId}`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: text }),
+      }
+    )
+
+    if (!res.ok) {
+      const payload = await readJsonSafely(res)
+      const msg = extractApiMessage(payload) ?? '댓글 수정 실패'
+      setError(`${res.status} · ${msg}`)
+      setSavingEdit(false)
+      return
+    }
+
+    setEditingId(null)
+    setEditText('')
+    setSavingEdit(false)
+    await load()
+  }
+
+  async function deleteComment(id: string) {
+    const ok = window.confirm('댓글 삭제할까요?')
+    if (!ok) return
+
+    setError(null)
+    const res = await fetch(
+      `/api/boards/${boardId}/posts/${postId}/comments/${id}`,
+      { method: 'DELETE' }
+    )
+
+    if (!res.ok) {
+      const payload = await readJsonSafely(res)
+      const msg = extractApiMessage(payload) ?? '댓글 삭제 실패'
+      setError(`${res.status} · ${msg}`)
+      return
+    }
+
+    await load()
+  }
 
   async function load() {
     setLoading(true)
@@ -129,11 +193,71 @@ export default function BlogCommentsClient({
               key={c.id}
               style={{ padding: '8px 0', borderTop: '1px solid #eee' }}
             >
-              <div style={{ fontSize: 13, opacity: 0.7 }}>
-                {c.author.name ?? '익명'} ·{' '}
-                {c.createdAt.slice(0, 16).replace('T', ' ')}
+              <div
+                style={{
+                  fontSize: 13,
+                  opacity: 0.7,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  gap: 10,
+                }}
+              >
+                <div>
+                  {c.author.name ?? '익명'} ·{' '}
+                  {c.createdAt.slice(0, 16).replace('T', ' ')}
+                </div>
+
+                {myEmail && c.author.email === myEmail ? (
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      type="button"
+                      onClick={() => startEdit(c)}
+                      style={{ fontSize: 12 }}
+                    >
+                      수정
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteComment(c.id)}
+                      style={{ fontSize: 12 }}
+                    >
+                      삭제
+                    </button>
+                  </div>
+                ) : null}
               </div>
-              <div style={{ whiteSpace: 'pre-wrap' }}>{c.content}</div>
+
+              {editingId === c.id ? (
+                <div style={{ marginTop: 8 }}>
+                  <textarea
+                    value={editText}
+                    onChange={(e) => setEditText(e.target.value)}
+                    rows={3}
+                    style={{
+                      width: '100%',
+                      padding: 10,
+                      resize: 'vertical',
+                      lineHeight: 1.4,
+                    }}
+                  />
+                  <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                    <button onClick={saveEdit} disabled={savingEdit}>
+                      {savingEdit ? '저장중...' : '저장'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditingId(null)
+                        setEditText('')
+                      }}
+                      disabled={savingEdit}
+                    >
+                      취소
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ whiteSpace: 'pre-wrap' }}>{c.content}</div>
+              )}
             </li>
           ))}
         </ul>

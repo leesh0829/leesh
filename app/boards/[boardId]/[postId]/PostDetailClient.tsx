@@ -8,6 +8,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
 import rehypeHighlight from 'rehype-highlight'
+import { useSession } from 'next-auth/react'
 
 type Post = {
   id: string
@@ -69,6 +70,70 @@ export default function PostDetailClient({
   post: Post
 }) {
   const router = useRouter()
+  const { data: session } = useSession()
+  const myEmail = session?.user?.email ?? null
+
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null)
+  const [editingCommentText, setEditingCommentText] = useState('')
+  const [commentSaving, setCommentSaving] = useState(false)
+
+  const startCommentEdit = (c: Comment) => {
+    setEditingCommentId(c.id)
+    setEditingCommentText(c.content)
+  }
+
+  const saveCommentEdit = async () => {
+    if (!editingCommentId) return
+    const text = editingCommentText.trim()
+    if (!text) return
+
+    setCommentSaving(true)
+    setCommentsError(null)
+
+    const res = await fetch(
+      `/api/boards/${boardId}/posts/${postState.id}/comments/${editingCommentId}`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: text }),
+      }
+    )
+
+    if (!res.ok) {
+      const payload = await readJsonSafely(res)
+      const msg = extractApiMessage(payload) ?? '댓글 수정 실패'
+      const human = toHumanHttpError(res.status, msg)
+      setCommentsError(human ?? `${res.status} · ${msg}`)
+      setCommentSaving(false)
+      return
+    }
+
+    setEditingCommentId(null)
+    setEditingCommentText('')
+    setCommentSaving(false)
+    await loadComments()
+  }
+
+  const deleteComment = async (id: string) => {
+    const ok = window.confirm('댓글 삭제할까요?')
+    if (!ok) return
+
+    setCommentsError(null)
+    const res = await fetch(
+      `/api/boards/${boardId}/posts/${postState.id}/comments/${id}`,
+      { method: 'DELETE' }
+    )
+
+    if (!res.ok) {
+      const payload = await readJsonSafely(res)
+      const msg = extractApiMessage(payload) ?? '댓글 삭제 실패'
+      const human = toHumanHttpError(res.status, msg)
+      setCommentsError(human ?? `${res.status} · ${msg}`)
+      return
+    }
+
+    await loadComments()
+  }
 
   // 화면 즉시 반영용: 로컬 post state
   const [postState, setPostState] = useState<Post>(post)
@@ -544,15 +609,81 @@ export default function PostDetailClient({
         </div>
 
         <ul style={{ marginTop: 16 }}>
-          {comments.map((c) => (
-            <li key={c.id} style={{ marginBottom: 10 }}>
-              <div style={{ fontSize: 12, opacity: 0.8 }}>
-                {c.author?.name ?? c.author?.email ?? 'unknown'} ·{' '}
-                {new Date(c.createdAt).toLocaleString()}
-              </div>
-              <div style={{ whiteSpace: 'pre-wrap' }}>{c.content}</div>
-            </li>
-          ))}
+          {comments.map((c) => {
+            const canMine = myEmail && c.author?.email === myEmail
+
+            return (
+              <li key={c.id} style={{ marginBottom: 10 }}>
+                <div
+                  style={{
+                    fontSize: 12,
+                    opacity: 0.8,
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    gap: 10,
+                  }}
+                >
+                  <div>
+                    {c.author?.name ?? c.author?.email ?? 'unknown'} ·{' '}
+                    {new Date(c.createdAt).toLocaleString()}
+                  </div>
+
+                  {canMine ? (
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button
+                        type="button"
+                        onClick={() => startCommentEdit(c)}
+                        style={{ fontSize: 12 }}
+                      >
+                        수정
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deleteComment(c.id)}
+                        style={{ fontSize: 12 }}
+                      >
+                        삭제
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+
+                {editingCommentId === c.id ? (
+                  <div style={{ marginTop: 8 }}>
+                    <textarea
+                      value={editingCommentText}
+                      onChange={(e) => setEditingCommentText(e.target.value)}
+                      rows={3}
+                      style={{
+                        width: '100%',
+                        resize: 'vertical',
+                        lineHeight: 1.4,
+                      }}
+                    />
+                    <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                      <button
+                        onClick={saveCommentEdit}
+                        disabled={commentSaving}
+                      >
+                        {commentSaving ? '저장중...' : '저장'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEditingCommentId(null)
+                          setEditingCommentText('')
+                        }}
+                        disabled={commentSaving}
+                      >
+                        취소
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ whiteSpace: 'pre-wrap' }}>{c.content}</div>
+                )}
+              </li>
+            )
+          })}
         </ul>
       </section>
     </main>

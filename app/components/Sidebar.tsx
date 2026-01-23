@@ -226,13 +226,23 @@ export default function Sidebar({
                 로그아웃
               </button>
             ) : (
-              <Link
-                href="/login"
-                onClick={onClose}
-                className="w-full rounded-md bg-zinc-900 px-3 py-2 text-center text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-black dark:hover:bg-zinc-200"
-              >
-                로그인
-              </Link>
+              <div className="flex w-full gap-2">
+                <Link
+                  href="/login"
+                  onClick={onClose}
+                  className="w-1/2 rounded-md bg-zinc-900 px-3 py-2 text-center text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-black dark:hover:bg-zinc-200"
+                >
+                  로그인
+                </Link>
+
+                <Link
+                  href="/sign-up"
+                  onClick={onClose}
+                  className="w-1/2 rounded-md border border-zinc-200 bg-white px-3 py-2 text-center text-sm font-medium hover:bg-zinc-100 dark:border-zinc-800 dark:bg-black dark:hover:bg-zinc-900"
+                >
+                  회원가입
+                </Link>
+              </div>
             )}
           </div>
         </div>

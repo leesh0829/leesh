@@ -54,7 +54,7 @@ export default function SignUpPage() {
     <main style={{ padding: 24, maxWidth: 420 }}>
       <h1>Sign up</h1>
 
-      {/* ✅ Enter = submit 되게 form으로 감쌈 */}
+      {/* Enter = submit 되게 form으로 감쌈 */}
       <form
         onSubmit={(e) => {
           e.preventDefault()

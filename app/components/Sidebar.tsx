@@ -8,6 +8,10 @@ import { useEffect, useMemo, useState } from 'react'
 type Props = {
   open: boolean
   onClose: () => void
+
+  // desktop hide/show
+  desktopOpen: boolean
+  onToggleDesktop: () => void
 }
 
 type Perm = {
@@ -46,7 +50,12 @@ function NavItem({
   )
 }
 
-export default function Sidebar({ open, onClose }: Props) {
+export default function Sidebar({
+  open,
+  onClose,
+  desktopOpen,
+  onToggleDesktop,
+}: Props) {
   const pathname = usePathname() ?? '/'
   const { data: session, status } = useSession()
 
@@ -69,9 +78,6 @@ export default function Sidebar({ open, onClose }: Props) {
     session?.user?.email ||
     (status === 'loading' ? '로딩...' : '비로그인')
 
-  // NOTE:
-  // - 세션에 role을 안 넣었으니(현재 authOptions 구조), 여기서는 “로그인 여부”까지만 반영.
-  // - ADMIN 메뉴는 기본 visible=false라 사이드바에 안 뜨게 해둠.
   const nav = useMemo(() => {
     const base =
       perms && perms.length > 0
@@ -145,6 +151,7 @@ export default function Sidebar({ open, onClose }: Props) {
 
   return (
     <>
+      {/* mobile overlay */}
       {open && (
         <button
           type="button"
@@ -156,14 +163,31 @@ export default function Sidebar({ open, onClose }: Props) {
 
       <aside
         className={
-          'fixed z-50 h-dvh w-64 border-r border-zinc-200 bg-white p-4 transition-transform dark:border-zinc-800 dark:bg-black lg:static lg:translate-x-0 ' +
-          (open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0')
+          'fixed z-50 h-dvh w-64 border-r border-zinc-200 bg-white p-4 transition-transform dark:border-zinc-800 dark:bg-black ' +
+          // mobile open/close
+          (open ? 'translate-x-0' : '-translate-x-full') +
+          // desktop open/close
+          ' lg:static ' +
+          (desktopOpen ? ' lg:translate-x-0' : ' lg:-translate-x-full')
         }
       >
         <div className="mb-4 flex items-center justify-between">
           <Link href="/" onClick={onClose} className="text-base font-bold">
             Leesh
           </Link>
+
+          {/* desktop hide 버튼 */}
+          <button
+            type="button"
+            className="hidden rounded-md border border-zinc-200 px-2 py-1 text-xs hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-900 lg:inline-flex"
+            onClick={onToggleDesktop}
+            aria-label="Hide sidebar"
+            title="사이드바 숨기기"
+          >
+            숨김
+          </button>
+
+          {/* mobile close 버튼 */}
           <button
             type="button"
             className="rounded-md border border-zinc-200 px-3 py-1 text-sm hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-900 lg:hidden"

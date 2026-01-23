@@ -86,6 +86,12 @@ model Board {
 
   posts Post[]
 
+  singleSchedule Boolean    @default(false)
+  scheduleStatus PostStatus @default(TODO)
+  scheduleStartAt DateTime?
+  scheduleEndAt   DateTime?
+  scheduleAllDay  Boolean   @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

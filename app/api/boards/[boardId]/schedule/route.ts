@@ -35,37 +35,32 @@ async function readBody(req: Request): Promise<Record<string, unknown>> {
   }
 }
 
-export async function GET() {
-  const boards = await prisma.board.findMany({
-    where: { type: 'GENERAL' },
-    orderBy: { createdAt: 'desc' },
-    include: { owner: { select: { name: true, email: true } } },
-  })
-  return NextResponse.json(boards)
-}
-
-export async function POST(req: Request) {
+export async function PATCH(
+  req: Request,
+  ctx: { params: Promise<{ boardId: string }> }
+) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.email)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
-  const user = await prisma.user.findUnique({
+  const me = await prisma.user.findUnique({
     where: { email: session.user.email },
     select: { id: true },
   })
-  if (!user)
+  if (!me)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
+  const { boardId } = await ctx.params
+  const board = await prisma.board.findUnique({
+    where: { id: boardId },
+    select: { id: true, ownerId: true },
+  })
+  if (!board)
+    return NextResponse.json({ message: 'not found' }, { status: 404 })
+  if (board.ownerId !== me.id)
+    return NextResponse.json({ message: 'forbidden' }, { status: 403 })
+
   const body = await readBody(req)
-
-  const name = String(body.name ?? '').trim()
-  const description =
-    body.description === null || typeof body.description === 'string'
-      ? body.description
-      : null
-
-  if (!name)
-    return NextResponse.json({ message: 'name required' }, { status: 400 })
 
   const singleSchedule = Boolean(body.singleSchedule)
   const scheduleStatus = parsePostStatus(body.scheduleStatus, 'TODO')
@@ -75,18 +70,14 @@ export async function POST(req: Request) {
 
   if (singleSchedule && !scheduleStartAt) {
     return NextResponse.json(
-      { message: 'scheduleStartAt required when singleSchedule is true' },
+      { message: 'scheduleStartAt required' },
       { status: 400 }
     )
   }
 
-  const board = await prisma.board.create({
+  await prisma.board.update({
+    where: { id: boardId },
     data: {
-      name,
-      description,
-      ownerId: user.id,
-      type: 'GENERAL',
-
       singleSchedule,
       scheduleStatus,
       scheduleStartAt: singleSchedule ? scheduleStartAt : null,
@@ -95,5 +86,45 @@ export async function POST(req: Request) {
     },
   })
 
-  return NextResponse.json(board)
+  return NextResponse.json({ ok: true })
+}
+
+export async function DELETE(
+  req: Request,
+  ctx: { params: Promise<{ boardId: string }> }
+) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.email)
+    return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
+
+  const me = await prisma.user.findUnique({
+    where: { email: session.user.email },
+    select: { id: true },
+  })
+  if (!me)
+    return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
+
+  const { boardId } = await ctx.params
+  const board = await prisma.board.findUnique({
+    where: { id: boardId },
+    select: { id: true, ownerId: true },
+  })
+  if (!board)
+    return NextResponse.json({ message: 'not found' }, { status: 404 })
+  if (board.ownerId !== me.id)
+    return NextResponse.json({ message: 'forbidden' }, { status: 403 })
+
+  // 일정만 제거(보드는 유지)
+  await prisma.board.update({
+    where: { id: boardId },
+    data: {
+      singleSchedule: false,
+      scheduleStartAt: null,
+      scheduleEndAt: null,
+      scheduleAllDay: false,
+      scheduleStatus: 'TODO',
+    },
+  })
+
+  return NextResponse.json({ ok: true })
 }

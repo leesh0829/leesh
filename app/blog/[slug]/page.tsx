@@ -4,10 +4,12 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import { toISOStringSafe } from '@/app/lib/date'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import remarkBreaks from 'remark-breaks'
 import rehypeHighlight from 'rehype-highlight'
 import BlogCommentsClient from './BlogCommentsClient'
 import BlogActionsClient from './BlogActionsClient'
+import BlogSecretGateClient from './BlogSecretGateClient'
+import { cookies } from 'next/headers'
+import { readUnlockedPostIds, UNLOCK_COOKIE_NAME } from '@/app/lib/unlockCookie'
 
 export const runtime = 'nodejs'
 
@@ -18,6 +20,7 @@ export default async function BlogDetailPage({
 }) {
   const { slug } = await params
 
+  // slug 우선 조회, 없으면 id fallback
   const post = await prisma.post.findFirst({
     where: {
       OR: [{ slug }, { id: slug }],
@@ -26,11 +29,13 @@ export default async function BlogDetailPage({
     },
     select: {
       id: true,
+      slug: true,
       boardId: true,
       title: true,
       contentMd: true,
       createdAt: true,
       authorId: true,
+      isSecret: true,
       board: { select: { ownerId: true } },
     },
   })
@@ -38,7 +43,6 @@ export default async function BlogDetailPage({
   if (!post) return <main style={{ padding: 24 }}>글 없음</main>
 
   const session = await getServerSession(authOptions)
-
   const me = session?.user?.email
     ? await prisma.user.findUnique({
         where: { email: session.user.email },
@@ -46,30 +50,45 @@ export default async function BlogDetailPage({
       })
     : null
 
-  const canEdit =
+  // 작성자/보드주인은 비번 없이도 열람 허용
+  const isPrivileged =
     !!me?.id && (me.id === post.authorId || me.id === post.board.ownerId)
+
+  // 비번 unlock 쿠키 확인
+  const cookieStore = await cookies()
+  const unlocked = readUnlockedPostIds(
+    cookieStore.get(UNLOCK_COOKIE_NAME)?.value
+  )
+  const unlockedByPassword = unlocked.includes(post.id)
+
+  const locked = post.isSecret && !isPrivileged && !unlockedByPassword
 
   return (
     <main style={{ padding: 24 }}>
-      <h1 style={{ marginBottom: 4 }}>{post.title}</h1>
+      <h1 style={{ marginBottom: 4 }}>
+        {post.title} {post.isSecret ? '🔒' : ''}
+      </h1>
 
       <div style={{ opacity: 0.6, marginBottom: 18 }}>
         {toISOStringSafe(post.createdAt).slice(0, 10)}
       </div>
 
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkBreaks]}
-        rehypePlugins={[rehypeHighlight]}
-      >
-        {post.contentMd ?? ''}
-      </ReactMarkdown>
+      <BlogActionsClient postId={post.id} canEdit={isPrivileged} />
 
-      <BlogActionsClient postId={post.id} canEdit={canEdit} />
+      {locked ? (
+        <BlogSecretGateClient boardId={post.boardId} postId={post.id} />
+      ) : (
+        <>
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            rehypePlugins={[rehypeHighlight]}
+          >
+            {post.contentMd ?? ''}
+          </ReactMarkdown>
 
-      <BlogCommentsClient
-        boardId={post.boardId ?? undefined}
-        postId={post.id}
-      />
+          <BlogCommentsClient boardId={post.boardId} postId={post.id} />
+        </>
+      )}
     </main>
   )
 }

@@ -63,10 +63,14 @@ export default function BoardDetailClient({
   board,
   initialPosts,
   canCreate,
+  backHref = '/boards',
+  backLabel = 'boards',
 }: {
   board: Board
   initialPosts: Post[]
   canCreate: boolean
+  backHref?: string
+  backLabel?: string
 }) {
   const [posts, setPosts] = useState<Post[]>(initialPosts)
 
@@ -256,7 +260,7 @@ export default function BoardDetailClient({
 
   return (
     <main style={{ padding: 24, maxWidth: 900 }}>
-      <Link href="/boards">← boards</Link>
+      <Link href={backHref}>{backLabel}</Link>
 
       <h1 style={{ marginTop: 12 }}>{board.name}</h1>
       {board.description ? <p>{board.description}</p> : null}

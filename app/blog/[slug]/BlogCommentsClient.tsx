@@ -12,6 +12,21 @@ type CommentItem = {
   author: { name: string | null; email: string | null }
 }
 
+function formatKoreanDateTimeWithMs(isoOrDate: string | Date) {
+  const d = typeof isoOrDate === 'string' ? new Date(isoOrDate) : isoOrDate
+  if (Number.isNaN(d.getTime())) return 'invalid date'
+
+  const yyyy = d.getFullYear()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mi = String(d.getMinutes()).padStart(2, '0')
+  const ss = String(d.getSeconds()).padStart(2, '0')
+  const ms = String(d.getMilliseconds()).padStart(3, '0')
+
+  return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}.${ms}`
+}
+
 function extractApiMessage(payload: unknown): string | null {
   if (!payload || typeof payload !== 'object') return null
 
@@ -205,7 +220,7 @@ export default function BlogCommentsClient({
               >
                 <div>
                   {displayUserLabel(c.author.name, c.author.email, 'unknown')} ·{' '}
-                  {c.createdAt.slice(0, 16).replace('T', ' ')}
+                  {formatKoreanDateTimeWithMs(c.createdAt)}
                 </div>
 
                 {myEmail && c.author.email === myEmail ? (

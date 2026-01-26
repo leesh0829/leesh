@@ -44,6 +44,21 @@ function toDatetimeLocalValue(iso: string | null): string {
   return `${yyyy}-${mm}-${dd}T${hh}:${mi}`
 }
 
+function formatKoreanDateTimeWithMs(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return 'invalid date'
+
+  const yyyy = d.getFullYear()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mi = String(d.getMinutes()).padStart(2, '0')
+  const ss = String(d.getSeconds()).padStart(2, '0')
+  const ms = String(d.getMilliseconds()).padStart(3, '0')
+
+  return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}.${ms}`
+}
+
 function extractApiMessage(payload: unknown): string | null {
   if (!payload || typeof payload !== 'object') return null
   const record = payload as Record<string, unknown>
@@ -630,7 +645,7 @@ export default function PostDetailClient({
                       c.author?.email,
                       'unknown'
                     )}{' '}
-                    · {new Date(c.createdAt).toLocaleString()}
+                    · {formatKoreanDateTimeWithMs(c.createdAt)}
                   </div>
 
                   {canMine ? (

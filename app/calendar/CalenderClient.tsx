@@ -72,6 +72,64 @@ function daysInMonth(d: Date) {
   return new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()
 }
 
+type SpanSeg = {
+  it: CalItem
+  start: Date
+  end: Date
+}
+
+type WeekBar = {
+  it: CalItem
+  colStart: number // 0~6
+  colEnd: number // 0~6 (inclusive)
+  lane: number // 0,1,2...
+  isStart: boolean
+  isEnd: boolean
+}
+
+function startOfDayLocal(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate())
+}
+
+function addDays(d: Date, days: number) {
+  const x = new Date(d)
+  x.setDate(x.getDate() + days)
+  return x
+}
+
+function dayKey(d: Date) {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+/**
+ * endAt 보정:
+ * - endAt이 null이면 startAt 하루짜리로
+ * - allDay 일정에서 endAt이 자정(00:00:00.000)으로 저장되는 케이스는
+ *   "마지막 날이 하루 밀려 보이는" 문제가 생겨서 하루 빼줌
+ */
+function normalizeSpanEnd(it: CalItem, start: Date) {
+  if (!it.endAt) return startOfDayLocal(start)
+
+  const end = new Date(it.endAt)
+  if (Number.isNaN(end.getTime())) return startOfDayLocal(start)
+
+  if (it.allDay) {
+    const isMidnight =
+      end.getHours() === 0 &&
+      end.getMinutes() === 0 &&
+      end.getSeconds() === 0 &&
+      end.getMilliseconds() === 0
+
+    if (isMidnight) {
+      // end가 다음날 00:00로 들어오는 케이스를 "전날"로 보정
+      const e = addDays(end, -1)
+      return startOfDayLocal(e)
+    }
+  }
+
+  return startOfDayLocal(end)
+}
+
 export default function CalendarClient() {
   const [cursor, setCursor] = useState(() => new Date())
   const [items, setItems] = useState<CalItem[]>([])
@@ -273,28 +331,130 @@ export default function CalendarClient() {
   const startDay = monthStart.getDay()
   const cells = 42
 
-  const byDay = useMemo(() => {
-    const map = new Map<string, CalItem[]>()
+  const todayKey = useMemo(() => {
+    const t = new Date()
+    return `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}`
+  }, [])
+
+  const spans = useMemo(() => {
+    const list: SpanSeg[] = []
     for (const it of filteredItems) {
       if (!it.startAt) continue
-      const d = new Date(it.startAt)
-      const key = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-      const arr = map.get(key) ?? []
-      arr.push(it)
-      map.set(key, arr)
+      const s0 = new Date(it.startAt)
+      if (Number.isNaN(s0.getTime())) continue
+      const s = startOfDayLocal(s0)
+      const e = normalizeSpanEnd(it, s0)
+      list.push({ it, start: s, end: e })
     }
 
-    for (const [k, arr] of map) {
-      arr.sort((a, b) => {
-        const at = a.startAt ? new Date(a.startAt).getTime() : 0
-        const bt = b.startAt ? new Date(b.startAt).getTime() : 0
-        if (at !== bt) return at - bt
-        return a.title.localeCompare(b.title)
-      })
-      map.set(k, arr)
-    }
-    return map
+    list.sort((a, b) => {
+      const at = a.start.getTime()
+      const bt = b.start.getTime()
+      if (at !== bt) return at - bt
+      return a.it.title.localeCompare(b.it.title)
+    })
+
+    return list
   }, [filteredItems])
+
+  const gridStart = useMemo(() => {
+    // 달력 그리드(42칸)의 첫 칸 날짜 (Sun 시작 기준)
+    const d = new Date(monthStart)
+    d.setDate(d.getDate() - startDay)
+    return startOfDayLocal(d)
+  }, [monthStart, startDay])
+
+  const weeks = useMemo(() => {
+    const result: {
+      weekStart: Date
+      weekEnd: Date
+      bars: WeekBar[]
+      laneCount: number
+    }[] = []
+
+    for (let w = 0; w < 6; w++) {
+      const ws = addDays(gridStart, w * 7)
+      const we = addDays(ws, 6)
+
+      // 이 주에 걸치는 일정만 잘라서 segment 만든다
+      const segs: {
+        it: CalItem
+        segStart: Date
+        segEnd: Date
+        colStart: number
+        colEnd: number
+        isStart: boolean
+        isEnd: boolean
+      }[] = []
+
+      for (const sp of spans) {
+        if (sp.end < ws || sp.start > we) continue // 겹침 없음
+
+        const segStart = sp.start < ws ? ws : sp.start
+        const segEnd = sp.end > we ? we : sp.end
+
+        const colStart = Math.max(
+          0,
+          Math.min(
+            6,
+            Math.floor((segStart.getTime() - ws.getTime()) / 86400000)
+          )
+        )
+        const colEnd = Math.max(
+          0,
+          Math.min(6, Math.floor((segEnd.getTime() - ws.getTime()) / 86400000))
+        )
+
+        segs.push({
+          it: sp.it,
+          segStart,
+          segEnd,
+          colStart,
+          colEnd,
+          isStart: dayKey(sp.start) === dayKey(segStart),
+          isEnd: dayKey(sp.end) === dayKey(segEnd),
+        })
+      }
+
+      // lane 배치(겹치면 아래줄로)
+      const lanesLastEnd: number[] = []
+      const bars: WeekBar[] = []
+
+      segs.sort((a, b) => {
+        const at = a.colStart - b.colStart
+        if (at !== 0) return at
+        return a.it.title.localeCompare(b.it.title)
+      })
+
+      for (const s of segs) {
+        let lane = 0
+        while (lane < lanesLastEnd.length) {
+          if (s.colStart > lanesLastEnd[lane]) break
+          lane++
+        }
+        if (lane === lanesLastEnd.length) lanesLastEnd.push(-1)
+        lanesLastEnd[lane] = Math.max(lanesLastEnd[lane], s.colEnd)
+
+        bars.push({
+          it: s.it,
+          colStart: s.colStart,
+          colEnd: s.colEnd,
+          lane,
+          isStart: s.isStart,
+          isEnd: s.isEnd,
+        })
+      }
+
+      result.push({
+        weekStart: ws,
+        weekEnd: we,
+        bars,
+        laneCount: lanesLastEnd.length,
+      })
+    }
+
+    return result
+  }, [gridStart, spans])
 
   const goPrev = () =>
     setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))
@@ -355,113 +515,193 @@ export default function CalendarClient() {
 
       {err && <p style={{ color: 'crimson', marginTop: 10 }}>{err}</p>}
 
-      <div
-        style={{
-          marginTop: 16,
-          display: 'grid',
-          gridTemplateColumns: 'repeat(7, 1fr)',
-          gap: 8,
-        }}
-      >
-        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((w) => (
-          <div key={w} style={{ fontWeight: 700, opacity: 0.7 }}>
-            {w}
-          </div>
-        ))}
+      <div style={{ marginTop: 16 }}>
+        {/* 요일 헤더 */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(7, 1fr)',
+            gap: 8,
+            marginBottom: 8,
+          }}
+        >
+          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((w) => (
+            <div key={w} style={{ fontWeight: 700, opacity: 0.7 }}>
+              {w}
+            </div>
+          ))}
+        </div>
 
-        {Array.from({ length: cells }).map((_, idx) => {
-          const dayNum = idx - startDay + 1
-          const inMonth = dayNum >= 1 && dayNum <= totalDays
+        {/* 주 단위 렌더: week 내부에 day grid + bar overlay */}
+        <div style={{ display: 'grid', gap: 8 }}>
+          {weeks.map((wk, wIdx) => {
+            const rowStartIdx = wIdx * 7
+            const visibleLanes = Math.min(4, Math.max(1, wk.laneCount))
+            const barAreaHeight = visibleLanes * 33
+            const overlayTop = 28 //8px padding + 20px date Label 영역
+            const cellPaddingTop = overlayTop + barAreaHeight + 8
 
-          const d = new Date(cursor.getFullYear(), cursor.getMonth(), dayNum)
-          const key = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-          const list = inMonth ? (byDay.get(key) ?? []) : []
-
-          return (
-            <div
-              key={idx}
-              style={{
-                border: '1px solid #ddd',
-                borderRadius: 8,
-                minHeight: 120,
-                padding: 8,
-                opacity: inMonth ? 1 : 0.35,
-              }}
-            >
-              <div style={{ fontWeight: 700 }}>{inMonth ? dayNum : ''}</div>
-
+            return (
               <div
+                key={dayKey(wk.weekStart)}
                 style={{
-                  marginTop: 6,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 6,
+                  position: 'relative',
                 }}
               >
-                {list.slice(0, 4).map((it) => (
-                  <div
-                    key={it.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => openEdit(it)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault()
-                        openEdit(it)
-                      }
-                    }}
-                    style={{
-                      width: '100%',
-                      textAlign: 'left',
-                      padding: '4px 6px',
-                      borderRadius: 6,
-                      border: '1px solid #ddd',
-                      background: 'white',
-                      cursor: 'pointer',
-                    }}
-                    title={it.displayTitle || it.title}
-                  >
-                    <div style={{ fontWeight: 600 }}>
-                      {it.displayTitle || it.title}
-                    </div>
+                {/* bar overlay */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(7, 1fr)',
+                    gap: 8,
+                    alignItems: 'start',
+                    paddingTop: overlayTop,
+                    zIndex: 5,
+                  }}
+                >
+                  {wk.bars
+                    .filter((b) => b.lane < 4) // 일단 4줄까지만 표시(더보기는 28번에서)
+                    .map((b) => {
+                      const colFrom = b.colStart + 1
+                      const colTo = b.colEnd + 2
+                      const top = b.lane * 22
 
-                    <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          shiftItemDays(it, -1)
+                      return (
+                        <div
+                          key={`${b.it.id}:${b.lane}:${b.colStart}:${b.colEnd}`}
+                          style={{
+                            gridColumn: `${colFrom} / ${colTo}`,
+                            transform: `translateY(${top}px)`,
+                            height: 20,
+                            border: '1px solid #ddd',
+                            background: 'white',
+                            borderRadius: 8,
+                            padding: '2px 8px',
+                            overflow: 'hidden',
+                            whiteSpace: 'nowrap',
+                            textOverflow: 'ellipsis',
+                            fontSize: 12,
+                            fontWeight: 700,
+                            pointerEvents: 'auto',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                          }}
+                          onClick={() => openEdit(b.it)}
+                          title={b.it.displayTitle || b.it.title}
+                        >
+                          <span
+                            style={{
+                              flex: 1,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 6,
+                            }}
+                          >
+                            {!b.isStart ? (
+                              <span style={{ opacity: 0.6 }}>…</span>
+                            ) : null}
+                            <span
+                              style={{
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                              }}
+                            >
+                              {b.it.displayTitle || b.it.title}
+                            </span>
+                            {!b.isEnd ? (
+                              <span style={{ opacity: 0.6 }}>…</span>
+                            ) : null}
+                          </span>
+
+                          {/* shift buttons: bar 클릭과 분리 */}
+                          <span style={{ display: 'flex', gap: 6 }}>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                shiftItemDays(b.it, -1)
+                              }}
+                              style={{ padding: '0 6px', height: 18 }}
+                              title="하루 전으로"
+                            >
+                              ◀
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                shiftItemDays(b.it, 1)
+                              }}
+                              style={{ padding: '0 6px', height: 18 }}
+                              title="하루 후로"
+                            >
+                              ▶
+                            </button>
+                          </span>
+                        </div>
+                      )
+                    })}
+                </div>
+
+                {/* day cells */}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(7, 1fr)',
+                    gap: 8,
+                  }}
+                >
+                  {Array.from({ length: 7 }).map((_, dIdx) => {
+                    const idx = rowStartIdx + dIdx
+                    const dayNum = idx - startDay + 1
+                    const inMonth = dayNum >= 1 && dayNum <= totalDays
+
+                    const d = new Date(
+                      cursor.getFullYear(),
+                      cursor.getMonth(),
+                      dayNum
+                    )
+                    const key = dayKey(d)
+                    const isToday = inMonth && key === todayKey
+
+                    return (
+                      <div
+                        key={key}
+                        style={{
+                          border: isToday ? '2px solid #111' : '1px solid #ddd',
+                          background: isToday
+                            ? 'rgba(255, 235, 59, 0.18)'
+                            : 'transparent',
+                          borderRadius: 8,
+                          position: 'relative',
+                          minHeight: 140 + barAreaHeight,
+                          padding: 8,
+                          opacity: inMonth ? 1 : 0.35,
+                          paddingTop: cellPaddingTop,
                         }}
-                        style={{ padding: '2px 6px' }}
-                        title="하루 전으로"
                       >
-                        ←
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          shiftItemDays(it, 1)
-                        }}
-                        style={{ padding: '2px 6px' }}
-                        title="하루 후로"
-                      >
-                        →
-                      </button>
-                    </div>
-                  </div>
-                ))}
-
-                {list.length > 4 ? (
-                  <div style={{ fontSize: 12, opacity: 0.7 }}>
-                    +{list.length - 4} more
-                  </div>
-                ) : null}
+                        <div
+                          style={{
+                            fontWeight: 700,
+                            position: 'absolute',
+                            top: 6,
+                            left: 8,
+                          }}
+                        >
+                          {inMonth ? dayNum : ''}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
-            </div>
-          )
-        })}
+            )
+          })}
+        </div>
       </div>
 
       {editing && (

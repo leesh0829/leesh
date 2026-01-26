@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { toHumanHttpError } from '@/app/lib/httpErrorText'
+import { displayUserLabel } from '@/app/lib/userLabel'
 
 type CommentItem = {
   id: string
@@ -203,7 +204,7 @@ export default function BlogCommentsClient({
                 }}
               >
                 <div>
-                  {c.author.name ?? '익명'} ·{' '}
+                  {displayUserLabel(c.author.name, c.author.email, 'unknown')} ·{' '}
                   {c.createdAt.slice(0, 16).replace('T', ' ')}
                 </div>
 

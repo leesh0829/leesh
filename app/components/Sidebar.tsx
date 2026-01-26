@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut, useSession } from 'next-auth/react'
 import { useEffect, useMemo, useState } from 'react'
+import { displayUserLabel } from '@/app/lib/userLabel'
 
 type Props = {
   open: boolean
@@ -74,9 +75,11 @@ export default function Sidebar({
   }, [])
 
   const userLabel =
-    session?.user?.name ||
-    session?.user?.email ||
-    (status === 'loading' ? '로딩...' : '비로그인')
+    status === 'loading'
+      ? '로딩...'
+      : session?.user
+        ? displayUserLabel(session.user.name, session.user.email, '비로그인')
+        : '비로그인'
 
   const nav = useMemo(() => {
     const base =

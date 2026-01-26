@@ -9,6 +9,7 @@ import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
 import rehypeHighlight from 'rehype-highlight'
 import { useSession } from 'next-auth/react'
+import { displayUserLabel } from '@/app/lib/userLabel'
 
 type Post = {
   id: string
@@ -624,8 +625,12 @@ export default function PostDetailClient({
                   }}
                 >
                   <div>
-                    {c.author?.name ?? c.author?.email ?? 'unknown'} ·{' '}
-                    {new Date(c.createdAt).toLocaleString()}
+                    {displayUserLabel(
+                      c.author?.name,
+                      c.author?.email,
+                      'unknown'
+                    )}{' '}
+                    · {new Date(c.createdAt).toLocaleString()}
                   </div>
 
                   {canMine ? (

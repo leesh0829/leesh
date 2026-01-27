@@ -145,6 +145,30 @@ export default function CalendarClient() {
   const [editEnd, setEditEnd] = useState('')
   const [editAllDay, setEditAllDay] = useState(false)
   const [saving, setSaving] = useState(false)
+  const MAX_VISIBLE_BARS = 3
+  const [moreDay, setMoreDay] = useState<{
+    dateKey: string
+    items: CalItem[]
+  } | null>(null)
+
+  const openMore = (dateKey: string, list: CalItem[]) => {
+    setMoreDay({ dateKey, items: list })
+  }
+
+  const closeMore = () => setMoreDay(null)
+
+  const buildDayItemsFromWeekBars = (bars: WeekBar[], col: number) => {
+    const map = new Map<string, CalItem>()
+    for (const b of bars) {
+      if (b.colStart <= col && col <= b.colEnd) {
+        const k = `${b.it.kind}:${b.it.id}`
+        map.set(k, b.it)
+      }
+    }
+    return Array.from(map.values()).sort((a, b) =>
+      a.title.localeCompare(b.title)
+    )
+  }
 
   const ym = useMemo(() => toYM(cursor), [cursor])
 
@@ -536,9 +560,12 @@ export default function CalendarClient() {
         <div style={{ display: 'grid', gap: 8 }}>
           {weeks.map((wk, wIdx) => {
             const rowStartIdx = wIdx * 7
-            const visibleLanes = Math.min(4, Math.max(1, wk.laneCount))
+            const visibleLanes = Math.min(
+              MAX_VISIBLE_BARS,
+              Math.max(1, wk.laneCount)
+            )
             const barAreaHeight = visibleLanes * 33
-            const overlayTop = 28 //8px padding + 20px date Label 영역
+            const overlayTop = 28 // 8px padding + 20px date Label 영역
             const cellPaddingTop = overlayTop + barAreaHeight + 8
 
             return (
@@ -559,10 +586,11 @@ export default function CalendarClient() {
                     alignItems: 'start',
                     paddingTop: overlayTop,
                     zIndex: 5,
+                    pointerEvents: 'none',
                   }}
                 >
                   {wk.bars
-                    .filter((b) => b.lane < 4) // 일단 4줄까지만 표시(더보기는 28번에서)
+                    .filter((b) => b.lane < MAX_VISIBLE_BARS)
                     .map((b) => {
                       const colFrom = b.colStart + 1
                       const colTo = b.colEnd + 2
@@ -593,9 +621,10 @@ export default function CalendarClient() {
                           onClick={() => openEdit(b.it)}
                           title={b.it.displayTitle || b.it.title}
                         >
-                          <span
+                          <div
                             style={{
                               flex: 1,
+                              minWidth: 0,
                               display: 'flex',
                               alignItems: 'center',
                               gap: 6,
@@ -604,28 +633,43 @@ export default function CalendarClient() {
                             {!b.isStart ? (
                               <span style={{ opacity: 0.6 }}>…</span>
                             ) : null}
+
                             <span
                               style={{
+                                flex: 1,
+                                minWidth: 0,
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
                               }}
                             >
                               {b.it.displayTitle || b.it.title}
                             </span>
+
                             {!b.isEnd ? (
                               <span style={{ opacity: 0.6 }}>…</span>
                             ) : null}
-                          </span>
+                          </div>
 
                           {/* shift buttons: bar 클릭과 분리 */}
-                          <span style={{ display: 'flex', gap: 6 }}>
+                          <div
+                            style={{
+                              display: 'flex',
+                              gap: 6,
+                              flexShrink: 0,
+                            }}
+                          >
                             <button
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation()
                                 shiftItemDays(b.it, -1)
                               }}
-                              style={{ padding: '0 6px', height: 18 }}
+                              style={{
+                                padding: '0 6px',
+                                height: 18,
+                                flexShrink: 0,
+                              }}
                               title="하루 전으로"
                             >
                               ◀
@@ -636,12 +680,16 @@ export default function CalendarClient() {
                                 e.stopPropagation()
                                 shiftItemDays(b.it, 1)
                               }}
-                              style={{ padding: '0 6px', height: 18 }}
+                              style={{
+                                padding: '0 6px',
+                                height: 18,
+                                flexShrink: 0,
+                              }}
                               title="하루 후로"
                             >
                               ▶
                             </button>
-                          </span>
+                          </div>
                         </div>
                       )
                     })}
@@ -667,6 +715,28 @@ export default function CalendarClient() {
                     )
                     const key = dayKey(d)
                     const isToday = inMonth && key === todayKey
+                    const col = dIdx
+                    const barHit = wk.bars.filter(
+                      (b) => b.colStart <= col && col <= b.colEnd
+                    )
+
+                    const uniq = new Map<string, CalItem>()
+                    for (const b of barHit) {
+                      uniq.set(`${b.it.kind}:${b.it.id}`, b.it)
+                    }
+                    const dayItems = Array.from(uniq.values()).sort((a, b) =>
+                      (a.displayTitle || a.title).localeCompare(
+                        b.displayTitle || b.title
+                      )
+                    )
+
+                    const hiddenUniq = new Set<string>()
+                    for (const b of barHit) {
+                      if (b.lane >= MAX_VISIBLE_BARS) {
+                        hiddenUniq.add(`${b.it.kind}:${b.it.id}`)
+                      }
+                    }
+                    const hiddenCount = hiddenUniq.size
 
                     return (
                       <div
@@ -694,6 +764,26 @@ export default function CalendarClient() {
                         >
                           {inMonth ? dayNum : ''}
                         </div>
+                        {inMonth && hiddenCount > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => openMore(key, dayItems)}
+                            style={{
+                              position: 'absolute',
+                              top: 6,
+                              right: 8,
+                              border: '1px solid #ddd',
+                              background: 'white',
+                              borderRadius: 10,
+                              padding: '2px 8px',
+                              fontSize: 12,
+                              cursor: 'pointer',
+                            }}
+                            title="해당 날짜 전체 일정 보기"
+                          >
+                            +{hiddenCount} more
+                          </button>
+                        )}
                       </div>
                     )
                   })}
@@ -703,6 +793,79 @@ export default function CalendarClient() {
           })}
         </div>
       </div>
+
+      {moreDay && (
+        <div
+          onClick={closeMore}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.35)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+            zIndex: 55,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: 'min(520px, 100%)',
+              background: 'white',
+              borderRadius: 12,
+              padding: 16,
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                gap: 12,
+              }}
+            >
+              <h3 style={{ margin: 0 }}>일정 전체 보기 · {moreDay.dateKey}</h3>
+              <button onClick={closeMore}>닫기</button>
+            </div>
+
+            <div style={{ marginTop: 12, display: 'grid', gap: 8 }}>
+              {moreDay.items.length === 0 ? (
+                <div style={{ opacity: 0.7 }}>일정이 없습니다.</div>
+              ) : (
+                moreDay.items.map((it) => (
+                  <button
+                    key={`${it.kind}:${it.id}`}
+                    type="button"
+                    onClick={() => {
+                      closeMore()
+                      openEdit(it)
+                    }}
+                    style={{
+                      display: 'grid',
+                      gap: 4,
+                      textAlign: 'left',
+                      border: '1px solid #ddd',
+                      background: 'white',
+                      borderRadius: 10,
+                      padding: 10,
+                      cursor: 'pointer',
+                    }}
+                    title={it.displayTitle || it.title}
+                  >
+                    <div style={{ fontWeight: 800 }}>
+                      {it.displayTitle || it.title}
+                    </div>
+                    <div style={{ fontSize: 12, opacity: 0.75 }}>
+                      {it.boardName} · {it.status}
+                      {it.dayLabel ? ` · ${it.dayLabel}` : ''}
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {editing && (
         <div

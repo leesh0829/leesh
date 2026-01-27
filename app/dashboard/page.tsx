@@ -78,7 +78,7 @@ export default async function DashboardPage() {
       })
     : null
 
-  // 로그인 섹션: 내 TODO(간단히 최근 6개) — 너 프로젝트에 status가 TODO/DOING/DONE이 있어서 이렇게 잡음
+  // 로그인 섹션: 내 TODO(간단히 최근 6개)
   const myTodos = me
     ? await prisma.post.findMany({
         where: { authorId: me.id, status: { in: ['TODO', 'DOING'] } },
@@ -95,113 +95,143 @@ export default async function DashboardPage() {
     : []
 
   return (
-    <main style={{ padding: 24, maxWidth: 1000 }}>
-      <h1 style={{ marginBottom: 6 }}>Dashboard</h1>
+    <main className="container-page py-6 space-y-5">
+      <section className="surface card-pad">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <div className="text-xs opacity-60">Home</div>
+            <h1 className="text-2xl font-semibold">Dashboard</h1>
 
-      {!isLoggedIn ? (
-        <p style={{ opacity: 0.7, marginTop: 0 }}>
-          지금은 공개 피드만 보여줌. 로그인하면 내 TODO/내 일정도 같이 볼 수
-          있음.
-        </p>
-      ) : (
-        <p style={{ opacity: 0.7, marginTop: 0 }}>
-          안녕하세요, {displayUserLabel(me?.name, me?.email, 'user')} 👋
-        </p>
-      )}
+            {!isLoggedIn ? (
+              <p className="mt-2 text-sm opacity-70">
+                지금은 공개 피드만 표시됩니다. 로그인하면 내 TODO도 같이 볼 수
+                있습니다.
+              </p>
+            ) : (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <span className="badge">로그인됨</span>
+                <span className="text-sm opacity-70">
+                  {displayUserLabel(me?.name, me?.email, 'user')}
+                </span>
+              </div>
+            )}
+          </div>
 
-      <div style={{ display: 'grid', gap: 16, marginTop: 16 }}>
-        {/* 공개 피드: 최근 블로그 */}
-        <section
-          style={{ border: '1px solid #eee', borderRadius: 12, padding: 14 }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'baseline',
-            }}
-          >
-            <h2 style={{ margin: 0, fontSize: 18 }}>최근 블로그</h2>
-            <Link href="/blog" style={{ opacity: 0.7 }}>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/blog" className="btn btn-outline">
+              블로그
+            </Link>
+            <Link href="/boards" className="btn btn-outline">
+              보드
+            </Link>
+            <Link href="/calendar" className="btn btn-outline">
+              캘린더
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <div className="grid gap-3 lg:grid-cols-2">
+        {/* 최근 블로그 */}
+        <section className="surface card-pad">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold">최근 블로그</h2>
+            <Link href="/blog" className="btn btn-outline">
               전체보기
             </Link>
           </div>
 
           {recentBlog.length === 0 ? (
-            <p style={{ marginTop: 10, opacity: 0.7 }}>글 없음</p>
+            <div className="mt-3 text-sm opacity-70">글 없음</div>
           ) : (
-            <ul style={{ marginTop: 10, lineHeight: 1.9 }}>
+            <ul
+              className="mt-3 divide-y"
+              style={{ borderColor: 'var(--border)' }}
+            >
               {recentBlog.map((p) => (
-                <li key={p.id}>
-                  <Link href={`/blog/${encodeURIComponent(p.key)}`}>
-                    {p.title}
-                  </Link>
-                  <span style={{ opacity: 0.6, marginLeft: 8 }}>
-                    {p.createdAt.slice(0, 10)} · {p.authorName}
-                  </span>
+                <li key={p.id} className="py-2">
+                  <div className="flex min-w-0 flex-col gap-1">
+                    <Link
+                      href={`/blog/${encodeURIComponent(p.key)}`}
+                      className="truncate font-semibold"
+                    >
+                      {p.title}
+                    </Link>
+                    <div className="flex flex-wrap items-center gap-2 text-xs opacity-70">
+                      <span className="badge">{p.createdAt.slice(0, 10)}</span>
+                      <span className="badge">{p.authorName}</span>
+                    </div>
+                  </div>
                 </li>
               ))}
             </ul>
           )}
         </section>
 
-        {/* 공개 피드: 최근 댓글 */}
-        <section
-          style={{ border: '1px solid #eee', borderRadius: 12, padding: 14 }}
-        >
-          <h2 style={{ margin: 0, fontSize: 18 }}>최근 댓글</h2>
+        {/* 최근 댓글 */}
+        <section className="surface card-pad">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold">최근 댓글</h2>
+            <span className="badge">{recentComments.length}</span>
+          </div>
 
           {recentComments.length === 0 ? (
-            <p style={{ marginTop: 10, opacity: 0.7 }}>댓글 없음</p>
+            <div className="mt-3 text-sm opacity-70">댓글 없음</div>
           ) : (
-            <ul style={{ marginTop: 10, lineHeight: 1.6 }}>
+            <ul className="mt-3 grid gap-2">
               {recentComments.map((c) => (
-                <li key={c.id} style={{ marginBottom: 10 }}>
-                  <div style={{ opacity: 0.75, fontSize: 12 }}>
-                    {c.createdAt} · {c.authorName}
+                <li key={c.id} className="surface card-pad">
+                  <div className="flex flex-wrap items-center gap-2 text-xs opacity-70">
+                    <span className="badge">{c.createdAt}</span>
+                    <span className="badge">{c.authorName}</span>
                   </div>
-                  <div style={{ marginTop: 2 }}>
-                    <Link href={c.href} style={{ fontWeight: 600 }}>
+
+                  <div className="mt-2 min-w-0">
+                    <Link
+                      href={c.href}
+                      className="block truncate font-semibold"
+                    >
                       {c.postTitle}
                     </Link>
+                    <div className="mt-1 line-clamp-2 text-sm opacity-80">
+                      {c.content}
+                    </div>
                   </div>
-                  <div style={{ marginTop: 2 }}>{c.content}</div>
                 </li>
               ))}
             </ul>
           )}
         </section>
 
-        {/* 로그인 섹션: 내 TODO */}
+        {/* 내 TODO */}
         {isLoggedIn ? (
-          <section
-            style={{ border: '1px solid #eee', borderRadius: 12, padding: 14 }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'baseline',
-              }}
-            >
-              <h2 style={{ margin: 0, fontSize: 18 }}>내 TODO (최근)</h2>
-              <Link href="/boards" style={{ opacity: 0.7 }}>
+          <section className="surface card-pad lg:col-span-2">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-lg font-semibold">내 TODO (최근)</h2>
+              <Link href="/boards" className="btn btn-outline">
                 보드로
               </Link>
             </div>
 
             {myTodos.length === 0 ? (
-              <p style={{ marginTop: 10, opacity: 0.7 }}>할 일이 없음</p>
+              <div className="mt-3 text-sm opacity-70">할 일이 없음</div>
             ) : (
-              <ul style={{ marginTop: 10, lineHeight: 1.9 }}>
+              <ul
+                className="mt-3 divide-y"
+                style={{ borderColor: 'var(--border)' }}
+              >
                 {myTodos.map((t) => {
                   const key = t.slug ?? t.id
                   return (
-                    <li key={t.id}>
+                    <li key={t.id} className="py-2">
                       <Link
                         href={`/boards/${t.boardId}/${encodeURIComponent(key)}`}
+                        className="flex flex-wrap items-center gap-2"
                       >
-                        [{t.status}] {t.title}
+                        <span className="badge">{t.status}</span>
+                        <span className="truncate font-semibold">
+                          {t.title}
+                        </span>
                       </Link>
                     </li>
                   )

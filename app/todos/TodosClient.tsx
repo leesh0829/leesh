@@ -79,23 +79,38 @@ function BoardItem({
   const [allDay, setAllDay] = useState<boolean>(!!board.scheduleAllDay)
 
   return (
-    <div
-      style={{
-        border: '1px solid #ddd',
-        borderRadius: 10,
-        padding: 10,
-        background: 'white',
-      }}
-    >
-      <div style={{ fontWeight: 800 }}>{board.name}</div>
-      {board.description ? (
-        <div style={{ opacity: 0.75, marginTop: 4 }}>{board.description}</div>
-      ) : null}
+    <div className="card p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="font-semibold truncate">{board.name}</div>
+          {board.description ? (
+            <div className="mt-1 text-sm" style={{ color: 'var(--muted)' }}>
+              {board.description}
+            </div>
+          ) : null}
+        </div>
 
-      <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+        <div className="flex shrink-0 items-center gap-2">
+          <Link href={`/todos/${board.id}`} className="btn btn-outline">
+            상세
+          </Link>
+          <button
+            type="button"
+            onClick={() => onDelete(board.id)}
+            className="btn"
+          >
+            삭제
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
         <button
           type="button"
           onClick={() => onMove(board.id, 'TODO')}
+          className={
+            board.scheduleStatus === 'TODO' ? 'btn btn-primary' : 'btn'
+          }
           disabled={board.scheduleStatus === 'TODO'}
         >
           TODO
@@ -103,6 +118,9 @@ function BoardItem({
         <button
           type="button"
           onClick={() => onMove(board.id, 'DOING')}
+          className={
+            board.scheduleStatus === 'DOING' ? 'btn btn-primary' : 'btn'
+          }
           disabled={board.scheduleStatus === 'DOING'}
         >
           DOING
@@ -110,74 +128,58 @@ function BoardItem({
         <button
           type="button"
           onClick={() => onMove(board.id, 'DONE')}
+          className={
+            board.scheduleStatus === 'DONE' ? 'btn btn-primary' : 'btn'
+          }
           disabled={board.scheduleStatus === 'DONE'}
         >
           DONE
         </button>
 
-        <Link href={`/todos/${board.id}`} style={{ marginLeft: 6 }}>
-          상세
-        </Link>
-
-        <button
-          type="button"
-          onClick={() => onDelete(board.id)}
-          style={{ marginLeft: 'auto' }}
-        >
-          삭제
-        </button>
-      </div>
-
-      <div style={{ marginTop: 12 }}>
-        <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <input
-            type="checkbox"
-            checked={board.singleSchedule}
-            onChange={(e) => onToggleSingle(board.id, e.target.checked)}
-          />
-          단일 일정 모드
-        </label>
+        <div className="ml-auto flex items-center gap-2">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={board.singleSchedule}
+              onChange={(e) => onToggleSingle(board.id, e.target.checked)}
+            />
+            단일 일정
+          </label>
+          {board.singleSchedule ? (
+            <span className="badge">캘린더 연동</span>
+          ) : null}
+        </div>
       </div>
 
       {board.singleSchedule ? (
-        <div
-          style={{
-            marginTop: 10,
-            display: 'grid',
-            gap: 8,
-            gridTemplateColumns: '1fr 1fr',
-          }}
-        >
-          <div>
-            <div style={{ fontSize: 12, opacity: 0.75 }}>시작</div>
+        <div className="mt-3 grid min-w-0 gap-3 md:grid-cols-2">
+          <div className="grid min-w-0 gap-2">
+            <div className="text-xs" style={{ color: 'var(--muted)' }}>
+              시작
+            </div>
             <input
+              className="input min-w-0"
               type="datetime-local"
               value={startLocal}
               onChange={(e) => setStartLocal(e.target.value)}
-              style={{ width: '100%' }}
               disabled={allDay}
             />
           </div>
 
-          <div>
-            <div style={{ fontSize: 12, opacity: 0.75 }}>종료</div>
+          <div className="grid min-w-0 gap-2">
+            <div className="text-xs" style={{ color: 'var(--muted)' }}>
+              종료
+            </div>
             <input
+              className="input min-w-0"
               type="datetime-local"
               value={endLocal}
               onChange={(e) => setEndLocal(e.target.value)}
-              style={{ width: '100%' }}
               disabled={allDay}
             />
           </div>
 
-          <label
-            style={{
-              display: 'flex',
-              gap: 8,
-              alignItems: 'center',
-              gridColumn: '1 / -1',
-            }}
-          >
+          <label className="flex items-center gap-2 text-sm md:col-span-2">
             <input
               type="checkbox"
               checked={allDay}
@@ -186,9 +188,10 @@ function BoardItem({
             하루종일
           </label>
 
-          <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 8 }}>
+          <div className="flex flex-wrap gap-2 md:col-span-2">
             <button
               type="button"
+              className="btn btn-primary"
               onClick={() =>
                 onSaveSchedule(
                   board.id,
@@ -202,6 +205,7 @@ function BoardItem({
             </button>
             <button
               type="button"
+              className="btn btn-outline"
               onClick={() => {
                 setStartLocal(toDatetimeLocalValue(board.scheduleStartAt))
                 setEndLocal(toDatetimeLocalValue(board.scheduleEndAt))
@@ -238,17 +242,13 @@ function BoardColumn({
   ) => Promise<void>
 }) {
   return (
-    <div
-      style={{
-        border: '1px solid #ddd',
-        borderRadius: 12,
-        padding: 12,
-        minHeight: 280,
-        background: '#fafafa',
-      }}
-    >
-      <div style={{ fontWeight: 900, marginBottom: 10 }}>{title}</div>
-      <div style={{ display: 'grid', gap: 10 }}>
+    <div className="card card-pad">
+      <div className="flex items-center justify-between">
+        <div className="text-sm font-extrabold">{title}</div>
+        <span className="badge">{list.length}</span>
+      </div>
+
+      <div className="mt-4 grid gap-3">
         {list.map((b) => (
           <BoardItem
             key={`${b.id}:${b.singleSchedule ? 1 : 0}:${b.scheduleStartAt ?? ''}:${b.scheduleEndAt ?? ''}:${b.scheduleAllDay ? 1 : 0}`}
@@ -416,128 +416,147 @@ export default function TodosClient() {
   const done = normalizedBoards.filter((b) => b.scheduleStatus === 'DONE')
 
   return (
-    <main style={{ padding: 24, maxWidth: 1200 }}>
-      <h1 style={{ marginBottom: 10 }}>/todos</h1>
-      {err ? <p style={{ color: 'crimson' }}>{err}</p> : null}
-
-      <div
-        style={{
-          border: '1px solid #ddd',
-          borderRadius: 12,
-          padding: 12,
-          marginTop: 12,
-          background: 'white',
-        }}
-      >
-        <div style={{ fontWeight: 900, marginBottom: 10 }}>보드 생성</div>
-
-        <div style={{ display: 'grid', gap: 8, maxWidth: 520 }}>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="보드 이름"
-          />
-          <input
-            value={desc}
-            onChange={(e) => setDesc(e.target.value)}
-            placeholder="설명 (선택)"
-          />
-
-          <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <input
-              type="checkbox"
-              checked={singleSchedule}
-              onChange={(e) => setSingleSchedule(e.target.checked)}
-            />
-            단일 일정 모드
-          </label>
-
-          {singleSchedule ? (
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: 8,
-              }}
-            >
-              <div>
-                <div style={{ fontSize: 12, opacity: 0.75 }}>시작</div>
-                <input
-                  type="datetime-local"
-                  value={scheduleStartLocal}
-                  onChange={(e) => setScheduleStartLocal(e.target.value)}
-                  style={{ width: '100%' }}
-                  disabled={scheduleAllDay}
-                />
-              </div>
-
-              <div>
-                <div style={{ fontSize: 12, opacity: 0.75 }}>종료</div>
-                <input
-                  type="datetime-local"
-                  value={scheduleEndLocal}
-                  onChange={(e) => setScheduleEndLocal(e.target.value)}
-                  style={{ width: '100%' }}
-                  disabled={scheduleAllDay}
-                />
-              </div>
-
-              <label
-                style={{
-                  display: 'flex',
-                  gap: 8,
-                  alignItems: 'center',
-                  gridColumn: '1 / -1',
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={scheduleAllDay}
-                  onChange={(e) => setScheduleAllDay(e.target.checked)}
-                />
-                하루종일
-              </label>
-            </div>
-          ) : null}
-
-          <button type="button" onClick={create} disabled={!name.trim()}>
-            생성
-          </button>
+    <main className="container-page py-8">
+      <div className="surface card-pad">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">/todos</h1>
+            <p className="mt-1 text-sm" style={{ color: 'var(--muted)' }}>
+              보드 기반 TODO 관리
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link href="/calendar" className="btn btn-outline">
+              캘린더
+            </Link>
+          </div>
         </div>
-      </div>
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr 1fr',
-          gap: 12,
-          marginTop: 16,
-        }}
-      >
-        <BoardColumn
-          title="TODO"
-          list={todos}
-          onMove={move}
-          onDelete={del}
-          onToggleSingle={toggleSingle}
-          onSaveSchedule={saveSchedule}
-        />
-        <BoardColumn
-          title="DOING"
-          list={doing}
-          onMove={move}
-          onDelete={del}
-          onToggleSingle={toggleSingle}
-          onSaveSchedule={saveSchedule}
-        />
-        <BoardColumn
-          title="DONE"
-          list={done}
-          onMove={move}
-          onDelete={del}
-          onToggleSingle={toggleSingle}
-          onSaveSchedule={saveSchedule}
-        />
+        {err ? (
+          <div className="mt-4 card p-3" style={{ color: 'crimson' }}>
+            {err}
+          </div>
+        ) : null}
+
+        <div className="mt-6 card card-pad">
+          <div className="flex items-center justify-between gap-3">
+            <div className="font-extrabold">보드 생성</div>
+            <span className="badge">단일 일정은 캘린더 연동</span>
+          </div>
+
+          <form
+            className="mt-4 grid gap-3"
+            onSubmit={(e) => {
+              e.preventDefault()
+              void create()
+            }}
+          >
+            <div className="grid gap-2">
+              <label className="text-sm font-medium">보드 이름</label>
+              <input
+                className="input"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="보드 이름"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <label className="text-sm font-medium">설명 (선택)</label>
+              <input
+                className="input"
+                value={desc}
+                onChange={(e) => setDesc(e.target.value)}
+                placeholder="설명 (선택)"
+              />
+            </div>
+
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={singleSchedule}
+                onChange={(e) => setSingleSchedule(e.target.checked)}
+              />
+              단일 일정 모드
+            </label>
+
+            {singleSchedule ? (
+              <div className="grid min-w-0 gap-3 md:grid-cols-2">
+                <div className="grid gap-2">
+                  <div className="text-xs" style={{ color: 'var(--muted)' }}>
+                    시작
+                  </div>
+                  <input
+                    className="input"
+                    type="datetime-local"
+                    value={scheduleStartLocal}
+                    onChange={(e) => setScheduleStartLocal(e.target.value)}
+                    disabled={scheduleAllDay}
+                  />
+                </div>
+
+                <div className="grid gap-2">
+                  <div className="text-xs" style={{ color: 'var(--muted)' }}>
+                    종료
+                  </div>
+                  <input
+                    className="input"
+                    type="datetime-local"
+                    value={scheduleEndLocal}
+                    onChange={(e) => setScheduleEndLocal(e.target.value)}
+                    disabled={scheduleAllDay}
+                  />
+                </div>
+
+                <label className="flex items-center gap-2 text-sm sm:col-span-2">
+                  <input
+                    type="checkbox"
+                    checked={scheduleAllDay}
+                    onChange={(e) => setScheduleAllDay(e.target.checked)}
+                  />
+                  하루종일
+                </label>
+              </div>
+            ) : null}
+
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={!name.trim()}
+              >
+                생성
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <div className="mt-6 grid gap-4 lg:grid-cols-3">
+          <BoardColumn
+            title="TODO"
+            list={todos}
+            onMove={move}
+            onDelete={del}
+            onToggleSingle={toggleSingle}
+            onSaveSchedule={saveSchedule}
+          />
+          <BoardColumn
+            title="DOING"
+            list={doing}
+            onMove={move}
+            onDelete={del}
+            onToggleSingle={toggleSingle}
+            onSaveSchedule={saveSchedule}
+          />
+          <BoardColumn
+            title="DONE"
+            list={done}
+            onMove={move}
+            onDelete={del}
+            onToggleSingle={toggleSingle}
+            onSaveSchedule={saveSchedule}
+          />
+        </div>
       </div>
     </main>
   )

@@ -29,15 +29,15 @@ type OverrideModeUI = 'DEFAULT' | 'ALLOW' | 'DENY'
 export default function PermissionClient() {
   const [tab, setTab] = useState<'MENU' | 'USER'>('MENU')
 
-  // 메뉴 기본 정책
   const [menus, setMenus] = useState<MenuPerm[]>([])
   const [menuMsg, setMenuMsg] = useState('')
 
-  // 사용자별 권한
   const [users, setUsers] = useState<UserRow[]>([])
   const [selectedUserId, setSelectedUserId] = useState<string>('')
   const [overrides, setOverrides] = useState<Record<string, OverrideModeUI>>({})
   const [userMsg, setUserMsg] = useState('')
+
+  const menuKeys = useMemo(() => menus.map((m) => m.key), [menus])
 
   const loadMenus = async () => {
     setMenuMsg('')
@@ -98,7 +98,6 @@ export default function PermissionClient() {
     }
     const rows = (await r.json()) as UserOverride[]
 
-    // UI 상태: 기본 DEFAULT로 깔고, 있는 것만 ALLOW/DENY로 덮기
     const base: Record<string, OverrideModeUI> = {}
     for (const m of menus) base[m.key] = 'DEFAULT'
     for (const row of rows) base[row.menuKey] = row.mode
@@ -129,20 +128,19 @@ export default function PermissionClient() {
     setUserMsg('저장 완료')
   }
 
-  // 초기 로드
+  // 초기 로드 (lint: effect body에서 setState를 직접 트리거하지 않도록 microtask로 분리)
   useEffect(() => {
-    ;(async () => {
-      await loadMenus()
-    })()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    Promise.resolve().then(() => {
+      void loadMenus()
+    })
   }, [])
 
-  // menus가 로드된 뒤 사용자 로드
+  // menus 로드 후 사용자 로드
   useEffect(() => {
     if (menus.length === 0) return
-    ;(async () => {
-      await loadUsers()
-    })()
+    Promise.resolve().then(() => {
+      void loadUsers()
+    })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [menus.length])
 
@@ -150,62 +148,55 @@ export default function PermissionClient() {
   useEffect(() => {
     if (!selectedUserId) return
     if (menus.length === 0) return
-    ;(async () => {
-      await loadOverrides(selectedUserId)
-    })()
+    Promise.resolve().then(() => {
+      void loadOverrides(selectedUserId)
+    })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedUserId, menus.length])
 
-  const menuKeys = useMemo(() => menus.map((m) => m.key), [menus])
-
   return (
-    <div style={{ marginTop: 16 }}>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
+          className={'btn ' + (tab === 'MENU' ? 'btn-primary' : 'btn-outline')}
           onClick={() => setTab('MENU')}
-          disabled={tab === 'MENU'}
         >
           메뉴 기본 설정
         </button>
         <button
           type="button"
+          className={'btn ' + (tab === 'USER' ? 'btn-primary' : 'btn-outline')}
           onClick={() => setTab('USER')}
-          disabled={tab === 'USER'}
         >
           사용자별 권한
         </button>
       </div>
 
       {tab === 'MENU' ? (
-        <div style={{ marginTop: 12 }}>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <button type="button" onClick={loadMenus}>
+        <section className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={loadMenus}
+            >
               새로고침
             </button>
-            <button type="button" onClick={saveMenus}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={saveMenus}
+            >
               저장
             </button>
-            {menuMsg ? <span style={{ opacity: 0.7 }}>{menuMsg}</span> : null}
+            {menuMsg ? (
+              <span className="text-sm opacity-70">{menuMsg}</span>
+            ) : null}
           </div>
 
-          <div
-            style={{
-              marginTop: 12,
-              border: '1px solid #eee',
-              borderRadius: 12,
-              overflow: 'hidden',
-            }}
-          >
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '220px 1fr 120px 120px 90px',
-                padding: 10,
-                fontWeight: 700,
-                background: '#fafafa',
-              }}
-            >
+          <div className="surface overflow-hidden">
+            <div className="hidden md:grid md:grid-cols-[220px_1fr_120px_120px_90px] md:gap-3 md:px-4 md:py-3 md:text-sm md:font-semibold">
               <div>label</div>
               <div>path</div>
               <div>requireLogin</div>
@@ -213,125 +204,131 @@ export default function PermissionClient() {
               <div>visible</div>
             </div>
 
-            {menus.map((it, idx) => (
-              <div
-                key={it.key}
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '220px 1fr 120px 120px 90px',
-                  padding: 10,
-                  borderTop: '1px solid #eee',
-                  alignItems: 'center',
-                  gap: 8,
-                }}
-              >
-                <input
-                  value={it.label}
-                  onChange={(e) => {
-                    const v = e.target.value
-                    setMenus((prev) =>
-                      prev.map((p, i) => (i === idx ? { ...p, label: v } : p))
-                    )
-                  }}
-                />
-
-                <input
-                  value={it.path}
-                  onChange={(e) => {
-                    const v = e.target.value
-                    setMenus((prev) =>
-                      prev.map((p, i) => (i === idx ? { ...p, path: v } : p))
-                    )
-                  }}
-                />
-
-                <label
-                  style={{ display: 'flex', gap: 6, alignItems: 'center' }}
+            <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
+              {menus.map((it, idx) => (
+                <div
+                  key={it.key}
+                  className="grid gap-3 px-4 py-3 md:grid-cols-[220px_1fr_120px_120px_90px] md:items-center"
                 >
-                  <input
-                    type="checkbox"
-                    checked={it.requireLogin}
-                    onChange={(e) => {
-                      const v = e.target.checked
-                      setMenus((prev) =>
-                        prev.map((p, i) =>
-                          i === idx ? { ...p, requireLogin: v } : p
+                  <div className="grid gap-1">
+                    <div className="text-xs opacity-60 md:hidden">label</div>
+                    <input
+                      className="input"
+                      value={it.label}
+                      onChange={(e) => {
+                        const v = e.target.value
+                        setMenus((prev) =>
+                          prev.map((p, i) =>
+                            i === idx ? { ...p, label: v } : p
+                          )
                         )
-                      )
-                    }}
-                  />
-                  필요
-                </label>
+                      }}
+                    />
+                  </div>
 
-                <select
-                  value={it.minRole}
-                  onChange={(e) => {
-                    const v = e.target.value as MenuPerm['minRole']
-                    setMenus((prev) =>
-                      prev.map((p, i) => (i === idx ? { ...p, minRole: v } : p))
-                    )
-                  }}
-                >
-                  <option value="USER">USER</option>
-                  <option value="ADMIN">ADMIN</option>
-                </select>
-
-                <label
-                  style={{ display: 'flex', gap: 6, alignItems: 'center' }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={it.visible}
-                    onChange={(e) => {
-                      const v = e.target.checked
-                      setMenus((prev) =>
-                        prev.map((p, i) =>
-                          i === idx ? { ...p, visible: v } : p
+                  <div className="grid gap-1">
+                    <div className="text-xs opacity-60 md:hidden">path</div>
+                    <input
+                      className="input"
+                      value={it.path}
+                      onChange={(e) => {
+                        const v = e.target.value
+                        setMenus((prev) =>
+                          prev.map((p, i) =>
+                            i === idx ? { ...p, path: v } : p
+                          )
                         )
-                      )
-                    }}
-                  />
-                  표시
-                </label>
-              </div>
-            ))}
+                      }}
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <label className="inline-flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={it.requireLogin}
+                        onChange={(e) => {
+                          const v = e.target.checked
+                          setMenus((prev) =>
+                            prev.map((p, i) =>
+                              i === idx ? { ...p, requireLogin: v } : p
+                            )
+                          )
+                        }}
+                      />
+                      필요
+                    </label>
+                  </div>
+
+                  <div className="grid gap-1">
+                    <div className="text-xs opacity-60 md:hidden">minRole</div>
+                    <select
+                      className="select"
+                      value={it.minRole}
+                      onChange={(e) => {
+                        const v = e.target.value as MenuPerm['minRole']
+                        setMenus((prev) =>
+                          prev.map((p, i) =>
+                            i === idx ? { ...p, minRole: v } : p
+                          )
+                        )
+                      }}
+                    >
+                      <option value="USER">USER</option>
+                      <option value="ADMIN">ADMIN</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <label className="inline-flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={it.visible}
+                        onChange={(e) => {
+                          const v = e.target.checked
+                          setMenus((prev) =>
+                            prev.map((p, i) =>
+                              i === idx ? { ...p, visible: v } : p
+                            )
+                          )
+                        }}
+                      />
+                      표시
+                    </label>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        </section>
       ) : (
-        <div style={{ marginTop: 12 }}>
-          <div
-            style={{
-              display: 'flex',
-              gap: 8,
-              alignItems: 'center',
-              flexWrap: 'wrap',
-            }}
-          >
-            <button type="button" onClick={loadUsers}>
+        <section className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={loadUsers}
+            >
               유저 새로고침
             </button>
             <button
               type="button"
+              className="btn btn-primary"
               onClick={saveOverrides}
               disabled={!selectedUserId}
             >
               선택 유저 권한 저장
             </button>
-            {userMsg ? <span style={{ opacity: 0.7 }}>{userMsg}</span> : null}
+            {userMsg ? (
+              <span className="text-sm opacity-70">{userMsg}</span>
+            ) : null}
           </div>
 
-          <div
-            style={{
-              marginTop: 10,
-              display: 'flex',
-              gap: 10,
-              alignItems: 'center',
-              flexWrap: 'wrap',
-            }}
-          >
-            <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              대상 유저
+          <div className="surface card-pad space-y-2">
+            <label className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="font-semibold">대상 유저</span>
               <select
+                className="select"
                 value={selectedUserId}
                 onChange={(e) => setSelectedUserId(e.target.value)}
               >
@@ -344,71 +341,65 @@ export default function PermissionClient() {
               </select>
             </label>
 
-            <span style={{ fontSize: 12, opacity: 0.7 }}>
+            <div className="text-xs opacity-70">
               DEFAULT=기본정책 그대로 / ALLOW=강제 허용 / DENY=강제
               차단(삭제하면 DEFAULT로 복귀)
-            </span>
+            </div>
           </div>
 
-          <div
-            style={{
-              marginTop: 12,
-              border: '1px solid #eee',
-              borderRadius: 12,
-              overflow: 'hidden',
-            }}
-          >
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '220px 1fr 160px',
-                padding: 10,
-                fontWeight: 700,
-                background: '#fafafa',
-              }}
-            >
+          <div className="surface overflow-hidden">
+            <div className="hidden md:grid md:grid-cols-[220px_1fr_160px] md:gap-3 md:px-4 md:py-3 md:text-sm md:font-semibold">
               <div>menu</div>
               <div>path</div>
               <div>override</div>
             </div>
 
-            {menus.map((m) => {
-              const mode = overrides[m.key] ?? 'DEFAULT'
-              return (
-                <div
-                  key={m.key}
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '220px 1fr 160px',
-                    padding: 10,
-                    borderTop: '1px solid #eee',
-                    alignItems: 'center',
-                    gap: 8,
-                  }}
-                >
-                  <div style={{ fontWeight: 600 }}>{m.label}</div>
-                  <div style={{ opacity: 0.8 }}>{m.path}</div>
-
-                  <select
-                    value={mode}
-                    onChange={(e) => {
-                      const v = e.target.value as OverrideModeUI
-                      setOverrides((prev) => ({ ...prev, [m.key]: v }))
-                    }}
+            <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
+              {menus.map((m) => {
+                const mode = overrides[m.key] ?? 'DEFAULT'
+                return (
+                  <div
+                    key={m.key}
+                    className="grid gap-3 px-4 py-3 md:grid-cols-[220px_1fr_160px] md:items-center"
                   >
-                    <option value="DEFAULT">DEFAULT</option>
-                    <option value="ALLOW">ALLOW</option>
-                    <option value="DENY">DENY</option>
-                  </select>
-                </div>
-              )
-            })}
+                    <div>
+                      <div className="text-xs opacity-60 md:hidden">menu</div>
+                      <div className="font-semibold">{m.label}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs opacity-60 md:hidden">path</div>
+                      <div className="text-sm opacity-80">{m.path}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs opacity-60 md:hidden">
+                        override
+                      </div>
+                      <select
+                        className="select"
+                        value={mode}
+                        onChange={(e) => {
+                          const v = e.target.value as OverrideModeUI
+                          setOverrides((prev) => ({ ...prev, [m.key]: v }))
+                        }}
+                      >
+                        <option value="DEFAULT">DEFAULT</option>
+                        <option value="ALLOW">ALLOW</option>
+                        <option value="DENY">DENY</option>
+                      </select>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           </div>
 
-          <div style={{ marginTop: 10, fontSize: 12, opacity: 0.7 }}>
-            팁: 특정 유저 권한 “삭제”는 override를 DEFAULT로 바꾸고 저장하면 됨.
-          </div>
-        </div>
+          {menuKeys.length === 0 ? null : (
+            <div className="text-xs opacity-70">
+              팁: 특정 유저 권한 “삭제”는 override를 DEFAULT로 바꾸고 저장하면
+              됨.
+            </div>
+          )}
+        </section>
       )}
     </div>
   )

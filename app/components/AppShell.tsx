@@ -22,7 +22,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   if (noShell) {
     return (
-      <div className="min-h-dvh bg-zinc-50 text-zinc-900 dark:bg-black dark:text-zinc-50">
+      <div className="min-h-dvh flex flex-col">
         {children}
         <Footer />
       </div>
@@ -30,19 +30,21 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-dvh bg-zinc-50 text-zinc-900 dark:bg-black dark:text-zinc-50 flex flex-col">
+    <div className="min-h-dvh flex flex-col">
       <div className="flex-1">
         {/* mobile top bar */}
-        <div className="sticky top-0 z-30 flex items-center gap-3 border-b border-zinc-200/70 bg-zinc-50/90 px-4 py-3 backdrop-blur dark:border-zinc-800 dark:bg-black/70 lg:hidden">
-          <button
-            type="button"
-            onClick={() => setOpen(true)}
-            className="rounded-md border border-zinc-200 px-3 py-2 text-sm hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-900"
-            aria-label="Open menu"
-          >
-            메뉴
-          </button>
-          <div className="text-sm font-semibold">Leesh</div>
+        <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 lg:hidden">
+          <div className="surface flex w-full items-center gap-3 px-3 py-2">
+            <button
+              type="button"
+              onClick={() => setOpen(true)}
+              className="btn btn-outline"
+              aria-label="Open menu"
+            >
+              메뉴
+            </button>
+            <div className="text-sm font-semibold">Leesh</div>
+          </div>
         </div>
 
         {/* desktop hover trigger (사이드바 숨김일 때 왼쪽 끝에 마우스 올리면 열림) */}
@@ -70,7 +72,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 <button
                   type="button"
                   onClick={() => setDesktopOpen(true)}
-                  className="rounded-md border border-zinc-200 px-3 py-2 text-sm hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-900"
+                  className="btn btn-outline"
                 >
                   사이드바 열기
                 </button>
@@ -78,9 +80,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               </div>
             ) : null}
 
-            <div className="mx-auto w-full max-w-300 px-4 py-6 lg:px-10">
-              {children}
-            </div>
+            <div className="container-page py-6">{children}</div>
           </div>
         </div>
       </div>

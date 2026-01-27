@@ -166,7 +166,7 @@ export default function Sidebar({
 
       <aside
         className={
-          'fixed z-50 h-dvh w-64 border-r border-zinc-200 bg-white p-4 transition-transform dark:border-zinc-800 dark:bg-black ' +
+          'fixed z-50 h-dvh w-64 border-r bg-[color:var(--card)] p-4 transition-transform ' +
           // mobile open/close
           (open ? 'translate-x-0' : '-translate-x-full') +
           // desktop open/close
@@ -182,7 +182,7 @@ export default function Sidebar({
           {/* desktop hide 버튼 */}
           <button
             type="button"
-            className="hidden rounded-md border border-zinc-200 px-2 py-1 text-xs hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-900 lg:inline-flex"
+            className="hidden btn btn-outline text-xs lg:inline-flex"
             onClick={onToggleDesktop}
             aria-label="Hide sidebar"
             title="사이드바 숨기기"
@@ -193,7 +193,7 @@ export default function Sidebar({
           {/* mobile close 버튼 */}
           <button
             type="button"
-            className="rounded-md border border-zinc-200 px-3 py-1 text-sm hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-900 lg:hidden"
+            className="btn btn-outline lg:hidden"
             onClick={onClose}
           >
             닫기
@@ -215,7 +215,7 @@ export default function Sidebar({
           ))}
         </nav>
 
-        <div className="mt-6 rounded-lg border border-zinc-200 p-3 text-sm dark:border-zinc-800">
+        <div className="mt-6 card p-3 text-sm">
           <div className="mb-2 font-semibold">계정</div>
           <div className="truncate opacity-80">{userLabel}</div>
 
@@ -224,7 +224,7 @@ export default function Sidebar({
               <button
                 type="button"
                 onClick={() => signOut({ callbackUrl: '/' })}
-                className="w-full rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-black dark:hover:bg-zinc-200"
+                className="w-full btn btn-primary"
               >
                 로그아웃
               </button>
@@ -233,7 +233,7 @@ export default function Sidebar({
                 <Link
                   href="/login"
                   onClick={onClose}
-                  className="w-1/2 rounded-md bg-zinc-900 px-3 py-2 text-center text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-black dark:hover:bg-zinc-200"
+                  className="w-1/2 btn btn-primary text-center"
                 >
                   로그인
                 </Link>
@@ -241,7 +241,7 @@ export default function Sidebar({
                 <Link
                   href="/sign-up"
                   onClick={onClose}
-                  className="w-1/2 rounded-md border border-zinc-200 bg-white px-3 py-2 text-center text-sm font-medium hover:bg-zinc-100 dark:border-zinc-800 dark:bg-black dark:hover:bg-zinc-900"
+                  className="w-1/2 btn btn-outline text-center"
                 >
                   회원가입
                 </Link>
@@ -250,10 +250,7 @@ export default function Sidebar({
           </div>
         </div>
 
-        <div className="mt-4 text-xs opacity-60">
-          <div>Next.js + Prisma + PostgreSQL</div>
-          <div>Blog / Boards / TODO / Calendar</div>
-        </div>
+        <div className="mt-4 text-xs opacity-60"></div>
       </aside>
     </>
   )

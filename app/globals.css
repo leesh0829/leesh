@@ -1,26 +1,194 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
+/* Aurora Glass Theme */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #f7f8fb;
+  --fg: #0b1020;
+  --muted: #5b647a;
+
+  --card: rgba(255, 255, 255, 0.72);
+  --border: rgba(11, 16, 32, 0.12);
+  --ring: rgba(109, 90, 255, 0.25);
+
+  --accent: #6d5aff;
+  --accent2: #26c6ff;
+  --accent-foreground: #ffffff;
+
+  --radius: 16px;
+  --shadow: 0 10px 30px rgba(11, 16, 32, 0.08);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: var(--bg);
+  --color-foreground: var(--fg);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --bg: #060712;
+    --fg: #e7e9f3;
+    --muted: #a8b0c7;
+
+    --card: rgba(18, 20, 36, 0.6);
+    --border: rgba(231, 233, 243, 0.14);
+    --ring: rgba(109, 90, 255, 0.22);
+
+    --accent: #8c7bff;
+    --accent2: #32d1ff;
+    --accent-foreground: #070813;
+
+    --shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  * {
+    @apply outline-none;
+    border-color: var(--border);
+  }
+
+  body {
+    @apply min-h-dvh antialiased;
+    color: var(--fg);
+    background:
+      radial-gradient(
+        900px 500px at 10% 0%,
+        rgba(109, 90, 255, 0.18),
+        transparent 60%
+      ),
+      radial-gradient(
+        900px 500px at 90% 10%,
+        rgba(38, 198, 255, 0.14),
+        transparent 55%
+      ),
+      radial-gradient(
+        900px 700px at 50% 100%,
+        rgba(109, 90, 255, 0.1),
+        transparent 60%
+      ),
+      var(--bg);
+    font-family:
+      var(--font-sans),
+      ui-sans-serif,
+      system-ui,
+      -apple-system,
+      Segoe UI,
+      Roboto,
+      Helvetica,
+      Arial,
+      'Apple Color Emoji',
+      'Segoe UI Emoji';
+  }
+
+  a {
+    color: inherit;
+    text-underline-offset: 4px;
+  }
+
+  a:hover {
+    text-decoration: underline;
+  }
+}
+
+@layer components {
+  .container-page {
+    @apply mx-auto w-full max-w-6xl px-4 lg:px-10;
+  }
+
+  .surface {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(10px);
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(10px);
+  }
+
+  .card-pad {
+    @apply p-4 lg:p-6;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium transition;
+    border-radius: calc(var(--radius) - 8px);
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0);
+  }
+
+  .btn:hover {
+    background: rgba(11, 16, 32, 0.04);
+  }
+
+  .btn:active {
+    transform: scale(0.99);
+  }
+
+  .btn-primary {
+    border: 0;
+    color: var(--accent-foreground);
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    box-shadow: 0 10px 25px rgba(109, 90, 255, 0.18);
+  }
+
+  .btn-primary:hover {
+    filter: brightness(0.98);
+  }
+
+  .btn-outline {
+    background: rgba(255, 255, 255, 0);
+  }
+
+  .btn-ghost {
+    border: 0;
+    background: transparent;
+  }
+
+  .input,
+  .select,
+  .textarea {
+    @apply w-full px-3 py-2 text-sm;
+    border-radius: calc(var(--radius) - 8px);
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0);
+  }
+
+  .input:focus-visible,
+  .select:focus-visible,
+  .textarea:focus-visible {
+    box-shadow: 0 0 0 6px var(--ring);
+  }
+
+  .textarea {
+    @apply min-h-28;
+  }
+
+  .badge {
+    @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    background: rgba(255, 255, 255, 0);
+  }
+
+  .nav-link {
+    @apply block px-3 py-2 text-sm transition;
+    border-radius: calc(var(--radius) - 10px);
+  }
+
+  .nav-link:hover {
+    background: rgba(11, 16, 32, 0.04);
+  }
+
+  .nav-link-active {
+    color: var(--accent-foreground);
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+  }
 }

@@ -51,60 +51,103 @@ export default function SignUpPage() {
   }
 
   return (
-    <main style={{ padding: 24, maxWidth: 420 }}>
-      <h1>Sign up</h1>
-
-      {/* Enter = submit 되게 form으로 감쌈 */}
-      <form
-        onSubmit={(e) => {
-          e.preventDefault()
-          submit()
-        }}
-        style={{ display: 'grid', gap: 12 }}
-      >
-        <input
-          placeholder="name (optional)"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          autoComplete="nickname"
-        />
-
-        <input
-          placeholder="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          autoComplete="email"
-        />
-
-        <input
-          placeholder="password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          autoComplete="new-password"
-        />
-
-        <button type="submit" disabled={loading}>
-          {loading ? '가입 중...' : 'Create account'}
-        </button>
-
-        {showResend && (
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button type="button" onClick={resend}>
-              인증 메일 재전송
-            </button>
-            <button type="button" onClick={() => router.push('/login')}>
-              로그인으로
-            </button>
+    <main className="container-page py-10">
+      <div className="mx-auto w-full max-w-md">
+        <div className="surface card-pad">
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold">회원가입</h1>
+            <p className="mt-1 text-sm" style={{ color: 'var(--muted)' }}>
+              가입 후 이메일 인증을 완료해야 로그인할 수 있어요.
+            </p>
           </div>
-        )}
 
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <Link href="/login">이미 계정 있음</Link>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              submit()
+            }}
+            className="grid gap-3"
+          >
+            <div className="grid gap-2">
+              <label className="text-sm font-medium">닉네임 (선택)</label>
+              <input
+                className="input"
+                placeholder="name (optional)"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                autoComplete="nickname"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <label className="text-sm font-medium">이메일</label>
+              <input
+                className="input"
+                placeholder="email@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+                inputMode="email"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <label className="text-sm font-medium">비밀번호</label>
+              <input
+                className="input"
+                placeholder="최소 8자 권장"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="new-password"
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="btn btn-primary mt-2"
+              disabled={loading}
+            >
+              {loading ? '가입 중...' : '계정 만들기'}
+            </button>
+
+            {showResend && (
+              <div className="mt-1 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={resend}
+                >
+                  인증 메일 재전송
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => router.push('/login')}
+                >
+                  로그인으로
+                </button>
+              </div>
+            )}
+
+            {msg && (
+              <div
+                className="mt-2 rounded-[calc(var(--radius)-8px)] border px-3 py-2 text-sm"
+                style={{ color: 'var(--muted)' }}
+              >
+                {msg}
+              </div>
+            )}
+
+            <div className="mt-4 flex items-center justify-between gap-3 text-sm">
+              <span style={{ color: 'var(--muted)' }}>이미 계정이 있나요?</span>
+              <Link href="/login" className="btn btn-ghost">
+                로그인
+              </Link>
+            </div>
+          </form>
         </div>
-      </form>
-
-      {msg && <p style={{ marginTop: 12 }}>{msg}</p>}
+      </div>
     </main>
   )
 }

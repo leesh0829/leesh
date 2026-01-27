@@ -26,11 +26,11 @@ export default function BlogActionsClient({
   }
 
   return (
-    <div
-      style={{ display: 'flex', gap: 10, marginTop: 14, alignItems: 'center' }}
-    >
-      <Link href={`/blog/edit/${postId}`}>수정</Link>
-      <button type="button" onClick={del}>
+    <div className="flex flex-wrap items-center gap-2">
+      <Link href={`/blog/edit/${postId}`} className="btn btn-outline">
+        수정
+      </Link>
+      <button type="button" onClick={del} className="btn">
         삭제
       </button>
     </div>

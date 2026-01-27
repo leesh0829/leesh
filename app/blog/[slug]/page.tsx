@@ -20,7 +20,6 @@ export default async function BlogDetailPage({
 }) {
   const { slug } = await params
 
-  // slug 우선 조회, 없으면 id fallback
   const post = await prisma.post.findFirst({
     where: {
       OR: [{ slug }, { id: slug }],
@@ -40,7 +39,17 @@ export default async function BlogDetailPage({
     },
   })
 
-  if (!post) return <main style={{ padding: 24 }}>글 없음</main>
+  if (!post) {
+    return (
+      <main className="container-page py-8">
+        <div className="surface card-pad">
+          <div className="text-sm" style={{ color: 'var(--muted)' }}>
+            글 없음
+          </div>
+        </div>
+      </main>
+    )
+  }
 
   const session = await getServerSession(authOptions)
   const me = session?.user?.email
@@ -50,11 +59,9 @@ export default async function BlogDetailPage({
       })
     : null
 
-  // 작성자/보드주인은 비번 없이도 열람 허용
   const isPrivileged =
     !!me?.id && (me.id === post.authorId || me.id === post.board.ownerId)
 
-  // 비번 unlock 쿠키 확인
   const cookieStore = await cookies()
   const unlocked = readUnlockedPostIds(
     cookieStore.get(UNLOCK_COOKIE_NAME)?.value
@@ -64,31 +71,61 @@ export default async function BlogDetailPage({
   const locked = post.isSecret && !isPrivileged && !unlockedByPassword
 
   return (
-    <main style={{ padding: 24 }}>
-      <h1 style={{ marginBottom: 4 }}>
-        {post.title} {post.isSecret ? '🔒' : ''}
-      </h1>
+    <main className="container-page py-8">
+      <div className="surface card-pad">
+        <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold leading-tight">
+              <span className="break-words">{post.title}</span>{' '}
+              {post.isSecret ? (
+                <span className="badge align-middle">SECRET</span>
+              ) : null}
+            </h1>
+            <div className="mt-2 text-sm" style={{ color: 'var(--muted)' }}>
+              {toISOStringSafe(post.createdAt).slice(0, 10)}
+            </div>
+          </div>
 
-      <div style={{ opacity: 0.6, marginBottom: 18 }}>
-        {toISOStringSafe(post.createdAt).slice(0, 10)}
+          <div className="shrink-0">
+            <BlogActionsClient postId={post.id} canEdit={isPrivileged} />
+          </div>
+        </header>
+
+        <div className="mt-6">
+          {locked ? (
+            <div className="card card-pad">
+              <BlogSecretGateClient boardId={post.boardId} postId={post.id} />
+            </div>
+          ) : (
+            <>
+              <article className="card card-pad">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeHighlight]}
+                  components={{
+                    img: (props) => (
+                      <img
+                        {...props}
+                        style={{
+                          maxWidth: '100%',
+                          height: 'auto',
+                          borderRadius: 12,
+                        }}
+                      />
+                    ),
+                  }}
+                >
+                  {post.contentMd ?? ''}
+                </ReactMarkdown>
+              </article>
+
+              <div className="mt-6">
+                <BlogCommentsClient boardId={post.boardId} postId={post.id} />
+              </div>
+            </>
+          )}
+        </div>
       </div>
-
-      <BlogActionsClient postId={post.id} canEdit={isPrivileged} />
-
-      {locked ? (
-        <BlogSecretGateClient boardId={post.boardId} postId={post.id} />
-      ) : (
-        <>
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            rehypePlugins={[rehypeHighlight]}
-          >
-            {post.contentMd ?? ''}
-          </ReactMarkdown>
-
-          <BlogCommentsClient boardId={post.boardId} postId={post.id} />
-        </>
-      )}
     </main>
   )
 }

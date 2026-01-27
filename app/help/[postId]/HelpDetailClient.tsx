@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
@@ -32,8 +32,11 @@ export default function HelpDetailClient({ postId }: { postId: string }) {
   const [draft, setDraft] = useState('')
   const [saving, setSaving] = useState(false)
 
+  const canSend = useMemo(() => !!draft.trim(), [draft])
+
   const load = async () => {
     setErr(null)
+
     const r1 = await fetch(`/api/help/posts/${postId}`, { cache: 'no-store' })
     const r2 = await fetch(`/api/help/posts/${postId}/answers`, {
       cache: 'no-store',
@@ -46,9 +49,13 @@ export default function HelpDetailClient({ postId }: { postId: string }) {
   }
 
   useEffect(() => {
-    Promise.resolve().then(() => {
-      load()
-    })
+    const t = window.setTimeout(() => {
+      void load()
+    }, 0)
+
+    return () => {
+      window.clearTimeout(t)
+    }
   }, [postId])
 
   const sendAnswer = async () => {
@@ -73,96 +80,172 @@ export default function HelpDetailClient({ postId }: { postId: string }) {
     await load()
   }
 
+  const mdComponents: Parameters<typeof ReactMarkdown>[0]['components'] = {
+    h1: (props) => <h1 {...props} className="mt-6 text-2xl font-bold" />,
+    h2: (props) => <h2 {...props} className="mt-5 text-xl font-semibold" />,
+    h3: (props) => <h3 {...props} className="mt-4 text-lg font-semibold" />,
+    p: (props) => <p {...props} className="mt-2 leading-7" />,
+    ul: (props) => <ul {...props} className="mt-2 list-disc pl-5" />,
+    ol: (props) => <ol {...props} className="mt-2 list-decimal pl-5" />,
+    li: (props) => <li {...props} className="mt-1" />,
+    a: (props) => <a {...props} className="underline" />,
+    pre: (props) => (
+      <pre
+        {...props}
+        className="mt-3 overflow-x-auto rounded-xl border p-3 text-sm"
+      />
+    ),
+    code: (props) => {
+      const { className, children, ...rest } = props
+      const isBlock =
+        typeof className === 'string' && className.includes('language-')
+      if (isBlock)
+        return (
+          <code {...rest} className={className}>
+            {children}
+          </code>
+        )
+      return (
+        <code
+          {...rest}
+          className="rounded-md border bg-black/5 px-1 py-0.5 text-[0.85em]"
+        >
+          {children}
+        </code>
+      )
+    },
+    img: (props) => (
+      <img
+        {...props}
+        style={{ maxWidth: '100%', height: 'auto', borderRadius: 12 }}
+      />
+    ),
+  }
+
   if (!post) {
     return (
-      <main style={{ padding: 24 }}>
-        <Link href="/help">← 고객센터</Link>
-        <p style={{ marginTop: 12 }}>로딩중...</p>
-        {err ? <p style={{ color: 'crimson' }}>{err}</p> : null}
+      <main className="space-y-3">
+        <div>
+          <Link href="/help" className="btn btn-outline">
+            ← 고객센터
+          </Link>
+        </div>
+
+        <div className="surface card-pad">
+          <div className="text-sm opacity-70">로딩중...</div>
+          {err ? <p className="mt-2 text-sm text-red-600">{err}</p> : null}
+        </div>
       </main>
     )
   }
 
   return (
-    <main style={{ padding: 24, maxWidth: 1000 }}>
-      <Link href="/help">← 고객센터</Link>
+    <main className="space-y-4">
+      <section className="surface card-pad">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <Link href="/help" className="btn btn-outline">
+              ← 고객센터
+            </Link>
 
-      <h1 style={{ marginTop: 12 }}>{post.title}</h1>
-      <div style={{ opacity: 0.6, marginBottom: 14 }}>
-        {post.createdAt.slice(0, 10)}
-      </div>
+            <h1 className="mt-3 truncate text-2xl font-semibold">
+              {post.title}
+            </h1>
 
-      {err ? <p style={{ color: 'crimson' }}>{err}</p> : null}
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs opacity-70">
+              <span className="badge">
+                {displayUserLabel(
+                  post.author?.name,
+                  post.author?.email,
+                  'user'
+                )}
+              </span>
+              <span className="badge">{post.createdAt}</span>
+              {post.canAnswer ? <span className="badge">operator</span> : null}
+            </div>
+          </div>
 
-      <section
-        style={{ border: '1px solid #eee', borderRadius: 12, padding: 12 }}
-      >
+          <div className="flex items-center gap-2">
+            <button type="button" className="btn btn-outline" onClick={load}>
+              새로고침
+            </button>
+          </div>
+        </div>
+
+        {err ? <p className="mt-3 text-sm text-red-600">{err}</p> : null}
+      </section>
+
+      <article className="card card-pad">
         <ReactMarkdown
           remarkPlugins={[remarkGfm, remarkBreaks]}
           rehypePlugins={[rehypeHighlight]}
+          components={mdComponents}
         >
           {post.contentMd}
         </ReactMarkdown>
-      </section>
+      </article>
 
-      <section style={{ marginTop: 18 }}>
-        <h3>운영진 답변</h3>
+      <section className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold">운영진 답변</h2>
+          <span className="badge">{answers.length}</span>
+        </div>
 
         {answers.length === 0 ? (
-          <p style={{ opacity: 0.7 }}>아직 답변이 없습니다.</p>
+          <div className="surface card-pad text-sm opacity-70">
+            아직 답변이 없습니다.
+          </div>
         ) : (
-          <ul style={{ paddingLeft: 18 }}>
+          <div className="grid gap-2">
             {answers.map((a) => (
-              <li key={a.id} style={{ marginBottom: 10 }}>
-                <div style={{ fontSize: 13, opacity: 0.7 }}>
-                  {displayUserLabel(
-                    a.author?.name,
-                    a.author?.email,
-                    'operator'
-                  )}{' '}
-                  · {a.createdAt}
+              <div key={a.id} className="surface card-pad">
+                <div className="flex flex-wrap items-center gap-2 text-xs opacity-70">
+                  <span className="badge">
+                    {displayUserLabel(
+                      a.author?.name,
+                      a.author?.email,
+                      'operator'
+                    )}
+                  </span>
+                  <span className="badge">{a.createdAt}</span>
                 </div>
-                <div style={{ whiteSpace: 'pre-wrap' }}>{a.content}</div>
-              </li>
+                <div className="mt-3 whitespace-pre-wrap text-sm leading-6">
+                  {a.content}
+                </div>
+              </div>
             ))}
-          </ul>
+          </div>
         )}
 
         {post.canAnswer ? (
-          <div
-            style={{
-              marginTop: 12,
-              borderTop: '1px solid #eee',
-              paddingTop: 12,
-            }}
-          >
+          <div className="surface card-pad space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-semibold">운영진 답변 작성</div>
+              <span className="badge">Enter=줄바꿈</span>
+            </div>
+
             <textarea
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               placeholder="운영진 답변 작성..."
               rows={5}
-              style={{
-                width: '100%',
-                padding: 10,
-                borderRadius: 8,
-                border: '1px solid #ddd',
-                resize: 'vertical',
-              }}
+              className="textarea"
+              style={{ resize: 'vertical' }}
             />
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'flex-end',
-                marginTop: 10,
-              }}
-            >
-              <button onClick={sendAnswer} disabled={saving || !draft.trim()}>
+
+            <div className="flex justify-end">
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={sendAnswer}
+                disabled={saving || !canSend}
+              >
                 {saving ? '등록중...' : '답변 등록'}
               </button>
             </div>
           </div>
         ) : (
-          <p style={{ marginTop: 10, fontSize: 13, opacity: 0.7 }}>
+          <p className="text-sm opacity-70">
             * 답변 작성은 운영진만 가능합니다.
           </p>
         )}

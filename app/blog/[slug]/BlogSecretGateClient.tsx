@@ -39,23 +39,34 @@ export default function BlogSecretGateClient({
   }
 
   return (
-    <section style={{ marginTop: 16 }}>
-      <p>비밀글입니다. 비밀번호를 입력하세요.</p>
-      <input
-        type="password"
-        value={pw}
-        onChange={(e) => setPw(e.target.value)}
-        placeholder="비밀번호"
-      />
-      <button
-        type="button"
-        onClick={unlock}
-        disabled={unlocking || !pw.trim()}
-        style={{ marginLeft: 8 }}
-      >
-        {unlocking ? '확인 중...' : '열람'}
-      </button>
-      {msg ? <p style={{ color: 'crimson', marginTop: 8 }}>{msg}</p> : null}
+    <section className="grid gap-3">
+      <div className="text-sm" style={{ color: 'var(--muted)' }}>
+        비밀글입니다. 비밀번호를 입력하세요.
+      </div>
+
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <input
+          className="input"
+          type="password"
+          value={pw}
+          onChange={(e) => setPw(e.target.value)}
+          placeholder="비밀번호"
+        />
+        <button
+          type="button"
+          onClick={unlock}
+          disabled={unlocking || !pw.trim()}
+          className="btn btn-primary"
+        >
+          {unlocking ? '확인 중...' : '열람'}
+        </button>
+      </div>
+
+      {msg ? (
+        <div className="text-sm" style={{ color: 'crimson' }}>
+          {msg}
+        </div>
+      ) : null}
     </section>
   )
 }

@@ -30,7 +30,6 @@ export default function BoardsClient({
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
 
-  // ✅ 단일 일정 보드 옵션
   const [singleSchedule, setSingleSchedule] = useState(false)
   const [scheduleStatus, setScheduleStatus] = useState<Status>('TODO')
   const [scheduleStartAt, setScheduleStartAt] = useState('')
@@ -54,7 +53,6 @@ export default function BoardsClient({
       return
     }
 
-    // ✅ 단일 일정 모드면 startAt 필수(백엔드도 이렇게 요구하는게 맞음)
     if (singleSchedule && !startIso) {
       alert('단일 일정 보드는 시작일시(또는 날짜)가 필수임')
       return
@@ -82,13 +80,11 @@ export default function BoardsClient({
     if (res.ok) {
       setName('')
       setDescription('')
-
       setSingleSchedule(false)
       setScheduleStatus('TODO')
       setScheduleStartAt('')
       setScheduleEndAt('')
       setScheduleAllDay(false)
-
       await reload()
       return
     }
@@ -98,114 +94,158 @@ export default function BoardsClient({
   }
 
   return (
-    <main style={{ padding: 24, maxWidth: 900 }}>
-      <h1>Boards</h1>
-
-      {canCreate ? (
-        <section
-          style={{
-            marginTop: 12,
-            padding: 12,
-            border: '1px solid #eee',
-            borderRadius: 10,
-          }}
-        >
-          <div style={{ display: 'grid', gap: 10 }}>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="보드 이름"
-              />
-              <input
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="설명"
-              />
-              <button onClick={create}>생성</button>
-            </div>
-
-            <div
-              style={{
-                display: 'flex',
-                gap: 12,
-                flexWrap: 'wrap',
-                alignItems: 'center',
-              }}
-            >
-              <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                <input
-                  type="checkbox"
-                  checked={singleSchedule}
-                  onChange={(e) => setSingleSchedule(e.target.checked)}
-                />
-                한 일정만(단일 일정 보드)
-              </label>
-
-              {singleSchedule ? (
-                <>
-                  <select
-                    value={scheduleStatus}
-                    onChange={(e) =>
-                      setScheduleStatus(e.target.value as Status)
-                    }
-                  >
-                    <option value="TODO">TODO</option>
-                    <option value="DOING">DOING</option>
-                    <option value="DONE">DONE</option>
-                  </select>
-
-                  <input
-                    type="datetime-local"
-                    value={scheduleStartAt}
-                    onChange={(e) => setScheduleStartAt(e.target.value)}
-                    title="시작"
-                  />
-                  <input
-                    type="datetime-local"
-                    value={scheduleEndAt}
-                    onChange={(e) => setScheduleEndAt(e.target.value)}
-                    title="종료(선택)"
-                  />
-
-                  <label
-                    style={{ display: 'flex', gap: 6, alignItems: 'center' }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={scheduleAllDay}
-                      onChange={(e) => setScheduleAllDay(e.target.checked)}
-                    />
-                    하루종일
-                  </label>
-
-                  <div style={{ fontSize: 12, opacity: 0.7 }}>
-                    단일 일정 보드는 <b>postId 일정 생성 불가</b> / 캘린더엔{' '}
-                    <b>boardId 일정</b>으로만 뜸
-                  </div>
-                </>
-              ) : null}
-            </div>
+    <main className="container-page py-8">
+      <div className="surface card-pad">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Boards</h1>
+            <p className="mt-1 text-sm" style={{ color: 'var(--muted)' }}>
+              GENERAL 타입 보드 목록
+            </p>
           </div>
-        </section>
-      ) : (
-        <p style={{ opacity: 0.7, marginTop: 12 }}>
-          로그인하면 보드를 만들 수 있음
-        </p>
-      )}
 
-      <ul style={{ marginTop: 16, lineHeight: 1.9 }}>
-        {boards.map((b) => (
-          <li key={b.id}>
-            <Link href={`/boards/${b.id}`}>{b.name}</Link>
-            <span style={{ opacity: 0.6, marginLeft: 8 }}>
-              by{' '}
-              {b.owner?.name ??
-                (b.owner?.email ? b.owner.email.split('@')[0] : 'unknown')}
-            </span>
-          </li>
-        ))}
-      </ul>
+          {!canCreate ? (
+            <span className="badge">로그인하면 보드 생성 가능</span>
+          ) : null}
+        </div>
+
+        {canCreate ? (
+          <section className="card card-pad mt-6">
+            <div className="flex flex-col gap-3">
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div className="grid gap-2">
+                  <label className="text-sm font-medium">보드 이름</label>
+                  <input
+                    className="input"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="보드 이름"
+                  />
+                </div>
+
+                <div className="grid gap-2">
+                  <label className="text-sm font-medium">설명 (선택)</label>
+                  <input
+                    className="input"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="설명"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={singleSchedule}
+                    onChange={(e) => setSingleSchedule(e.target.checked)}
+                  />
+                  한 일정만(단일 일정 보드)
+                </label>
+
+                {singleSchedule ? (
+                  <>
+                    <select
+                      className="select"
+                      value={scheduleStatus}
+                      onChange={(e) =>
+                        setScheduleStatus(e.target.value as Status)
+                      }
+                    >
+                      <option value="TODO">TODO</option>
+                      <option value="DOING">DOING</option>
+                      <option value="DONE">DONE</option>
+                    </select>
+
+                    <input
+                      className="input"
+                      type="datetime-local"
+                      value={scheduleStartAt}
+                      onChange={(e) => setScheduleStartAt(e.target.value)}
+                      title="시작"
+                    />
+                    <input
+                      className="input"
+                      type="datetime-local"
+                      value={scheduleEndAt}
+                      onChange={(e) => setScheduleEndAt(e.target.value)}
+                      title="종료(선택)"
+                    />
+
+                    <label className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={scheduleAllDay}
+                        onChange={(e) => setScheduleAllDay(e.target.checked)}
+                      />
+                      하루종일
+                    </label>
+
+                    <span className="badge">
+                      단일 일정 보드는 postId 일정 생성 불가 / 캘린더엔 boardId
+                      일정으로만 표시
+                    </span>
+                  </>
+                ) : null}
+              </div>
+
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={create}
+                >
+                  생성
+                </button>
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+          {boards.map((b) => (
+            <Link
+              key={b.id}
+              href={`/boards/${b.id}`}
+              className="card card-pad block no-underline hover:no-underline"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="font-semibold truncate">{b.name}</div>
+                  {b.description ? (
+                    <div
+                      className="mt-1 text-sm"
+                      style={{ color: 'var(--muted)' }}
+                    >
+                      {b.description}
+                    </div>
+                  ) : (
+                    <div
+                      className="mt-1 text-sm"
+                      style={{ color: 'var(--muted)' }}
+                    >
+                      설명 없음
+                    </div>
+                  )}
+
+                  <div
+                    className="mt-2 text-xs"
+                    style={{ color: 'var(--muted)' }}
+                  >
+                    by{' '}
+                    {b.owner?.name ??
+                      (b.owner?.email
+                        ? b.owner.email.split('@')[0]
+                        : 'unknown')}
+                  </div>
+                </div>
+                <span className="badge">열기</span>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
     </main>
   )
 }

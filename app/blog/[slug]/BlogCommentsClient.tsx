@@ -29,12 +29,9 @@ function formatKoreanDateTimeWithMs(isoOrDate: string | Date) {
 
 function extractApiMessage(payload: unknown): string | null {
   if (!payload || typeof payload !== 'object') return null
-
   const record = payload as Record<string, unknown>
   const message = record['message']
-
   if (typeof message !== 'string') return null
-
   return message.trim() || null
 }
 
@@ -167,16 +164,19 @@ export default function BlogCommentsClient({
   }, [boardId, postId])
 
   return (
-    <section style={{ marginTop: 32 }}>
-      <h2 style={{ marginBottom: 12 }}>댓글</h2>
+    <section className="card card-pad">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-bold">댓글</h2>
+        <span className="badge">{items.length}</span>
+      </div>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+      <div className="mt-4 grid gap-2">
         <textarea
+          className="textarea"
           value={content}
           onChange={(e) => setContent(e.target.value)}
           onKeyDown={(e) => {
             if (e.nativeEvent?.isComposing) return
-
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault()
               submit()
@@ -184,100 +184,103 @@ export default function BlogCommentsClient({
           }}
           placeholder="댓글 달기... (Enter=전송, Shift+Enter=줄바꿈)"
           rows={3}
-          style={{
-            flex: 1,
-            padding: 10,
-            resize: 'vertical',
-            lineHeight: 1.4,
-          }}
         />
-        <button onClick={submit} style={{ padding: '10px 14px' }}>
-          등록
-        </button>
+
+        <div className="flex justify-end">
+          <button type="button" onClick={submit} className="btn btn-primary">
+            등록
+          </button>
+        </div>
+
+        {error ? (
+          <div className="text-sm" style={{ color: 'crimson' }}>
+            {error}
+          </div>
+        ) : null}
       </div>
 
-      {error && <p style={{ color: 'crimson' }}>{error}</p>}
+      <div className="mt-4 grid gap-3">
+        {loading ? (
+          <div className="text-sm" style={{ color: 'var(--muted)' }}>
+            불러오는 중...
+          </div>
+        ) : items.length === 0 ? (
+          <div className="text-sm" style={{ color: 'var(--muted)' }}>
+            댓글 없음
+          </div>
+        ) : (
+          items.map((c) => {
+            const mine = myEmail && c.author.email === myEmail
+            const isEditing = editingId === c.id
 
-      {loading ? (
-        <p>불러오는 중...</p>
-      ) : items.length === 0 ? (
-        <p>댓글 없음</p>
-      ) : (
-        <ul style={{ lineHeight: 1.8 }}>
-          {items.map((c) => (
-            <li
-              key={c.id}
-              style={{ padding: '8px 0', borderTop: '1px solid #eee' }}
-            >
-              <div
-                style={{
-                  fontSize: 13,
-                  opacity: 0.7,
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  gap: 10,
-                }}
-              >
-                <div>
-                  {displayUserLabel(c.author.name, c.author.email, 'unknown')} ·{' '}
-                  {formatKoreanDateTimeWithMs(c.createdAt)}
+            return (
+              <div key={c.id} className="card p-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="text-xs" style={{ color: 'var(--muted)' }}>
+                    {displayUserLabel(c.author.name, c.author.email, 'unknown')}{' '}
+                    · {formatKoreanDateTimeWithMs(c.createdAt)}
+                  </div>
+
+                  {mine ? (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        onClick={() => startEdit(c)}
+                      >
+                        수정
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        onClick={() => deleteComment(c.id)}
+                      >
+                        삭제
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
 
-                {myEmail && c.author.email === myEmail ? (
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button
-                      type="button"
-                      onClick={() => startEdit(c)}
-                      style={{ fontSize: 12 }}
-                    >
-                      수정
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => deleteComment(c.id)}
-                      style={{ fontSize: 12 }}
-                    >
-                      삭제
-                    </button>
+                {isEditing ? (
+                  <div className="mt-2 grid gap-2">
+                    <textarea
+                      className="textarea"
+                      value={editText}
+                      onChange={(e) => setEditText(e.target.value)}
+                      rows={3}
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={saveEdit}
+                        disabled={savingEdit}
+                      >
+                        {savingEdit ? '저장중...' : '저장'}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn"
+                        onClick={() => {
+                          setEditingId(null)
+                          setEditText('')
+                        }}
+                        disabled={savingEdit}
+                      >
+                        취소
+                      </button>
+                    </div>
                   </div>
-                ) : null}
+                ) : (
+                  <div className="whitespace-pre-wrap text-sm leading-6">
+                    {c.content}
+                  </div>
+                )}
               </div>
-
-              {editingId === c.id ? (
-                <div style={{ marginTop: 8 }}>
-                  <textarea
-                    value={editText}
-                    onChange={(e) => setEditText(e.target.value)}
-                    rows={3}
-                    style={{
-                      width: '100%',
-                      padding: 10,
-                      resize: 'vertical',
-                      lineHeight: 1.4,
-                    }}
-                  />
-                  <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
-                    <button onClick={saveEdit} disabled={savingEdit}>
-                      {savingEdit ? '저장중...' : '저장'}
-                    </button>
-                    <button
-                      onClick={() => {
-                        setEditingId(null)
-                        setEditText('')
-                      }}
-                      disabled={savingEdit}
-                    >
-                      취소
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div style={{ whiteSpace: 'pre-wrap' }}>{c.content}</div>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
+            )
+          })
+        )}
+      </div>
     </section>
   )
 }

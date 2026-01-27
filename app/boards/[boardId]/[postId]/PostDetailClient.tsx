@@ -151,10 +151,8 @@ export default function PostDetailClient({
     await loadComments()
   }
 
-  // 화면 즉시 반영용: 로컬 post state
   const [postState, setPostState] = useState<Post>(post)
 
-  // 서버에서 refresh로 props가 바뀌면 동기화
   useEffect(() => {
     setPostState(post)
   }, [post])
@@ -164,16 +162,13 @@ export default function PostDetailClient({
     [postState.locked, postState.isSecret]
   )
 
-  // 비밀글 unlock
   const [pw, setPw] = useState('')
   const [unlocking, setUnlocking] = useState(false)
 
-  // 댓글
   const [comments, setComments] = useState<Comment[]>([])
   const [newComment, setNewComment] = useState('')
   const [commentsError, setCommentsError] = useState<string | null>(null)
 
-  // 수정/삭제 (제목/본문/상태)
   const [editing, setEditing] = useState(false)
   const [savingEdit, setSavingEdit] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
@@ -182,7 +177,6 @@ export default function PostDetailClient({
   const [editContent, setEditContent] = useState(postState.contentMd ?? '')
   const [editStatus, setEditStatus] = useState<Post['status']>(postState.status)
 
-  // postState가 변하면 편집 입력값도 동기화(편집중이 아닐 때만)
   useEffect(() => {
     if (editing) return
     setEditTitle(postState.title)
@@ -196,7 +190,6 @@ export default function PostDetailClient({
     editing,
   ])
 
-  // 일정 편집
   const [startLocal, setStartLocal] = useState(() =>
     toDatetimeLocalValue(postState.startAt ?? null)
   )
@@ -207,7 +200,6 @@ export default function PostDetailClient({
   const [scheduleError, setScheduleError] = useState<string | null>(null)
   const [scheduleSaving, setScheduleSaving] = useState(false)
 
-  // postState 변경 시 일정 입력도 동기화
   useEffect(() => {
     setStartLocal(toDatetimeLocalValue(postState.startAt ?? null))
     setEndLocal(toDatetimeLocalValue(postState.endAt ?? null))
@@ -275,7 +267,6 @@ export default function PostDetailClient({
         return
       }
 
-      // 서버 응답 반영(즉시 화면 반영)
       const updated = (await res.json().catch(() => null)) as {
         startAt?: string | null
         endAt?: string | null
@@ -322,7 +313,6 @@ export default function PostDetailClient({
         return
       }
 
-      // 서버 응답(이제 contentMd도 내려옴) 반영 -> 즉시 화면 반영
       const updated = (await res.json().catch(() => null)) as {
         title?: string
         contentMd?: string | null
@@ -418,294 +408,330 @@ export default function PostDetailClient({
   }
 
   return (
-    <main style={{ padding: 24, maxWidth: 900 }}>
-      <Link href={`/boards/${boardId}`}>← {boardName}</Link>
+    <main className="container-page py-8">
+      <div className="surface card-pad">
+        <Link href={`/boards/${boardId}`} className="btn btn-outline">
+          ← {boardName}
+        </Link>
 
-      <h1 style={{ marginTop: 12 }}>
-        [{postState.status}] {postState.title} {postState.isSecret ? '🔒' : ''}
-      </h1>
-
-      {/* 수정/삭제 버튼 */}
-      {postState.canEdit ? (
-        <div
-          style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}
-        >
-          <button type="button" onClick={() => setEditing((v) => !v)}>
-            {editing ? '편집 닫기' : '수정'}
-          </button>
-          <button type="button" onClick={deletePost} disabled={savingEdit}>
-            삭제
-          </button>
-        </div>
-      ) : null}
-
-      {editError ? (
-        <p style={{ color: 'crimson', marginTop: 10 }}>{editError}</p>
-      ) : null}
-
-      {/* 일정 */}
-      {postState.canEdit ? (
-        <section
-          style={{
-            marginTop: 12,
-            padding: 12,
-            border: '1px solid #eee',
-            borderRadius: 10,
-          }}
-        >
-          <div style={{ fontWeight: 700, marginBottom: 8 }}>일정</div>
-
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <input
-              type="datetime-local"
-              value={startLocal}
-              onChange={(e) => setStartLocal(e.target.value)}
-            />
-            <input
-              type="datetime-local"
-              value={endLocal}
-              onChange={(e) => setEndLocal(e.target.value)}
-            />
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <input
-                type="checkbox"
-                checked={allDay}
-                onChange={(e) => setAllDay(e.target.checked)}
-              />
-              allDay
-            </label>
-
-            <button onClick={saveSchedule} disabled={scheduleSaving}>
-              {scheduleSaving ? '저장중...' : '일정 저장'}
-            </button>
+        <header className="mt-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="badge">{postState.status}</span>
+            {postState.isSecret ? <span className="badge">SECRET</span> : null}
           </div>
+          <h1 className="mt-2 text-2xl font-bold break-words">
+            {postState.title}
+          </h1>
 
-          {scheduleError ? (
-            <p style={{ color: 'crimson', marginTop: 10 }}>{scheduleError}</p>
+          {postState.canEdit ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => setEditing((v) => !v)}
+              >
+                {editing ? '편집 닫기' : '수정'}
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={deletePost}
+                disabled={savingEdit}
+              >
+                삭제
+              </button>
+            </div>
           ) : null}
-        </section>
-      ) : null}
 
-      {/* 본문 영역 */}
-      {locked ? (
-        <section style={{ marginTop: 16 }}>
-          <p>비밀글입니다. 비밀번호를 입력하세요.</p>
-          <input
-            type="password"
-            value={pw}
-            onChange={(e) => setPw(e.target.value)}
-            placeholder="비밀번호"
-          />
-          <button
-            onClick={unlock}
-            disabled={unlocking || !pw}
-            style={{ marginLeft: 8 }}
-          >
-            {unlocking ? '확인 중...' : '열람'}
-          </button>
-        </section>
-      ) : (
-        <section style={{ marginTop: 16 }}>
-          {editing ? (
-            <div style={{ display: 'grid', gap: 10 }}>
-              <label style={{ display: 'grid', gap: 6 }}>
-                제목
-                <input
-                  value={editTitle}
-                  onChange={(e) => setEditTitle(e.target.value)}
-                />
-              </label>
+          {editError ? (
+            <div className="mt-3 text-sm" style={{ color: 'crimson' }}>
+              {editError}
+            </div>
+          ) : null}
+        </header>
 
-              <label style={{ display: 'grid', gap: 6 }}>
-                상태
-                <select
-                  value={editStatus}
-                  onChange={(e) =>
-                    setEditStatus(e.target.value as Post['status'])
-                  }
-                >
-                  <option value="TODO">TODO</option>
-                  <option value="DOING">DOING</option>
-                  <option value="DONE">DONE</option>
-                </select>
-              </label>
+        {postState.canEdit ? (
+          <section className="card card-pad mt-6">
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-extrabold">일정</div>
+              <span className="badge">post 일정</span>
+            </div>
 
-              <label style={{ display: 'grid', gap: 6 }}>
-                본문 (Markdown)
-                <textarea
-                  value={editContent}
-                  onChange={(e) => setEditContent(e.target.value)}
-                  rows={10}
-                  style={{
-                    width: '100%',
-                    padding: 10,
-                    borderRadius: 8,
-                    border: '1px solid #ddd',
-                    resize: 'vertical',
-                  }}
-                />
-              </label>
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-2 sm:col-span-2">
+                <div className="text-xs" style={{ color: 'var(--muted)' }}>
+                  시작/종료
+                </div>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <input
+                    className="input"
+                    type="datetime-local"
+                    value={startLocal}
+                    onChange={(e) => setStartLocal(e.target.value)}
+                  />
+                  <input
+                    className="input"
+                    type="datetime-local"
+                    value={endLocal}
+                    onChange={(e) => setEndLocal(e.target.value)}
+                  />
+                </div>
+              </div>
 
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <button type="button" onClick={saveEdit} disabled={savingEdit}>
-                  {savingEdit ? '저장중...' : '저장'}
-                </button>
+              <div className="grid gap-2">
+                <div className="text-xs" style={{ color: 'var(--muted)' }}>
+                  옵션
+                </div>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={allDay}
+                    onChange={(e) => setAllDay(e.target.checked)}
+                  />
+                  allDay
+                </label>
+
                 <button
-                  type="button"
-                  onClick={() => {
-                    setEditTitle(postState.title)
-                    setEditContent(postState.contentMd ?? '')
-                    setEditStatus(postState.status)
-                    setEditing(false)
-                    setEditError(null)
-                  }}
-                  disabled={savingEdit}
+                  className="btn btn-primary"
+                  onClick={saveSchedule}
+                  disabled={scheduleSaving}
                 >
-                  취소
+                  {scheduleSaving ? '저장중...' : '일정 저장'}
                 </button>
               </div>
             </div>
-          ) : (
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm, remarkBreaks]}
-              rehypePlugins={[rehypeHighlight]}
-              components={{
-                img: (props) => (
-                  <img
-                    {...props}
-                    style={{
-                      maxWidth: '100%',
-                      height: 'auto',
-                      borderRadius: 8,
-                    }}
-                  />
-                ),
-              }}
-            >
-              {postState.contentMd || '(본문 없음)'}
-            </ReactMarkdown>
-          )}
-        </section>
-      )}
 
-      <hr style={{ margin: '24px 0' }} />
-
-      {/* 댓글 */}
-      <section>
-        <h3>댓글</h3>
-
-        {commentsError ? (
-          <p style={{ color: 'crimson', marginTop: 8 }}>{commentsError}</p>
+            {scheduleError ? (
+              <div className="mt-3 text-sm" style={{ color: 'crimson' }}>
+                {scheduleError}
+              </div>
+            ) : null}
+          </section>
         ) : null}
 
-        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-          <textarea
-            value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.nativeEvent?.isComposing) return
+        {locked ? (
+          <section className="card card-pad mt-6">
+            <div className="text-sm" style={{ color: 'var(--muted)' }}>
+              비밀글입니다. 비밀번호를 입력하세요.
+            </div>
 
-              // Enter 단독 = 전송, Shift+Enter = 줄바꿈(기본동작)
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault()
-                addComment()
-              }
-            }}
-            placeholder="댓글 입력 (Enter=전송, Shift+Enter=줄바꿈)"
-            rows={3}
-            style={{
-              flex: 1,
-              resize: 'vertical',
-              lineHeight: 1.4,
-            }}
-          />
-          <button onClick={addComment} style={{ marginTop: 2 }}>
-            등록
-          </button>
-        </div>
-
-        <ul style={{ marginTop: 16 }}>
-          {comments.map((c) => {
-            const canMine = myEmail && c.author?.email === myEmail
-
-            return (
-              <li key={c.id} style={{ marginBottom: 10 }}>
-                <div
-                  style={{
-                    fontSize: 12,
-                    opacity: 0.8,
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    gap: 10,
-                  }}
-                >
-                  <div>
-                    {displayUserLabel(
-                      c.author?.name,
-                      c.author?.email,
-                      'unknown'
-                    )}{' '}
-                    · {formatKoreanDateTimeWithMs(c.createdAt)}
-                  </div>
-
-                  {canMine ? (
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <button
-                        type="button"
-                        onClick={() => startCommentEdit(c)}
-                        style={{ fontSize: 12 }}
-                      >
-                        수정
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => deleteComment(c.id)}
-                        style={{ fontSize: 12 }}
-                      >
-                        삭제
-                      </button>
-                    </div>
-                  ) : null}
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+              <input
+                className="input"
+                type="password"
+                value={pw}
+                onChange={(e) => setPw(e.target.value)}
+                placeholder="비밀번호"
+              />
+              <button
+                className="btn btn-primary"
+                onClick={unlock}
+                disabled={unlocking || !pw}
+              >
+                {unlocking ? '확인 중...' : '열람'}
+              </button>
+            </div>
+          </section>
+        ) : (
+          <section className="mt-6">
+            {editing ? (
+              <div className="card card-pad grid gap-3">
+                <div className="grid gap-2">
+                  <div className="text-sm font-medium">제목</div>
+                  <input
+                    className="input"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                  />
                 </div>
 
-                {editingCommentId === c.id ? (
-                  <div style={{ marginTop: 8 }}>
-                    <textarea
-                      value={editingCommentText}
-                      onChange={(e) => setEditingCommentText(e.target.value)}
-                      rows={3}
-                      style={{
-                        width: '100%',
-                        resize: 'vertical',
-                        lineHeight: 1.4,
-                      }}
-                    />
-                    <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
-                      <button
-                        onClick={saveCommentEdit}
-                        disabled={commentSaving}
-                      >
-                        {commentSaving ? '저장중...' : '저장'}
-                      </button>
-                      <button
-                        onClick={() => {
-                          setEditingCommentId(null)
-                          setEditingCommentText('')
+                <div className="grid gap-2">
+                  <div className="text-sm font-medium">상태</div>
+                  <select
+                    className="select"
+                    value={editStatus}
+                    onChange={(e) =>
+                      setEditStatus(e.target.value as Post['status'])
+                    }
+                  >
+                    <option value="TODO">TODO</option>
+                    <option value="DOING">DOING</option>
+                    <option value="DONE">DONE</option>
+                  </select>
+                </div>
+
+                <div className="grid gap-2">
+                  <div className="text-sm font-medium">본문 (Markdown)</div>
+                  <textarea
+                    className="textarea"
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    rows={12}
+                  />
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={saveEdit}
+                    disabled={savingEdit}
+                  >
+                    {savingEdit ? '저장중...' : '저장'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => {
+                      setEditTitle(postState.title)
+                      setEditContent(postState.contentMd ?? '')
+                      setEditStatus(postState.status)
+                      setEditing(false)
+                      setEditError(null)
+                    }}
+                    disabled={savingEdit}
+                  >
+                    취소
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <article className="card card-pad">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm, remarkBreaks]}
+                  rehypePlugins={[rehypeHighlight]}
+                  components={{
+                    img: (props) => (
+                      <img
+                        {...props}
+                        style={{
+                          maxWidth: '100%',
+                          height: 'auto',
+                          borderRadius: 12,
                         }}
-                        disabled={commentSaving}
-                      >
-                        취소
-                      </button>
+                      />
+                    ),
+                  }}
+                >
+                  {postState.contentMd || '(본문 없음)'}
+                </ReactMarkdown>
+              </article>
+            )}
+          </section>
+        )}
+
+        <section className="card card-pad mt-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-bold">댓글</h3>
+            <span className="badge">{comments.length}</span>
+          </div>
+
+          {commentsError ? (
+            <div className="mt-3 text-sm" style={{ color: 'crimson' }}>
+              {commentsError}
+            </div>
+          ) : null}
+
+          <div className="mt-4 grid gap-2">
+            <textarea
+              className="textarea"
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.nativeEvent?.isComposing) return
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  addComment()
+                }
+              }}
+              placeholder="댓글 입력 (Enter=전송, Shift+Enter=줄바꿈)"
+              rows={3}
+            />
+            <div className="flex justify-end">
+              <button className="btn btn-primary" onClick={addComment}>
+                등록
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-3">
+            {comments.map((c) => {
+              const canMine = myEmail && c.author?.email === myEmail
+              const isEditing = editingCommentId === c.id
+
+              return (
+                <div key={c.id} className="card p-3">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="text-xs" style={{ color: 'var(--muted)' }}>
+                      {displayUserLabel(
+                        c.author?.name,
+                        c.author?.email,
+                        'unknown'
+                      )}{' '}
+                      · {formatKoreanDateTimeWithMs(c.createdAt)}
                     </div>
+
+                    {canMine ? (
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          className="btn btn-ghost"
+                          onClick={() => startCommentEdit(c)}
+                        >
+                          수정
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-ghost"
+                          onClick={() => deleteComment(c.id)}
+                        >
+                          삭제
+                        </button>
+                      </div>
+                    ) : null}
                   </div>
-                ) : (
-                  <div style={{ whiteSpace: 'pre-wrap' }}>{c.content}</div>
-                )}
-              </li>
-            )
-          })}
-        </ul>
-      </section>
+
+                  {isEditing ? (
+                    <div className="mt-2 grid gap-2">
+                      <textarea
+                        className="textarea"
+                        value={editingCommentText}
+                        onChange={(e) => setEditingCommentText(e.target.value)}
+                        rows={3}
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          className="btn btn-primary"
+                          onClick={saveCommentEdit}
+                          disabled={commentSaving}
+                        >
+                          {commentSaving ? '저장중...' : '저장'}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn"
+                          onClick={() => {
+                            setEditingCommentId(null)
+                            setEditingCommentText('')
+                          }}
+                          disabled={commentSaving}
+                        >
+                          취소
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="whitespace-pre-wrap text-sm leading-6">
+                      {c.content}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </section>
+      </div>
     </main>
   )
 }

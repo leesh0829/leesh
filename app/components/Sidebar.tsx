@@ -42,7 +42,7 @@ function NavItem({
       className={
         'block rounded-md px-3 py-2 text-sm transition ' +
         (active
-          ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-black'
+          ? 'btn btn-primary'
           : 'hover:bg-zinc-100 dark:hover:bg-zinc-900')
       }
     >
@@ -166,11 +166,9 @@ export default function Sidebar({
 
       <aside
         className={
-          'fixed z-50 h-dvh w-64 border-r bg-[color:var(--card)] p-4 transition-transform ' +
-          // mobile open/close
+          'fixed z-50 h-dvh w-[82vw] max-w-64 border-r bg-[color:var(--card)] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] transition-transform ' +
           (open ? 'translate-x-0' : '-translate-x-full') +
-          // desktop open/close
-          ' lg:static ' +
+          ' lg:static lg:w-64 ' +
           (desktopOpen ? ' lg:translate-x-0' : ' lg:-translate-x-full')
         }
       >

@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from 'next/link'
 
 export default function HomePage() {
   return (
@@ -21,28 +21,22 @@ export default function HomePage() {
           <div className="flex gap-2">
             <Link
               href="/dashboard"
-              className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-black dark:hover:bg-zinc-200"
+              className="btn btn-primary rounded-md px-4 py-2 text-sm font-medium text-nowrap"
             >
               대시보드
-            </Link>
-            <Link
-              href="/blog"
-              className="rounded-md border border-zinc-200 px-4 py-2 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-900"
-            >
-              블로그
             </Link>
           </div>
         </div>
 
         <div className="mt-5 flex flex-wrap gap-2">
           {[
-            "Next.js 16",
-            "React 19",
-            "TypeScript",
-            "Prisma",
-            "PostgreSQL",
-            "NextAuth",
-            "Tailwind",
+            'Next.js 16',
+            'React 19',
+            'TypeScript',
+            'Prisma',
+            'PostgreSQL',
+            'NextAuth',
+            'Tailwind',
           ].map((t) => (
             <span
               key={t}
@@ -59,28 +53,25 @@ export default function HomePage() {
           title="블로그"
           desc="마크다운 기반 포스팅 + 로그인 댓글"
           href="/blog"
-          actions={[
-            { label: "목록", href: "/blog" },
-            { label: "글쓰기", href: "/blog/new" },
-          ]}
+          actions={[{ label: '목록', href: '/blog' }]}
         />
         <Card
           title="게시판"
           desc="개인 보드(할일 정리) + TODO 아젠다와 캘린더 연동"
           href="/boards"
-          actions={[{ label: "보드 보기", href: "/boards" }]}
+          actions={[{ label: '보드 보기', href: '/boards' }]}
         />
         <Card
           title="TODO"
           desc="TODO / DOING / DONE 관리"
           href="/todos"
-          actions={[{ label: "TODO 가기", href: "/todos" }]}
+          actions={[{ label: 'TODO 가기', href: '/todos' }]}
         />
         <Card
           title="캘린더"
           desc="월 단위 일정 뷰"
           href="/calendar"
-          actions={[{ label: "캘린더 가기", href: "/calendar" }]}
+          actions={[{ label: '캘린더 가기', href: '/calendar' }]}
         />
       </section>
 
@@ -94,7 +85,7 @@ export default function HomePage() {
         </ul>
       </section>
     </main>
-  );
+  )
 }
 
 function Card({
@@ -103,10 +94,10 @@ function Card({
   href,
   actions,
 }: {
-  title: string;
-  desc: string;
-  href: string;
-  actions: Array<{ label: string; href: string }>;
+  title: string
+  desc: string
+  href: string
+  actions: Array<{ label: string; href: string }>
 }) {
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-black">
@@ -130,12 +121,12 @@ function Card({
           <Link
             key={a.href}
             href={a.href}
-            className="rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-black dark:hover:bg-zinc-200"
+            className="btn btn-primary rounded-md px-3 py-2 text-sm font-medium"
           >
             {a.label}
           </Link>
         ))}
       </div>
     </div>
-  );
+  )
 }

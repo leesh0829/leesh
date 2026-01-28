@@ -94,7 +94,7 @@
 
 @layer components {
   .container-page {
-    @apply mx-auto w-full max-w-6xl px-4 lg:px-10;
+    @apply mx-auto w-full max-w-6xl px-3 sm:px-4 lg:px-10;
   }
 
   .surface {
@@ -114,11 +114,11 @@
   }
 
   .card-pad {
-    @apply p-4 lg:p-6;
+    @apply p-3 sm:p-4 lg:p-6;
   }
 
   .btn {
-    @apply inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium transition;
+    @apply inline-flex items-center justify-center gap-2 px-2.5 py-1.5 sm:px-3 sm:py-2 text-sm font-medium transition;
     border-radius: calc(var(--radius) - 8px);
     border: 1px solid var(--border);
     background: rgba(255, 255, 255, 0);
@@ -155,7 +155,7 @@
   .input,
   .select,
   .textarea {
-    @apply w-full px-3 py-2 text-sm;
+    @apply w-full px-3 py-1.5 sm:py-2 text-sm;
     border-radius: calc(var(--radius) - 8px);
     border: 1px solid var(--border);
     background: rgba(255, 255, 255, 0);

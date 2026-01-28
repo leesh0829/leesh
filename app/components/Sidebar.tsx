@@ -166,10 +166,14 @@ export default function Sidebar({
 
       <aside
         className={
+          // mobile: overlay
           'fixed z-50 h-dvh w-[82vw] max-w-64 border-r bg-[color:var(--card)] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] transition-transform ' +
           (open ? 'translate-x-0' : '-translate-x-full') +
-          ' lg:static lg:w-64 ' +
-          (desktopOpen ? ' lg:translate-x-0' : ' lg:-translate-x-full')
+          // desktop: sticky sidebar (independent scroll)
+          ' lg:sticky lg:top-0 lg:translate-x-0 lg:h-dvh lg:overflow-y-auto ' +
+          (desktopOpen
+            ? ' lg:w-64 lg:p-4'
+            : ' lg:w-0 lg:p-0 lg:overflow-hidden lg:border-r-0')
         }
       >
         <div className="mb-4 flex items-center justify-between">

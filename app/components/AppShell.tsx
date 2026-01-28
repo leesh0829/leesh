@@ -23,15 +23,24 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   if (noShell) {
     return (
       <div className="min-h-dvh flex flex-col">
-        {children}
+        <div className="flex-1">{children}</div>
         <Footer />
       </div>
     )
   }
 
   return (
-    <div className="min-h-dvh flex flex-col">
-      <div className="flex-1">
+    <div className="min-h-dvh lg:flex">
+      {/* Sidebar (desktop: sticky, mobile: overlay fixed) */}
+      <Sidebar
+        open={open}
+        onClose={() => setOpen(false)}
+        desktopOpen={desktopOpen}
+        onToggleDesktop={() => setDesktopOpen((v) => !v)}
+      />
+
+      {/* Right side: only this area scrolls */}
+      <div className="min-w-0 flex-1 flex flex-col">
         {/* mobile top bar */}
         <div className="sticky top-0 z-30 flex items-center gap-3 px-3 py-3 sm:px-4 lg:hidden">
           <div className="surface flex w-full items-center gap-3 px-3 py-2">
@@ -56,17 +65,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           />
         ) : null}
 
-        <div className="flex w-full">
-          <Sidebar
-            open={open}
-            onClose={() => setOpen(false)}
-            desktopOpen={desktopOpen}
-            onToggleDesktop={() => setDesktopOpen((v) => !v)}
-          />
-
-          {/* desktopOpen에 따라 padding-left 조절 */}
-          <div className={'flex-1 ' + (desktopOpen ? 'lg:pl-64' : 'lg:pl-0')}>
-            {/* desktop용 상단에 “사이드바 열기” 버튼(숨김 상태일 때만) */}
+        {/* Scroll container */}
+        <div className="min-w-0 flex-1 overflow-y-auto">
+          <div className="min-h-full flex flex-col">
+            {/* desktop sidebar hidden 상태일 때만 상단 열기 버튼 */}
             {!desktopOpen ? (
               <div className="hidden lg:flex lg:items-center lg:gap-2 lg:px-4 lg:py-3">
                 <button
@@ -80,12 +82,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               </div>
             ) : null}
 
-            <div className="container-page py-6">{children}</div>
+            <div className="container-page py-6 flex-1">{children}</div>
+            <Footer />
           </div>
         </div>
       </div>
-
-      <Footer />
     </div>
   )
 }

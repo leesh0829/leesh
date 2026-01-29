@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import Sidebar from './Sidebar'
 import Footer from './Footer'
+import Link from 'next/link'
 
 const NO_SHELL_PREFIXES = ['/login', '/sign-up']
 
@@ -66,7 +67,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         ) : null}
 
         {/* Scroll container */}
-        <div className="min-w-0 flex-1 overflow-y-auto">
+        <div className="min-w-0 flex-1 overflow-y-auto pb-[calc(72px+env(safe-area-inset-bottom))] lg:pb-0">
           <div className="min-h-full flex flex-col">
             {/* desktop sidebar hidden 상태일 때만 상단 열기 버튼 */}
             {!desktopOpen ? (
@@ -86,6 +87,28 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <Footer />
           </div>
         </div>
+        {/* mobile bottom nav */}
+        <nav className="lg:hidden fixed inset-x-0 bottom-0 z-40">
+          <div className="mx-auto w-full max-w-6xl px-3 sm:px-4">
+            <div className="surface flex items-center justify-around gap-2 px-2 py-2 mb-[max(0.5rem,env(safe-area-inset-bottom))]">
+              <Link className="btn btn-ghost" href="/dashboard">
+                대시
+              </Link>
+              <Link className="btn btn-ghost" href="/blog">
+                블로그
+              </Link>
+              <Link className="btn btn-ghost" href="/boards">
+                보드
+              </Link>
+              <Link className="btn btn-ghost" href="/calendar">
+                캘린더
+              </Link>
+              <Link className="btn btn-ghost" href="/todos">
+                TODO
+              </Link>
+            </div>
+          </div>
+        </nav>
       </div>
     </div>
   )

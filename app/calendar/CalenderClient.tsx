@@ -65,12 +65,6 @@ function pad(n: number) {
 function toYM(d: Date) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`
 }
-function startOfMonth(d: Date) {
-  return new Date(d.getFullYear(), d.getMonth(), 1)
-}
-function daysInMonth(d: Date) {
-  return new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()
-}
 
 type SpanSeg = {
   it: CalItem
@@ -156,19 +150,6 @@ export default function CalendarClient() {
   }
 
   const closeMore = () => setMoreDay(null)
-
-  const buildDayItemsFromWeekBars = (bars: WeekBar[], col: number) => {
-    const map = new Map<string, CalItem>()
-    for (const b of bars) {
-      if (b.colStart <= col && col <= b.colEnd) {
-        const k = `${b.it.kind}:${b.it.id}`
-        map.set(k, b.it)
-      }
-    }
-    return Array.from(map.values()).sort((a, b) =>
-      a.title.localeCompare(b.title)
-    )
-  }
 
   const ym = useMemo(() => toYM(cursor), [cursor])
 
@@ -350,10 +331,16 @@ export default function CalendarClient() {
     }
   }, [ym])
 
-  const monthStart = startOfMonth(cursor)
-  const totalDays = daysInMonth(cursor)
-  const startDay = monthStart.getDay()
-  const cells = 42
+  const year = cursor.getFullYear()
+  const month = cursor.getMonth()
+
+  const totalDays = useMemo(() => {
+    return new Date(year, month + 1, 0).getDate()
+  }, [year, month])
+
+  const startDay = useMemo(() => {
+    return new Date(year, month, 1).getDay()
+  }, [year, month])
 
   const todayKey = useMemo(() => {
     const t = new Date()
@@ -382,11 +369,10 @@ export default function CalendarClient() {
   }, [filteredItems])
 
   const gridStart = useMemo(() => {
-    // 달력 그리드(42칸)의 첫 칸 날짜 (Sun 시작 기준)
-    const d = new Date(monthStart)
+    const d = new Date(year, month, 1)
     d.setDate(d.getDate() - startDay)
     return startOfDayLocal(d)
-  }, [monthStart, startDay])
+  }, [year, month, startDay])
 
   const weeks = useMemo(() => {
     const result: {
@@ -557,265 +543,326 @@ export default function CalendarClient() {
         </div>
 
         {/* 주 단위 렌더: week 내부에 day grid + bar overlay */}
-        <div style={{ display: 'grid', gap: 8 }}>
-          {weeks.map((wk, wIdx) => {
-            const rowStartIdx = wIdx * 7
-            const visibleLanes = Math.min(
-              MAX_VISIBLE_BARS,
-              Math.max(1, wk.laneCount)
-            )
-            const barAreaHeight = visibleLanes * 33
-            const overlayTop = 28 // 8px padding + 20px date Label 영역
-            const cellPaddingTop = overlayTop + barAreaHeight + 8
+        <div className="hidden sm:block">
+          <div style={{ display: 'grid', gap: 8 }}>
+            {weeks.map((wk, wIdx) => {
+              const rowStartIdx = wIdx * 7
+              const visibleLanes = Math.min(
+                MAX_VISIBLE_BARS,
+                Math.max(1, wk.laneCount)
+              )
+              const barAreaHeight = visibleLanes * 33
+              const overlayTop = 28 // 8px padding + 20px date Label 영역
+              const cellPaddingTop = overlayTop + barAreaHeight + 8
 
-            return (
-              <div
-                key={dayKey(wk.weekStart)}
-                style={{
-                  position: 'relative',
-                }}
-              >
-                {/* bar overlay */}
+              return (
                 <div
+                  key={dayKey(wk.weekStart)}
                   style={{
-                    position: 'absolute',
-                    inset: 0,
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(7, 1fr)',
-                    gap: 8,
-                    alignItems: 'start',
-                    paddingTop: overlayTop,
-                    zIndex: 5,
-                    pointerEvents: 'none',
+                    position: 'relative',
                   }}
                 >
-                  {wk.bars
-                    .filter((b) => b.lane < MAX_VISIBLE_BARS)
-                    .map((b) => {
-                      const colFrom = b.colStart + 1
-                      const colTo = b.colEnd + 2
-                      const top = b.lane * 22
+                  {/* bar overlay */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(7, 1fr)',
+                      gap: 8,
+                      alignItems: 'start',
+                      paddingTop: overlayTop,
+                      zIndex: 5,
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    {wk.bars
+                      .filter((b) => b.lane < MAX_VISIBLE_BARS)
+                      .map((b) => {
+                        const colFrom = b.colStart + 1
+                        const colTo = b.colEnd + 2
+                        const top = b.lane * 22
 
-                      return (
-                        <div
-                          key={`${b.it.id}:${b.lane}:${b.colStart}:${b.colEnd}`}
-                          style={{
-                            gridColumn: `${colFrom} / ${colTo}`,
-                            transform: `translateY(${top}px)`,
-                            height: 20,
-                            border: '1px solid #ddd',
-                            background: 'white',
-                            borderRadius: 8,
-                            padding: '2px 8px',
-                            overflow: 'hidden',
-                            whiteSpace: 'nowrap',
-                            textOverflow: 'ellipsis',
-                            fontSize: 12,
-                            fontWeight: 700,
-                            pointerEvents: 'auto',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 8,
-                          }}
-                          onClick={() => openEdit(b.it)}
-                          title={b.it.displayTitle || b.it.title}
-                        >
+                        return (
                           <div
+                            key={`${b.it.id}:${b.lane}:${b.colStart}:${b.colEnd}`}
                             style={{
-                              flex: 1,
-                              minWidth: 0,
+                              gridColumn: `${colFrom} / ${colTo}`,
+                              transform: `translateY(${top}px)`,
+                              height: 20,
+                              border: '1px solid #ddd',
+                              background: 'white',
+                              borderRadius: 8,
+                              padding: '2px 8px',
+                              overflow: 'hidden',
+                              whiteSpace: 'nowrap',
+                              textOverflow: 'ellipsis',
+                              fontSize: 12,
+                              fontWeight: 700,
+                              pointerEvents: 'auto',
+                              cursor: 'pointer',
                               display: 'flex',
                               alignItems: 'center',
-                              gap: 6,
+                              gap: 8,
                             }}
+                            onClick={() => openEdit(b.it)}
+                            title={b.it.displayTitle || b.it.title}
                           >
-                            {!b.isStart ? (
-                              <span style={{ opacity: 0.6 }}>…</span>
-                            ) : null}
-
-                            <span
+                            <div
                               style={{
                                 flex: 1,
                                 minWidth: 0,
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 6,
                               }}
                             >
-                              {b.it.displayTitle || b.it.title}
-                            </span>
+                              {!b.isStart ? (
+                                <span style={{ opacity: 0.6 }}>…</span>
+                              ) : null}
 
-                            {!b.isEnd ? (
-                              <span style={{ opacity: 0.6 }}>…</span>
-                            ) : null}
+                              <span
+                                style={{
+                                  flex: 1,
+                                  minWidth: 0,
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {b.it.displayTitle || b.it.title}
+                              </span>
+
+                              {!b.isEnd ? (
+                                <span style={{ opacity: 0.6 }}>…</span>
+                              ) : null}
+                            </div>
+
+                            {/* shift buttons: bar 클릭과 분리 */}
+                            <div
+                              style={{
+                                display: 'flex',
+                                gap: 6,
+                                flexShrink: 0,
+                              }}
+                            >
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  shiftItemDays(b.it, -1)
+                                }}
+                                style={{
+                                  padding: '0 6px',
+                                  height: 18,
+                                  flexShrink: 0,
+                                }}
+                                title="하루 전으로"
+                              >
+                                ◀
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  shiftItemDays(b.it, 1)
+                                }}
+                                style={{
+                                  padding: '0 6px',
+                                  height: 18,
+                                  flexShrink: 0,
+                                }}
+                                title="하루 후로"
+                              >
+                                ▶
+                              </button>
+                            </div>
                           </div>
+                        )
+                      })}
+                  </div>
 
-                          {/* shift buttons: bar 클릭과 분리 */}
+                  {/* day cells */}
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(7, 1fr)',
+                      gap: 8,
+                    }}
+                  >
+                    {Array.from({ length: 7 }).map((_, dIdx) => {
+                      const idx = rowStartIdx + dIdx
+                      const dayNum = idx - startDay + 1
+                      const inMonth = dayNum >= 1 && dayNum <= totalDays
+
+                      const d = new Date(
+                        cursor.getFullYear(),
+                        cursor.getMonth(),
+                        dayNum
+                      )
+                      const key = dayKey(d)
+                      const isToday = inMonth && key === todayKey
+                      const col = dIdx
+                      const barHit = wk.bars.filter(
+                        (b) => b.colStart <= col && col <= b.colEnd
+                      )
+
+                      const uniq = new Map<string, CalItem>()
+                      for (const b of barHit) {
+                        uniq.set(`${b.it.kind}:${b.it.id}`, b.it)
+                      }
+                      const dayItems = Array.from(uniq.values()).sort((a, b) =>
+                        (a.displayTitle || a.title).localeCompare(
+                          b.displayTitle || b.title
+                        )
+                      )
+
+                      const hiddenUniq = new Set<string>()
+                      for (const b of barHit) {
+                        if (b.lane >= MAX_VISIBLE_BARS) {
+                          hiddenUniq.add(`${b.it.kind}:${b.it.id}`)
+                        }
+                      }
+                      const hiddenCount = hiddenUniq.size
+
+                      return (
+                        <div
+                          key={key}
+                          style={{
+                            border: isToday
+                              ? '2px solid #111'
+                              : '1px solid #ddd',
+                            background: isToday
+                              ? 'rgba(255, 235, 59, 0.18)'
+                              : 'transparent',
+                            borderRadius: 8,
+                            position: 'relative',
+                            minHeight: 140 + barAreaHeight,
+                            padding: 8,
+                            opacity: inMonth ? 1 : 0.35,
+                            paddingTop: cellPaddingTop,
+                          }}
+                        >
                           <div
                             style={{
-                              display: 'flex',
-                              gap: 6,
-                              flexShrink: 0,
+                              fontWeight: 700,
+                              position: 'absolute',
+                              top: 6,
+                              left: 8,
                             }}
                           >
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                shiftItemDays(b.it, -1)
-                              }}
-                              style={{
-                                padding: '0 6px',
-                                height: 18,
-                                flexShrink: 0,
-                              }}
-                              title="하루 전으로"
-                            >
-                              ◀
-                            </button>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                shiftItemDays(b.it, 1)
-                              }}
-                              style={{
-                                padding: '0 6px',
-                                height: 18,
-                                flexShrink: 0,
-                              }}
-                              title="하루 후로"
-                            >
-                              ▶
-                            </button>
+                            {inMonth ? dayNum : ''}
                           </div>
+                          {inMonth && hiddenCount > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => openMore(key, dayItems)}
+                              style={{
+                                position: 'absolute',
+                                top: 6,
+                                right: 8,
+                                border: '1px solid #ddd',
+                                background: 'white',
+                                borderRadius: 10,
+                                padding: '2px 8px',
+                                fontSize: 12,
+                                cursor: 'pointer',
+                              }}
+                              title="해당 날짜 전체 일정 보기"
+                            >
+                              +{hiddenCount} more
+                            </button>
+                          )}
                         </div>
                       )
                     })}
+                  </div>
                 </div>
+              )
+            })}
+          </div>
+        </div>
+        <div className="sm:hidden surface card-pad">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-semibold">이번 달 일정</div>
+            <div className="badge">{ym}</div>
+          </div>
 
-                {/* day cells */}
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(7, 1fr)',
-                    gap: 8,
-                  }}
-                >
-                  {Array.from({ length: 7 }).map((_, dIdx) => {
-                    const idx = rowStartIdx + dIdx
-                    const dayNum = idx - startDay + 1
-                    const inMonth = dayNum >= 1 && dayNum <= totalDays
+          <div className="mt-3 grid gap-2">
+            {Array.from({ length: totalDays }).map((_, i) => {
+              const dayNum = i + 1
+              const d = new Date(
+                cursor.getFullYear(),
+                cursor.getMonth(),
+                dayNum
+              )
+              const key = dayKey(d)
 
-                    const d = new Date(
-                      cursor.getFullYear(),
-                      cursor.getMonth(),
-                      dayNum
-                    )
-                    const key = dayKey(d)
-                    const isToday = inMonth && key === todayKey
-                    const col = dIdx
-                    const barHit = wk.bars.filter(
-                      (b) => b.colStart <= col && col <= b.colEnd
-                    )
+              const dayItems = filteredItems.filter((it) => {
+                if (!it.startAt) return false
+                const s = startOfDayLocal(new Date(it.startAt))
+                if (Number.isNaN(s.getTime())) return false
+                const e = normalizeSpanEnd(it, s)
+                const t = startOfDayLocal(d).getTime()
+                return s.getTime() <= t && t <= e.getTime()
+              })
 
-                    const uniq = new Map<string, CalItem>()
-                    for (const b of barHit) {
-                      uniq.set(`${b.it.kind}:${b.it.id}`, b.it)
-                    }
-                    const dayItems = Array.from(uniq.values()).sort((a, b) =>
-                      (a.displayTitle || a.title).localeCompare(
-                        b.displayTitle || b.title
-                      )
-                    )
+              const visible = dayItems.slice(0, 3)
+              const hidden = Math.max(0, dayItems.length - visible.length)
 
-                    const hiddenUniq = new Set<string>()
-                    for (const b of barHit) {
-                      if (b.lane >= MAX_VISIBLE_BARS) {
-                        hiddenUniq.add(`${b.it.kind}:${b.it.id}`)
-                      }
-                    }
-                    const hiddenCount = hiddenUniq.size
-
-                    return (
-                      <div
-                        key={key}
-                        style={{
-                          border: isToday ? '2px solid #111' : '1px solid #ddd',
-                          background: isToday
-                            ? 'rgba(255, 235, 59, 0.18)'
-                            : 'transparent',
-                          borderRadius: 8,
-                          position: 'relative',
-                          minHeight: 140 + barAreaHeight,
-                          padding: 8,
-                          opacity: inMonth ? 1 : 0.35,
-                          paddingTop: cellPaddingTop,
-                        }}
+              return (
+                <div key={key} className="surface card-pad">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-semibold">{dayNum}일</div>
+                    {hidden > 0 ? (
+                      <button
+                        type="button"
+                        className="btn btn-outline"
+                        onClick={() => openMore(key, dayItems)}
                       >
-                        <div
-                          style={{
-                            fontWeight: 700,
-                            position: 'absolute',
-                            top: 6,
-                            left: 8,
-                          }}
+                        +{hidden} more
+                      </button>
+                    ) : null}
+                  </div>
+
+                  {dayItems.length === 0 ? (
+                    <div className="mt-2 text-sm opacity-70">일정 없음</div>
+                  ) : (
+                    <div className="mt-2 grid gap-2">
+                      {visible.map((it) => (
+                        <button
+                          key={`${it.kind}:${it.id}`}
+                          type="button"
+                          className="surface card-pad text-left"
+                          onClick={() => openEdit(it)}
+                          title={it.displayTitle || it.title}
                         >
-                          {inMonth ? dayNum : ''}
-                        </div>
-                        {inMonth && hiddenCount > 0 && (
-                          <button
-                            type="button"
-                            onClick={() => openMore(key, dayItems)}
-                            style={{
-                              position: 'absolute',
-                              top: 6,
-                              right: 8,
-                              border: '1px solid #ddd',
-                              background: 'white',
-                              borderRadius: 10,
-                              padding: '2px 8px',
-                              fontSize: 12,
-                              cursor: 'pointer',
-                            }}
-                            title="해당 날짜 전체 일정 보기"
-                          >
-                            +{hiddenCount} more
-                          </button>
-                        )}
-                      </div>
-                    )
-                  })}
+                          <div className="font-semibold truncate">
+                            {it.displayTitle || it.title}
+                          </div>
+                          <div className="mt-1 text-xs opacity-70 truncate">
+                            {it.boardName} · {it.status}
+                            {it.dayLabel ? ` · ${it.dayLabel}` : ''}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
         </div>
       </div>
 
       {moreDay && (
         <div
           onClick={closeMore}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.35)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 16,
-            zIndex: 55,
-          }}
+          className="fixed inset-0 z-55 bg-black/40 flex items-end sm:items-center justify-center p-2 sm:p-4"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{
-              width: 'min(520px, 100%)',
-              background: 'white',
-              borderRadius: 12,
-              padding: 16,
-            }}
+            className="surface w-full sm:w130 rounded-t-2xl sm:rounded-2xl p-4 max-h-[80dvh] overflow-y-auto"
           >
             <div
               style={{

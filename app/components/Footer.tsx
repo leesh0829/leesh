@@ -1,6 +1,6 @@
 export default function Footer() {
   return (
-    <footer className="mt-auto border-t border-[color:var(--border)]">
+    <footer className="mt-auto border-t border-(--border)">
       <div
         className="container-page py-4 text-xs"
         style={{ color: 'var(--muted)' }}

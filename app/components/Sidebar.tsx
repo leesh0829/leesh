@@ -167,7 +167,7 @@ export default function Sidebar({
       <aside
         className={
           // mobile: overlay
-          'fixed z-50 h-dvh w-[82vw] max-w-64 border-r bg-[color:var(--card)] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] transition-transform ' +
+          'fixed z-50 h-dvh w-[82vw] max-w-64 border-r bg-(--card) p-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] transition-transform ' +
           (open ? 'translate-x-0' : '-translate-x-full') +
           // desktop: sticky sidebar (independent scroll)
           ' lg:sticky lg:top-0 lg:translate-x-0 lg:h-dvh lg:overflow-y-auto ' +

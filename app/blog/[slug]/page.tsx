@@ -76,7 +76,7 @@ export default async function BlogDetailPage({
         <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <h1 className="text-2xl font-bold leading-tight">
-              <span className="break-words">{post.title}</span>{' '}
+              <span className="wrap-break-word">{post.title}</span>{' '}
               {post.isSecret ? (
                 <span className="badge align-middle">SECRET</span>
               ) : null}
@@ -103,9 +103,11 @@ export default async function BlogDetailPage({
                   remarkPlugins={[remarkGfm]}
                   rehypePlugins={[rehypeHighlight]}
                   components={{
-                    img: (props) => (
+                    img: ({ alt, ...props }) => (
+                      // eslint-disable-next-line @next/next/no-img-element
                       <img
                         {...props}
+                        alt={alt ?? ''}
                         style={{
                           maxWidth: '100%',
                           height: 'auto',

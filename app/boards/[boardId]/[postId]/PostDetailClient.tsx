@@ -419,7 +419,7 @@ export default function PostDetailClient({
             <span className="badge">{postState.status}</span>
             {postState.isSecret ? <span className="badge">SECRET</span> : null}
           </div>
-          <h1 className="mt-2 text-2xl font-bold break-words">
+          <h1 className="mt-2 text-2xl font-bold wrap-break-word">
             {postState.title}
           </h1>
 
@@ -601,9 +601,11 @@ export default function PostDetailClient({
                   remarkPlugins={[remarkGfm, remarkBreaks]}
                   rehypePlugins={[rehypeHighlight]}
                   components={{
-                    img: (props) => (
+                    img: ({ alt, ...props }) => (
+                      // eslint-disable-next-line @next/next/no-img-element
                       <img
                         {...props}
+                        alt={alt ?? ''}
                         style={{
                           maxWidth: '100%',
                           height: 'auto',

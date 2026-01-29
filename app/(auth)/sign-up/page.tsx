@@ -12,8 +12,82 @@ export default function SignUpPage() {
   const [msg, setMsg] = useState('')
   const [showResend, setShowResend] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [emailCheck, setEmailCheck] = useState<
+    'idle' | 'checking' | 'available' | 'taken'
+  >('idle')
+  const [nameCheck, setNameCheck] = useState<
+    'idle' | 'checking' | 'available' | 'taken'
+  >('idle')
+
+  const checkEmail = async () => {
+    const value = email.trim()
+    if (!value) {
+      setEmailCheck('idle')
+      setMsg('이메일을 입력해주세요.')
+      return
+    }
+
+    setEmailCheck('checking')
+    setMsg('')
+
+    const res = await fetch(
+      `/api/check-email?email=${encodeURIComponent(value)}`
+    )
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      setEmailCheck('idle')
+      setMsg(data?.message ?? '중복 확인 실패')
+      return
+    }
+
+    setEmailCheck(data?.available ? 'available' : 'taken')
+    setMsg(
+      data?.available
+        ? '사용 가능한 이메일입니다.'
+        : '이미 사용 중인 이메일입니다.'
+    )
+  }
+
+  const checkName = async () => {
+    const value = name.trim()
+
+    // 닉네임은 선택이라 빈 값이면 체크 안함
+    if (!value) {
+      setNameCheck('idle')
+      return
+    }
+
+    setNameCheck('checking')
+    setMsg('')
+
+    const res = await fetch(`/api/check-name?name=${encodeURIComponent(value)}`)
+    const data = await res.json().catch(() => ({}))
+
+    if (!res.ok) {
+      setNameCheck('idle')
+      setMsg(data?.message ?? '닉네임 중복 확인 실패')
+      return
+    }
+
+    setNameCheck(data?.available ? 'available' : 'taken')
+    setMsg(
+      data?.available
+        ? '사용 가능한 닉네임입니다.'
+        : '이미 사용 중인 닉네임입니다.'
+    )
+  }
 
   const submit = async () => {
+    if (emailCheck === 'taken') {
+      setMsg('이미 사용 중인 이메일입니다. 다른 이메일을 입력하세요.')
+      return
+    }
+
+    if (nameCheck === 'taken') {
+      setMsg('이미 사용 중인 닉네임입니다. 다른 닉네임을 입력하세요.')
+      return
+    }
+
     if (loading) return
     setLoading(true)
     setMsg('')
@@ -29,6 +103,19 @@ export default function SignUpPage() {
     if (res.ok) {
       setMsg('가입완료! 이메일 인증 메일을 보냈습니다. 메일함을 확인하세요!')
       setShowResend(true)
+      setLoading(false)
+      return
+    }
+
+    if (res.status === 409) {
+      const m = String(data?.message ?? '')
+      if (m.includes('name')) {
+        setNameCheck('taken')
+        setMsg('이미 사용 중인 닉네임입니다.')
+      } else {
+        setEmailCheck('taken')
+        setMsg('이미 사용 중인 이메일입니다.')
+      }
       setLoading(false)
       return
     }
@@ -70,25 +157,81 @@ export default function SignUpPage() {
           >
             <div className="grid gap-2">
               <label className="text-sm font-medium">닉네임 (선택)</label>
-              <input
-                className="input"
-                placeholder="name (optional)"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                autoComplete="nickname"
-              />
+              <div className="flex gap-2">
+                <input
+                  className="input"
+                  placeholder="name (optional)"
+                  value={name}
+                  onChange={(e) => {
+                    setName(e.target.value)
+                    setNameCheck('idle')
+                  }}
+                  onBlur={() => {
+                    void checkName()
+                  }}
+                  autoComplete="nickname"
+                />
+                <button
+                  type="button"
+                  className="btn btn-outline whitespace-nowrap"
+                  onClick={() => {
+                    void checkName()
+                  }}
+                  disabled={nameCheck === 'checking'}
+                >
+                  {nameCheck === 'checking' ? '확인중...' : '중복 확인'}
+                </button>
+              </div>
+
+              {name.trim().length > 0 && nameCheck !== 'idle' ? (
+                <div className="text-xs" style={{ color: 'var(--muted)' }}>
+                  {nameCheck === 'available'
+                    ? '사용 가능한 닉네임'
+                    : nameCheck === 'taken'
+                      ? '이미 사용 중인 닉네임'
+                      : '확인중...'}
+                </div>
+              ) : null}
             </div>
 
             <div className="grid gap-2">
               <label className="text-sm font-medium">이메일</label>
-              <input
-                className="input"
-                placeholder="email@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoComplete="email"
-                inputMode="email"
-              />
+              <div className="flex gap-2">
+                <input
+                  className="input"
+                  placeholder="email@example.com"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value)
+                    setEmailCheck('idle')
+                  }}
+                  onBlur={() => {
+                    void checkEmail()
+                  }}
+                  autoComplete="email"
+                  inputMode="email"
+                />
+                <button
+                  type="button"
+                  className="btn btn-outline whitespace-nowrap"
+                  onClick={() => {
+                    void checkEmail()
+                  }}
+                  disabled={emailCheck === 'checking'}
+                >
+                  {emailCheck === 'checking' ? '확인중...' : '중복 확인'}
+                </button>
+              </div>
+
+              {email.trim().length > 0 && nameCheck !== 'idle' ? (
+                <div className="text-xs" style={{ color: 'var(--muted)' }}>
+                  {emailCheck === 'available'
+                    ? '사용 가능한 이메일'
+                    : emailCheck === 'taken'
+                      ? '이미 사용 중인 이메일'
+                      : '확인중...'}
+                </div>
+              ) : null}
             </div>
 
             <div className="grid gap-2">

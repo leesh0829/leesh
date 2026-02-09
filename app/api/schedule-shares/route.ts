@@ -14,6 +14,25 @@ const jsonError = (status: number, message: string) =>
 const scopeLabel = (scope: 'CALENDAR' | 'TODO') =>
   scope === 'CALENDAR' ? '캘린더' : 'TODO'
 
+type OutgoingShareRow = {
+  id: string
+  scope: 'CALENDAR' | 'TODO'
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED'
+  createdAt: Date
+  updatedAt: Date
+  respondedAt: Date | null
+  owner: { id: string; name: string | null; email: string | null }
+}
+
+type IncomingShareRow = {
+  id: string
+  scope: 'CALENDAR' | 'TODO'
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED'
+  createdAt: Date
+  updatedAt: Date
+  requester: { id: string; name: string | null; email: string | null }
+}
+
 async function getMe() {
   const session = await getServerSession(authOptions)
   if (!session?.user?.email) return null
@@ -28,7 +47,8 @@ export async function GET() {
     const me = await getMe()
     if (!me) return jsonError(401, 'unauthorized')
 
-    const [outgoing, incoming] = await Promise.all([
+    const [outgoing, incoming]: [OutgoingShareRow[], IncomingShareRow[]] =
+      await Promise.all([
       prisma.scheduleShare.findMany({
         where: { requesterId: me.id },
         orderBy: [{ status: 'asc' }, { updatedAt: 'desc' }],
@@ -58,10 +78,10 @@ export async function GET() {
           },
         },
       }),
-    ])
+      ])
 
     return NextResponse.json({
-      outgoing: outgoing.map((row) => ({
+      outgoing: outgoing.map((row: OutgoingShareRow) => ({
         id: row.id,
         scope: row.scope,
         status: row.status,
@@ -75,7 +95,7 @@ export async function GET() {
           label: toUserLabel(row.owner.name, row.owner.email),
         },
       })),
-      incoming: incoming.map((row) => ({
+      incoming: incoming.map((row: IncomingShareRow) => ({
         id: row.id,
         scope: row.scope,
         status: row.status,

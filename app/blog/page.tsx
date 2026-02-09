@@ -6,11 +6,19 @@ import { toISOStringSafe } from '@/app/lib/date'
 
 export const runtime = 'nodejs'
 
+type BlogPostRow = {
+  id: string
+  slug: string | null
+  title: string
+  createdAt: Date
+  author: { name: string | null; email: string | null }
+}
+
 export default async function BlogListPage() {
   const session = await getServerSession(authOptions)
   const canWrite = !!session?.user?.email
 
-  const postsRaw = await prisma.post.findMany({
+  const postsRaw: BlogPostRow[] = await prisma.post.findMany({
     where: { board: { type: 'BLOG' }, status: 'DONE' },
     orderBy: { createdAt: 'desc' },
     select: {
@@ -22,7 +30,7 @@ export default async function BlogListPage() {
     },
   })
 
-  const posts = postsRaw.map((p) => ({
+  const posts = postsRaw.map((p: BlogPostRow) => ({
     ...p,
     createdAt: toISOStringSafe(p.createdAt),
     slug: p.slug ?? p.id,

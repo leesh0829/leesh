@@ -13,6 +13,8 @@ type PermissionRow = {
   visible: boolean
 }
 
+type UserRole = 'USER' | 'ADMIN'
+
 const DEFAULTS: PermissionRow[] = [
   {
     key: 'home',
@@ -78,14 +80,11 @@ const DEFAULTS: PermissionRow[] = [
     path: '/permission',
     requireLogin: true,
     minRole: 'ADMIN',
-    visible: false,
+    visible: true,
   },
 ]
 
 async function seedIfEmpty() {
-  const count = await prisma.menuPermission.count()
-  if (count > 0) return
-
   await prisma.menuPermission.createMany({
     data: DEFAULTS.map((d) => ({
       key: d.key,
@@ -95,12 +94,46 @@ async function seedIfEmpty() {
       minRole: d.minRole,
       visible: d.visible,
     })),
+    skipDuplicates: true,
+  })
+
+  // 과거 데이터(visible=false)도 자동 보정
+  await prisma.menuPermission.upsert({
+    where: { key: 'permission' },
+    create: {
+      key: 'permission',
+      label: '권한 관리',
+      path: '/permission',
+      requireLogin: true,
+      minRole: 'ADMIN',
+      visible: true,
+    },
+    update: {
+      label: '권한 관리',
+      path: '/permission',
+      requireLogin: true,
+      minRole: 'ADMIN',
+      visible: true,
+    },
   })
 }
 
-export async function GET() {
+async function getMeRole(): Promise<UserRole | null> {
+  const session = await getServerSession(authOptions)
+  const email = session?.user?.email ?? null
+  if (!email) return null
+
+  const me = await prisma.user.findUnique({
+    where: { email },
+    select: { role: true },
+  })
+  if (!me) return null
+  return me.role as UserRole
+}
+
+export async function GET(req: Request) {
   await seedIfEmpty()
-  const rows = await prisma.menuPermission.findMany({
+  const rows: PermissionRow[] = await prisma.menuPermission.findMany({
     orderBy: { path: 'asc' },
     select: {
       key: true,
@@ -111,7 +144,27 @@ export async function GET() {
       visible: true,
     },
   })
-  return Response.json(rows)
+
+  const url = new URL(req.url)
+  const mode = url.searchParams.get('mode')
+  const role = await getMeRole()
+  const isAdmin = role === 'ADMIN'
+  const loggedIn = !!role
+
+  // 권한 관리 화면에서는 ADMIN만 전체 목록 조회 가능
+  if (mode === 'manage') {
+    if (!isAdmin)
+      return Response.json({ message: 'forbidden' }, { status: 403 })
+    return Response.json(rows)
+  }
+
+  // 사이드바 메뉴용: visibility + 로그인 + role 필터 적용
+  const navRows = rows
+    .filter((x: PermissionRow) => x.visible)
+    .filter((x: PermissionRow) => (x.requireLogin ? loggedIn : true))
+    .filter((x: PermissionRow) => (x.minRole === 'ADMIN' ? isAdmin : true))
+
+  return Response.json(navRows)
 }
 
 export async function PUT(req: Request) {

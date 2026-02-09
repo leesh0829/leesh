@@ -44,7 +44,7 @@ export default function PermissionClient() {
 
   const loadMenus = async () => {
     setMenuMsg('')
-    const r = await fetch('/api/permission', { cache: 'no-store' })
+    const r = await fetch('/api/permission?mode=manage', { cache: 'no-store' })
     if (!r.ok) {
       setMenuMsg(`${r.status} ${r.statusText}`)
       setMenus([])

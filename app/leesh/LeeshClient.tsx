@@ -7,6 +7,7 @@ import remarkBreaks from 'remark-breaks'
 import rehypeHighlight from 'rehype-highlight'
 import { toHumanHttpError } from '@/app/lib/httpErrorText'
 import ImageUploadButton from '@/app/components/ImageUploadButton'
+import MarkdownEditor from '@/app/components/MarkdownEditor'
 
 function extractApiMessage(payload: unknown): string | null {
   if (!payload || typeof payload !== 'object') return null
@@ -254,11 +255,11 @@ export default function LeeshClient() {
         <section className="card card-pad">
           {editing ? (
             <div className="grid gap-3">
-              <textarea
-                className="textarea"
+              <MarkdownEditor
                 value={draft}
-                onChange={(e) => setDraft(e.target.value)}
+                onChange={setDraft}
                 rows={18}
+                previewEmptyText="미리보기할 내용이 없습니다."
               />
               <div className="text-xs opacity-60">
                 이미지 업로드 버튼 누르면 마크다운으로 자동 삽입됨.

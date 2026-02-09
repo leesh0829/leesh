@@ -10,6 +10,7 @@ import remarkBreaks from 'remark-breaks'
 import rehypeHighlight from 'rehype-highlight'
 import { useSession } from 'next-auth/react'
 import { displayUserLabel } from '@/app/lib/userLabel'
+import MarkdownEditor from '@/app/components/MarkdownEditor'
 
 type Post = {
   id: string
@@ -562,11 +563,11 @@ export default function PostDetailClient({
 
                 <div className="grid gap-2">
                   <div className="text-sm font-medium">본문 (Markdown)</div>
-                  <textarea
-                    className="textarea"
+                  <MarkdownEditor
                     value={editContent}
-                    onChange={(e) => setEditContent(e.target.value)}
+                    onChange={setEditContent}
                     rows={12}
+                    previewEmptyText="미리보기할 본문이 없습니다."
                   />
                 </div>
 

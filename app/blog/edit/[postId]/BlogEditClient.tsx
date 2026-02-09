@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import ImageUploadButton from '@/app/components/ImageUploadButton'
+import MarkdownEditor from '@/app/components/MarkdownEditor'
 
 type EditPost = {
   id: string
@@ -91,13 +92,12 @@ export default function BlogEditClient({ post }: { post: EditPost }) {
 
       <div className="grid gap-2">
         <label className="text-sm font-medium">본문 (Markdown)</label>
-        <textarea
+        <MarkdownEditor
           value={contentMd}
-          onChange={(e) => setContentMd(e.target.value)}
+          onChange={setContentMd}
           placeholder="마크다운으로 작성..."
           rows={18}
-          className="textarea"
-          style={{ lineHeight: 1.6 }}
+          previewEmptyText="미리보기할 본문이 없습니다."
         />
       </div>
 

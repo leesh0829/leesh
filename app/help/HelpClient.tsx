@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import MarkdownEditor from '@/app/components/MarkdownEditor'
 
 type HelpPost = {
   id: string
@@ -104,13 +105,12 @@ export default function HelpClient() {
 
         <div className="grid gap-2">
           <label className="text-sm font-medium">내용 (Markdown)</label>
-          <textarea
+          <MarkdownEditor
             value={contentMd}
-            onChange={(e) => setContentMd(e.target.value)}
+            onChange={setContentMd}
             placeholder="내용 (Markdown)"
             rows={8}
-            className="textarea"
-            style={{ resize: 'vertical' }}
+            previewEmptyText="미리보기할 내용이 없습니다."
           />
         </div>
 

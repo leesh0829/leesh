@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import ImageUploadButton from '@/app/components/ImageUploadButton'
+import MarkdownEditor from '@/app/components/MarkdownEditor'
 
 type Status = 'TODO' | 'DOING' | 'DONE'
 
@@ -450,12 +451,12 @@ export default function BoardDetailClient({
 
                 <div className="grid gap-2">
                   <div className="text-sm font-medium">본문 (Markdown)</div>
-                  <textarea
-                    className="textarea"
+                  <MarkdownEditor
                     value={contentMd}
-                    onChange={(e) => setContentMd(e.target.value)}
+                    onChange={setContentMd}
                     placeholder="본문 (Markdown 지원)"
                     rows={8}
+                    previewEmptyText="미리보기할 본문이 없습니다."
                   />
                 </div>
 

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import ImageUploadButton from '@/app/components/ImageUploadButton'
+import MarkdownEditor from '@/app/components/MarkdownEditor'
 
 export default function BlogEditorClient({ boardId }: { boardId: string }) {
   const [title, setTitle] = useState('')
@@ -87,12 +88,12 @@ export default function BlogEditorClient({ boardId }: { boardId: string }) {
 
       <div className="grid gap-2">
         <label className="text-sm font-medium">본문 (Markdown)</label>
-        <textarea
-          className="textarea"
+        <MarkdownEditor
           value={contentMd}
-          onChange={(e) => setContentMd(e.target.value)}
+          onChange={setContentMd}
           placeholder="본문 (마크다운 호환)"
           rows={18}
+          previewEmptyText="미리보기할 본문이 없습니다."
         />
         <div className="text-xs" style={{ color: 'var(--muted)' }}>
           Enter=줄바꿈, 이미지: ![](url)

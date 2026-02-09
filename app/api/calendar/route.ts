@@ -71,6 +71,7 @@ export async function GET(req: Request) {
       id: true,
       slug: true,
       boardId: true,
+      authorId: true,
       title: true,
       status: true,
       isSecret: true,
@@ -100,8 +101,9 @@ export async function GET(req: Request) {
       const info = boardInfoMap.get(p.boardId)
       const ownerId = info?.ownerId ?? user.id
       const ownerLabel = info?.ownerLabel ?? '알 수 없는 사용자'
-      const canEdit = ownerId === user.id
-      const ownerPrefix = canEdit ? '' : `[${ownerLabel}] `
+      const shared = ownerId !== user.id
+      const canEdit = p.authorId === user.id
+      const ownerPrefix = shared ? `[${ownerLabel}] ` : ''
       return {
         kind: 'POST' as const,
         id: p.id,
@@ -112,7 +114,7 @@ export async function GET(req: Request) {
         ownerId,
         ownerLabel,
         canEdit,
-        shared: !canEdit,
+        shared,
         title: p.title,
         displayTitle: `${ownerPrefix}${info?.name ?? ''} · ${p.title}`.trim(),
         status: p.status,
@@ -136,8 +138,9 @@ export async function GET(req: Request) {
     })
     .map((b) => {
       const ownerLabel = toUserLabel(b.owner.name, b.owner.email)
+      const shared = b.ownerId !== user.id
       const canEdit = b.ownerId === user.id
-      const ownerPrefix = canEdit ? '' : `[${ownerLabel}] `
+      const ownerPrefix = shared ? `[${ownerLabel}] ` : ''
       return {
         kind: 'BOARD' as const,
         id: b.id, // 캘린더에선 boardId가 곧 id
@@ -148,7 +151,7 @@ export async function GET(req: Request) {
         ownerId: b.ownerId,
         ownerLabel,
         canEdit,
-        shared: !canEdit,
+        shared,
         title: b.name, // title은 board title만
         displayTitle: `${ownerPrefix}${b.name}`.trim(),
         status: b.scheduleStatus,

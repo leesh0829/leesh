@@ -12,7 +12,7 @@ async function getMe() {
 
   return prisma.user.findUnique({
     where: { email },
-    select: { id: true, role: true },
+    select: { id: true },
   })
 }
 
@@ -46,10 +46,7 @@ export async function PATCH(
     return NextResponse.json({ message: 'not found' }, { status: 404 })
   }
 
-  const can =
-    found.authorId === me.id ||
-    found.post.board.ownerId === me.id ||
-    me.role === 'ADMIN'
+  const can = found.authorId === me.id
 
   if (!can) return NextResponse.json({ message: 'forbidden' }, { status: 403 })
 
@@ -86,10 +83,7 @@ export async function DELETE(
     return NextResponse.json({ message: 'not found' }, { status: 404 })
   }
 
-  const can =
-    found.authorId === me.id ||
-    found.post.board.ownerId === me.id ||
-    me.role === 'ADMIN'
+  const can = found.authorId === me.id
 
   if (!can) return NextResponse.json({ message: 'forbidden' }, { status: 403 })
 

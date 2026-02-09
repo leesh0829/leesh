@@ -91,13 +91,14 @@ export async function PATCH(
   if (!user)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
-  // 기존 로직 유지: 보드 owner만 PATCH 허용
-  const board = await prisma.board.findFirst({
-    where: { id: boardId, ownerId: user.id },
-    select: { id: true },
+  const postForAuth = await prisma.post.findFirst({
+    where: { id: postId, boardId },
+    select: { id: true, authorId: true },
   })
-  if (!board)
+  if (!postForAuth)
     return NextResponse.json({ message: 'not found' }, { status: 404 })
+  if (postForAuth.authorId !== user.id)
+    return NextResponse.json({ message: 'forbidden' }, { status: 403 })
 
   const body: unknown = await req.json().catch(() => null)
   if (!body || typeof body !== 'object') {
@@ -131,7 +132,7 @@ export async function PATCH(
         : undefined
 
   const updated = await prisma.post.update({
-    where: { id: postId, boardId },
+    where: { id: postForAuth.id },
     data: {
       ...(title !== undefined ? { title } : {}),
       ...(contentMd !== undefined ? { contentMd } : {}),
@@ -184,14 +185,7 @@ export async function DELETE(
   })
   if (!post) return NextResponse.json({ message: 'not found' }, { status: 404 })
 
-  const board = await prisma.board.findUnique({
-    where: { id: boardId },
-    select: { ownerId: true },
-  })
-  if (!board)
-    return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
-
-  if (post.authorId !== user.id && board.ownerId !== user.id) {
+  if (post.authorId !== user.id) {
     return NextResponse.json({ message: 'forbidden' }, { status: 403 })
   }
 

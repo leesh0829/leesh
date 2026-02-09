@@ -11,7 +11,7 @@ async function getMe() {
 
   const me = await prisma.user.findUnique({
     where: { email: session.user.email },
-    select: { id: true, role: true },
+    select: { id: true },
   })
 
   return me
@@ -66,7 +66,7 @@ export async function PATCH(
   if (!board)
     return NextResponse.json({ message: 'not found' }, { status: 404 })
 
-  const canManage = board.ownerId === me.id || me.role === 'ADMIN'
+  const canManage = board.ownerId === me.id
   if (!canManage)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
@@ -104,7 +104,7 @@ export async function DELETE(
   if (!board)
     return NextResponse.json({ message: 'not found' }, { status: 404 })
 
-  const canManage = board.ownerId === me.id || me.role === 'ADMIN'
+  const canManage = board.ownerId === me.id
   if (!canManage)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 

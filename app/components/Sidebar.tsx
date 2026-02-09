@@ -25,18 +25,25 @@ type Perm = {
 }
 
 const SIDEBAR_ORDER = [
-  '/',
-  '/dashboard',
-  '/blog',
-  '/todos',
-  '/boards',
-  '/calendar',
-  '/permission',
-  '/help',
+  'home',
+  'dashboard',
+  'blog',
+  'todos',
+  'boards',
+  'calendar',
+  'permission',
+  'help',
 ] as const
 
-function getOrderIndex(path: string) {
-  const idx = SIDEBAR_ORDER.indexOf(path as (typeof SIDEBAR_ORDER)[number])
+function normalizeKey(key: string) {
+  return key.trim().toLowerCase()
+}
+
+function getOrderIndex(key: string) {
+  const normalized = normalizeKey(key)
+  const idx = SIDEBAR_ORDER.indexOf(
+    normalized as (typeof SIDEBAR_ORDER)[number]
+  )
   return idx === -1 ? Number.MAX_SAFE_INTEGER : idx
 }
 
@@ -165,8 +172,8 @@ export default function Sidebar({
     return base
       .filter((x) => x.visible)
       .filter((x) => (x.requireLogin ? loggedIn : true))
-      .map((x) => ({ href: x.path, label: x.label }))
-      .sort((a, b) => getOrderIndex(a.href) - getOrderIndex(b.href))
+      .map((x) => ({ key: x.key, href: x.path, label: x.label }))
+      .sort((a, b) => getOrderIndex(a.key) - getOrderIndex(b.key))
   }, [perms, session?.user])
 
   return (

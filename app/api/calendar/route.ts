@@ -3,13 +3,15 @@ import { prisma } from '@/app/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import { toISOStringSafe } from '@/app/lib/date'
-import type { BoardType, PostStatus } from '@prisma/client'
 import {
   getReadableScheduleOwnerIds,
   toUserLabel,
 } from '@/app/lib/scheduleShare'
 
 export const runtime = 'nodejs'
+
+type BoardType = 'GENERAL' | 'BLOG' | 'PORTFOLIO' | 'TODO' | 'CALENDAR' | 'HELP'
+type PostStatus = 'TODO' | 'DOING' | 'DONE'
 
 type CalendarBoardRow = {
   id: string

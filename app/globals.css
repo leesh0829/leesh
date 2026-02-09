@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@custom-variant dark (&:where(.dark, .dark *));
 
 /* Aurora Glass Theme */
 :root {
@@ -41,6 +42,39 @@
 
     --shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
   }
+}
+
+/* Manual theme override (takes precedence over system preference) */
+:root[data-theme='light'] {
+  --bg: #f7f8fb;
+  --fg: #0b1020;
+  --muted: #5b647a;
+
+  --card: rgba(255, 255, 255, 0.72);
+  --border: rgba(11, 16, 32, 0.12);
+  --ring: rgba(109, 90, 255, 0.25);
+
+  --accent: #6d5aff;
+  --accent2: #26c6ff;
+  --accent-foreground: #ffffff;
+
+  --shadow: 0 10px 30px rgba(11, 16, 32, 0.08);
+}
+
+:root[data-theme='dark'] {
+  --bg: #060712;
+  --fg: #e7e9f3;
+  --muted: #a8b0c7;
+
+  --card: rgba(18, 20, 36, 0.6);
+  --border: rgba(231, 233, 243, 0.14);
+  --ring: rgba(109, 90, 255, 0.22);
+
+  --accent: #8c7bff;
+  --accent2: #32d1ff;
+  --accent-foreground: #070813;
+
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
 }
 
 @layer base {

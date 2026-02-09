@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import crypto from "crypto";
 import { sendMail } from "@/app/lib/mailer";
+import { resolveAppUrl } from "@/app/lib/appUrl";
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
@@ -25,7 +26,7 @@ export async function POST(req: Request) {
     data: { identifier: email, token, expires },
   });
 
-  const appUrl = process.env.APP_URL ?? "http://localhost:3000";
+  const appUrl = resolveAppUrl(req);
   const link = `${appUrl}/verify-email?email=${encodeURIComponent(email)}&token=${encodeURIComponent(token)}`;
 
   await sendMail({

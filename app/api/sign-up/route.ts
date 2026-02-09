@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt'
 import { prisma } from '@/app/lib/prisma'
 import crypto from 'crypto'
 import { sendMail } from '@/app/lib/mailer'
+import { resolveAppUrl } from '@/app/lib/appUrl'
 
 export async function POST(req: Request) {
   try {
@@ -75,7 +76,7 @@ export async function POST(req: Request) {
       },
     })
 
-    const appUrl = process.env.APP_URL ?? 'http://localhost:3000'
+    const appUrl = resolveAppUrl(req)
     const link = `${appUrl}/verify-email?email=${encodeURIComponent(cleanEmail)}&token=${encodeURIComponent(token)}`
 
     await sendMail({

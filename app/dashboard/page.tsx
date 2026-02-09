@@ -7,12 +7,42 @@ import { displayUserLabel } from '../lib/userLabel'
 
 export const runtime = 'nodejs'
 
+type RecentBlogRow = {
+  id: string
+  slug: string | null
+  title: string
+  createdAt: Date
+  author: { name: string | null; email: string | null }
+}
+
+type RecentCommentRow = {
+  id: string
+  content: string
+  createdAt: Date
+  author: { name: string | null }
+  post: {
+    id: string
+    slug: string | null
+    title: string
+    boardId: string
+    board: { type: 'GENERAL' | 'BLOG' | 'PORTFOLIO' | 'TODO' | 'CALENDAR' | 'HELP' }
+  }
+}
+
+type MyTodoRow = {
+  id: string
+  slug: string | null
+  title: string
+  boardId: string
+  status: 'TODO' | 'DOING' | 'DONE'
+}
+
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions)
   const isLoggedIn = !!session?.user?.email
 
   // 공개 피드: 최근 블로그 글(전체)
-  const recentBlogRaw = await prisma.post.findMany({
+  const recentBlogRaw: RecentBlogRow[] = await prisma.post.findMany({
     where: { board: { type: 'BLOG' }, status: 'DONE' },
     orderBy: { createdAt: 'desc' },
     take: 6,
@@ -25,7 +55,7 @@ export default async function DashboardPage() {
     },
   })
 
-  const recentBlog = recentBlogRaw.map((p) => ({
+  const recentBlog = recentBlogRaw.map((p: RecentBlogRow) => ({
     ...p,
     createdAt: toISOStringSafe(p.createdAt),
     key: p.slug ?? p.id,
@@ -33,7 +63,7 @@ export default async function DashboardPage() {
   }))
 
   // 공개 피드: 최근 댓글(전체)
-  const recentCommentsRaw = await prisma.comment.findMany({
+  const recentCommentsRaw: RecentCommentRow[] = await prisma.comment.findMany({
     orderBy: { createdAt: 'desc' },
     take: 8,
     select: {
@@ -53,7 +83,7 @@ export default async function DashboardPage() {
     },
   })
 
-  const recentComments = recentCommentsRaw.map((c) => {
+  const recentComments = recentCommentsRaw.map((c: RecentCommentRow) => {
     const postKey = c.post.slug ?? c.post.id
     const href =
       c.post.board.type === 'BLOG'
@@ -79,7 +109,7 @@ export default async function DashboardPage() {
     : null
 
   // 로그인 섹션: 내 TODO(간단히 최근 6개)
-  const myTodos = me
+  const myTodos: MyTodoRow[] = me
     ? await prisma.post.findMany({
         where: { authorId: me.id, status: { in: ['TODO', 'DOING'] } },
         orderBy: { createdAt: 'desc' },
@@ -220,7 +250,7 @@ export default async function DashboardPage() {
                 className="mt-3 divide-y"
                 style={{ borderColor: 'var(--border)' }}
               >
-                {myTodos.map((t) => {
+                {myTodos.map((t: MyTodoRow) => {
                   const key = t.slug ?? t.id
                   return (
                     <li key={t.id} className="py-2">

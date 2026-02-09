@@ -7,6 +7,17 @@ import { notFound } from 'next/navigation'
 
 export const runtime = 'nodejs'
 
+type BoardPostRow = {
+  id: string
+  title: string
+  status: 'TODO' | 'DOING' | 'DONE'
+  isSecret: boolean
+  startAt: Date | null
+  endAt: Date | null
+  createdAt: Date
+  slug: string | null
+}
+
 export default async function BoardDetailPage(props: {
   params: Promise<{ boardId: string }>
 }) {
@@ -45,7 +56,7 @@ export default async function BoardDetailPage(props: {
 
   const canCreate = !!me?.id && me.id === board.ownerId
 
-  const postsRaw = await prisma.post.findMany({
+  const postsRaw: BoardPostRow[] = await prisma.post.findMany({
     where: { boardId: board.id },
     orderBy: { createdAt: 'desc' },
     select: {
@@ -60,7 +71,7 @@ export default async function BoardDetailPage(props: {
     },
   })
 
-  const safePosts = postsRaw.map((p) => ({
+  const safePosts = postsRaw.map((p: BoardPostRow) => ({
     ...p,
     createdAt: toISOStringSafe(p.createdAt),
     startAt: toISOStringNullable(p.startAt),

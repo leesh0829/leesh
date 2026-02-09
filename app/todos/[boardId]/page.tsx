@@ -7,6 +7,18 @@ import { toUserLabel } from '@/app/lib/scheduleShare'
 
 export const runtime = 'nodejs'
 
+type TodoBoardPostRow = {
+  id: string
+  slug: string | null
+  title: string
+  status: 'TODO' | 'DOING' | 'DONE'
+  isSecret: boolean
+  createdAt: Date
+  startAt: Date | null
+  endAt: Date | null
+  allDay: boolean
+}
+
 export default async function TodoBoardDetailPage({
   params,
 }: {
@@ -64,7 +76,7 @@ export default async function TodoBoardDetailPage({
     if (!canRead) return <main style={{ padding: 24 }}>권한 없음</main>
   }
 
-  const posts = await prisma.post.findMany({
+  const posts: TodoBoardPostRow[] = await prisma.post.findMany({
     where: { boardId: board.id },
     orderBy: { createdAt: 'desc' },
     select: {
@@ -80,7 +92,7 @@ export default async function TodoBoardDetailPage({
     },
   })
 
-  const safePosts = posts.map((p) => ({
+  const safePosts = posts.map((p: TodoBoardPostRow) => ({
     ...p,
     createdAt: toISOStringSafe(p.createdAt),
     startAt: toISOStringNullable(p.startAt),

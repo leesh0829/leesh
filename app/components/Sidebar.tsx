@@ -24,6 +24,22 @@ type Perm = {
   visible: boolean
 }
 
+const SIDEBAR_ORDER = [
+  '/',
+  '/dashboard',
+  '/blog',
+  '/todos',
+  '/boards',
+  '/calendar',
+  '/permission',
+  '/help',
+] as const
+
+function getOrderIndex(path: string) {
+  const idx = SIDEBAR_ORDER.indexOf(path as (typeof SIDEBAR_ORDER)[number])
+  return idx === -1 ? Number.MAX_SAFE_INTEGER : idx
+}
+
 function NavItem({
   href,
   label,
@@ -150,6 +166,7 @@ export default function Sidebar({
       .filter((x) => x.visible)
       .filter((x) => (x.requireLogin ? loggedIn : true))
       .map((x) => ({ href: x.path, label: x.label }))
+      .sort((a, b) => getOrderIndex(a.href) - getOrderIndex(b.href))
   }, [perms, session?.user])
 
   return (

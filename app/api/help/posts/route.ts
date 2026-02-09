@@ -6,6 +6,13 @@ import { toISOStringSafe } from "@/app/lib/date";
 
 export const runtime = "nodejs";
 
+type HelpPostRow = {
+  id: string;
+  title: string;
+  createdAt: Date;
+  author: { name: string | null; email: string | null };
+};
+
 async function getOwnerUserId(): Promise<string | null> {
   const u = await prisma.user.findFirst({
     orderBy: { createdAt: "asc" },
@@ -40,7 +47,7 @@ export async function GET() {
 
   const board = await getOrCreateHelpBoard(ownerId);
 
-  const posts = await prisma.post.findMany({
+  const posts: HelpPostRow[] = await prisma.post.findMany({
     where: { boardId: board.id },
     orderBy: { createdAt: "desc" },
     select: {
@@ -52,7 +59,7 @@ export async function GET() {
   });
 
   return NextResponse.json(
-    posts.map((p) => ({
+    posts.map((p: HelpPostRow) => ({
       ...p,
       createdAt: toISOStringSafe(p.createdAt),
     })),

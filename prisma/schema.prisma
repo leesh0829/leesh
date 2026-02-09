@@ -37,6 +37,9 @@ model User {
   comments Comment[]
 
   menuOverrides UserMenuPermission[]
+
+  outgoingScheduleShares ScheduleShare[] @relation("ScheduleShareRequester")
+  incomingScheduleShares ScheduleShare[] @relation("ScheduleShareOwner")
 }
 
 model Account {
@@ -157,6 +160,37 @@ enum BoardType {
 enum PermissionOverrideMode {
   ALLOW
   DENY
+}
+
+enum ScheduleShareStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum ScheduleShareScope {
+  CALENDAR
+  TODO
+}
+
+model ScheduleShare {
+  id String @id @default(cuid())
+
+  requesterId String
+  requester   User   @relation("ScheduleShareRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+
+  ownerId String
+  owner   User   @relation("ScheduleShareOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  scope ScheduleShareScope
+  status     ScheduleShareStatus @default(PENDING)
+  respondedAt DateTime?
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+
+  @@unique([requesterId, ownerId, scope])
+  @@index([requesterId, scope, status])
+  @@index([ownerId, scope, status])
 }
 
 model UserMenuPermission {

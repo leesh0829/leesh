@@ -3,6 +3,10 @@ import { prisma } from '@/app/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import { toISOStringSafe } from '@/app/lib/date'
+import {
+  getReadableScheduleOwnerIds,
+  toUserLabel,
+} from '@/app/lib/scheduleShare'
 
 export const runtime = 'nodejs'
 
@@ -33,13 +37,20 @@ export async function GET(req: Request) {
 
   const { start, end } = ymToRange(month)
 
-  // 내 보드
+  const readableOwnerIds = await getReadableScheduleOwnerIds(
+    user.id,
+    'CALENDAR'
+  )
+
+  // 내 보드 + 공유 허용된 사용자 보드
   const boards = await prisma.board.findMany({
-    where: { ownerId: user.id },
+    where: { ownerId: { in: readableOwnerIds } },
     select: {
       id: true,
       name: true,
       type: true,
+      ownerId: true,
+      owner: { select: { id: true, name: true, email: true } },
       singleSchedule: true,
       scheduleStatus: true,
       scheduleStartAt: true,
@@ -72,28 +83,46 @@ export async function GET(req: Request) {
   })
 
   const boardInfoMap = new Map(
-    boards.map((b) => [b.id, { name: b.name, type: b.type }])
+    boards.map((b) => [
+      b.id,
+      {
+        name: b.name,
+        type: b.type,
+        ownerId: b.ownerId,
+        ownerLabel: toUserLabel(b.owner.name, b.owner.email),
+      },
+    ])
   )
 
   const data = posts
     .filter((p) => p.startAt)
-    .map((p) => ({
-      kind: 'POST' as const,
-      id: p.id,
-      slug: p.slug ?? null,
-      boardId: p.boardId,
-      boardName: boardInfoMap.get(p.boardId)?.name ?? '',
-      boardType: boardInfoMap.get(p.boardId)?.type ?? 'GENERAL',
-      title: p.title,
-      displayTitle:
-        `${boardInfoMap.get(p.boardId)?.name ?? ''} · ${p.title}`.trim(),
-      status: p.status,
-      isSecret: p.isSecret,
-      startAt: p.startAt ? toISOStringSafe(p.startAt) : null,
-      endAt: p.endAt ? toISOStringSafe(p.endAt) : null,
-      allDay: p.allDay,
-      createdAt: p.createdAt ? toISOStringSafe(p.createdAt) : null,
-    }))
+    .map((p) => {
+      const info = boardInfoMap.get(p.boardId)
+      const ownerId = info?.ownerId ?? user.id
+      const ownerLabel = info?.ownerLabel ?? '알 수 없는 사용자'
+      const canEdit = ownerId === user.id
+      const ownerPrefix = canEdit ? '' : `[${ownerLabel}] `
+      return {
+        kind: 'POST' as const,
+        id: p.id,
+        slug: p.slug ?? null,
+        boardId: p.boardId,
+        boardName: info?.name ?? '',
+        boardType: info?.type ?? 'GENERAL',
+        ownerId,
+        ownerLabel,
+        canEdit,
+        shared: !canEdit,
+        title: p.title,
+        displayTitle: `${ownerPrefix}${info?.name ?? ''} · ${p.title}`.trim(),
+        status: p.status,
+        isSecret: p.isSecret,
+        startAt: p.startAt ? toISOStringSafe(p.startAt) : null,
+        endAt: p.endAt ? toISOStringSafe(p.endAt) : null,
+        allDay: p.allDay,
+        createdAt: p.createdAt ? toISOStringSafe(p.createdAt) : null,
+      }
+    })
 
   // 2) 보드(Board) 자체 일정 (singleSchedule=true)
   const boardSchedules = boards
@@ -105,22 +134,31 @@ export async function GET(req: Request) {
       if (!e) return s >= start
       return e >= start
     })
-    .map((b) => ({
-      kind: 'BOARD' as const,
-      id: b.id, // 캘린더에선 boardId가 곧 id
-      slug: null,
-      boardId: b.id,
-      boardName: b.name,
-      boardType: b.type,
-      title: b.name, // title은 board title만
-      displayTitle: b.name,
-      status: b.scheduleStatus,
-      isSecret: false,
-      startAt: b.scheduleStartAt ? toISOStringSafe(b.scheduleStartAt) : null,
-      endAt: b.scheduleEndAt ? toISOStringSafe(b.scheduleEndAt) : null,
-      allDay: b.scheduleAllDay,
-      createdAt: null,
-    }))
+    .map((b) => {
+      const ownerLabel = toUserLabel(b.owner.name, b.owner.email)
+      const canEdit = b.ownerId === user.id
+      const ownerPrefix = canEdit ? '' : `[${ownerLabel}] `
+      return {
+        kind: 'BOARD' as const,
+        id: b.id, // 캘린더에선 boardId가 곧 id
+        slug: null,
+        boardId: b.id,
+        boardName: b.name,
+        boardType: b.type,
+        ownerId: b.ownerId,
+        ownerLabel,
+        canEdit,
+        shared: !canEdit,
+        title: b.name, // title은 board title만
+        displayTitle: `${ownerPrefix}${b.name}`.trim(),
+        status: b.scheduleStatus,
+        isSecret: false,
+        startAt: b.scheduleStartAt ? toISOStringSafe(b.scheduleStartAt) : null,
+        endAt: b.scheduleEndAt ? toISOStringSafe(b.scheduleEndAt) : null,
+        allDay: b.scheduleAllDay,
+        createdAt: null,
+      }
+    })
 
   const merged = [...data, ...boardSchedules].sort((a, b) => {
     const at = a.startAt ? new Date(a.startAt).getTime() : 0

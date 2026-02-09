@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { toHumanHttpError } from '@/app/lib/httpErrorText'
 
 type ScheduleStatus = 'TODO' | 'DOING' | 'DONE'
 
@@ -9,12 +10,42 @@ type BoardCard = {
   id: string
   name: string
   description: string | null
+  ownerId: string
+  ownerLabel: string
+  shared: boolean
+  canEdit: boolean
   scheduleStatus: ScheduleStatus
   singleSchedule: boolean
   scheduleStartAt: string | null
   scheduleEndAt: string | null
   scheduleAllDay: boolean
   createdAt: string
+}
+
+type SharePeer = {
+  id: string
+  name: string | null
+  email: string | null
+  label: string
+}
+
+type OutgoingShare = {
+  id: string
+  scope: 'CALENDAR' | 'TODO'
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED'
+  owner: SharePeer
+  createdAt: string
+  updatedAt: string
+  respondedAt: string | null
+}
+
+type IncomingShare = {
+  id: string
+  scope: 'CALENDAR' | 'TODO'
+  status: 'PENDING'
+  requester: SharePeer
+  createdAt: string
+  updatedAt: string
 }
 
 function toDatetimeLocalValue(iso: string | null): string {
@@ -45,6 +76,23 @@ async function readApiErrorMessage(r: Response): Promise<string | null> {
     const j: unknown = await r.json()
     if (isRecord(j) && typeof j.message === 'string') return j.message
     return null
+  } catch {
+    return null
+  }
+}
+
+function extractApiMessage(payload: unknown): string | null {
+  if (!payload || typeof payload !== 'object') return null
+  const record = payload as Record<string, unknown>
+  const message = record['message']
+  if (typeof message !== 'string') return null
+  const trimmed = message.trim()
+  return trimmed ? trimmed : null
+}
+
+async function readJsonSafely(res: Response): Promise<unknown> {
+  try {
+    return await res.json()
   } catch {
     return null
   }
@@ -82,7 +130,15 @@ function BoardItem({
     <div className="card p-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="font-semibold truncate">{board.name}</div>
+          <div className="flex items-center gap-2">
+            <div className="font-semibold truncate">{board.name}</div>
+            {board.shared ? <span className="badge">공유</span> : null}
+          </div>
+          {board.shared ? (
+            <div className="mt-1 text-xs" style={{ color: 'var(--muted)' }}>
+              공유자: {board.ownerLabel}
+            </div>
+          ) : null}
           {board.description ? (
             <div className="mt-1 text-sm" style={{ color: 'var(--muted)' }}>
               {board.description}
@@ -94,13 +150,15 @@ function BoardItem({
           <Link href={`/todos/${board.id}`} className="btn btn-outline">
             상세
           </Link>
-          <button
-            type="button"
-            onClick={() => onDelete(board.id)}
-            className="btn"
-          >
-            삭제
-          </button>
+          {board.canEdit ? (
+            <button
+              type="button"
+              onClick={() => onDelete(board.id)}
+              className="btn"
+            >
+              삭제
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -111,7 +169,7 @@ function BoardItem({
           className={
             board.scheduleStatus === 'TODO' ? 'btn btn-primary' : 'btn'
           }
-          disabled={board.scheduleStatus === 'TODO'}
+          disabled={!board.canEdit || board.scheduleStatus === 'TODO'}
         >
           TODO
         </button>
@@ -121,7 +179,7 @@ function BoardItem({
           className={
             board.scheduleStatus === 'DOING' ? 'btn btn-primary' : 'btn'
           }
-          disabled={board.scheduleStatus === 'DOING'}
+          disabled={!board.canEdit || board.scheduleStatus === 'DOING'}
         >
           DOING
         </button>
@@ -131,7 +189,7 @@ function BoardItem({
           className={
             board.scheduleStatus === 'DONE' ? 'btn btn-primary' : 'btn'
           }
-          disabled={board.scheduleStatus === 'DONE'}
+          disabled={!board.canEdit || board.scheduleStatus === 'DONE'}
         >
           DONE
         </button>
@@ -142,6 +200,7 @@ function BoardItem({
               type="checkbox"
               checked={board.singleSchedule}
               onChange={(e) => onToggleSingle(board.id, e.target.checked)}
+              disabled={!board.canEdit}
             />
             단일 일정
           </label>
@@ -162,7 +221,7 @@ function BoardItem({
               type="datetime-local"
               value={startLocal}
               onChange={(e) => setStartLocal(e.target.value)}
-              disabled={allDay}
+              disabled={!board.canEdit || allDay}
             />
           </div>
 
@@ -175,7 +234,7 @@ function BoardItem({
               type="datetime-local"
               value={endLocal}
               onChange={(e) => setEndLocal(e.target.value)}
-              disabled={allDay}
+              disabled={!board.canEdit || allDay}
             />
           </div>
 
@@ -184,36 +243,45 @@ function BoardItem({
               type="checkbox"
               checked={allDay}
               onChange={(e) => setAllDay(e.target.checked)}
+              disabled={!board.canEdit}
             />
             하루종일
           </label>
 
           <div className="flex flex-wrap gap-2 md:col-span-2">
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() =>
-                onSaveSchedule(
-                  board.id,
-                  isoFromDatetimeLocal(startLocal),
-                  isoFromDatetimeLocal(endLocal),
-                  allDay
-                )
-              }
-            >
-              일정 저장
-            </button>
-            <button
-              type="button"
-              className="btn btn-outline"
-              onClick={() => {
-                setStartLocal(toDatetimeLocalValue(board.scheduleStartAt))
-                setEndLocal(toDatetimeLocalValue(board.scheduleEndAt))
-                setAllDay(!!board.scheduleAllDay)
-              }}
-            >
-              되돌리기
-            </button>
+            {board.canEdit ? (
+              <>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() =>
+                    onSaveSchedule(
+                      board.id,
+                      isoFromDatetimeLocal(startLocal),
+                      isoFromDatetimeLocal(endLocal),
+                      allDay
+                    )
+                  }
+                >
+                  일정 저장
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => {
+                    setStartLocal(toDatetimeLocalValue(board.scheduleStartAt))
+                    setEndLocal(toDatetimeLocalValue(board.scheduleEndAt))
+                    setAllDay(!!board.scheduleAllDay)
+                  }}
+                >
+                  되돌리기
+                </button>
+              </>
+            ) : (
+              <div className="text-xs" style={{ color: 'var(--muted)' }}>
+                공유 보드는 읽기 전용입니다.
+              </div>
+            )}
           </div>
         </div>
       ) : null}
@@ -275,6 +343,11 @@ export default function TodosClient() {
   const [scheduleAllDay, setScheduleAllDay] = useState(false)
   const [scheduleStartLocal, setScheduleStartLocal] = useState('')
   const [scheduleEndLocal, setScheduleEndLocal] = useState('')
+  const [shareEmail, setShareEmail] = useState('')
+  const [outgoingShares, setOutgoingShares] = useState<OutgoingShare[]>([])
+  const [incomingShares, setIncomingShares] = useState<IncomingShare[]>([])
+  const [shareLoading, setShareLoading] = useState(false)
+  const [shareBusyId, setShareBusyId] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     const r = await fetch('/api/todos/boards', { cache: 'no-store' })
@@ -288,6 +361,31 @@ export default function TodosClient() {
     setErr(null)
   }, [])
 
+  const loadShares = useCallback(async () => {
+    setShareLoading(true)
+    const res = await fetch('/api/schedule-shares', { cache: 'no-store' })
+    if (!res.ok) {
+      const payload = await readJsonSafely(res)
+      const msg = extractApiMessage(payload) ?? '공유 정보 불러오기 실패'
+      const human = toHumanHttpError(res.status, msg)
+      setErr(human ?? `${res.status} · ${msg}`)
+      setShareLoading(false)
+      return
+    }
+
+    const payload = (await res.json()) as {
+      outgoing?: OutgoingShare[]
+      incoming?: IncomingShare[]
+    }
+    setOutgoingShares(
+      (payload.outgoing ?? []).filter((row) => row.scope === 'TODO')
+    )
+    setIncomingShares(
+      (payload.incoming ?? []).filter((row) => row.scope === 'TODO')
+    )
+    setShareLoading(false)
+  }, [])
+
   useEffect(() => {
     const t = window.setTimeout(() => {
       void load()
@@ -297,6 +395,91 @@ export default function TodosClient() {
       window.clearTimeout(t)
     }
   }, [load])
+
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      void loadShares()
+    }, 0)
+
+    return () => {
+      window.clearTimeout(t)
+    }
+  }, [loadShares])
+
+  const sendShareRequest = async () => {
+    const targetEmail = shareEmail.trim()
+    if (!targetEmail) {
+      setErr('공유 요청 이메일을 입력해 주세요.')
+      return
+    }
+    setErr(null)
+    setShareBusyId('new')
+
+    const res = await fetch('/api/schedule-shares', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ targetEmail, scope: 'TODO' }),
+    })
+    if (!res.ok) {
+      const payload = await readJsonSafely(res)
+      const msg = extractApiMessage(payload) ?? '공유 요청 실패'
+      const human = toHumanHttpError(res.status, msg)
+      setErr(human ?? `${res.status} · ${msg}`)
+      setShareBusyId(null)
+      return
+    }
+
+    setShareEmail('')
+    setShareBusyId(null)
+    await Promise.all([loadShares(), load()])
+  }
+
+  const respondShareRequest = async (
+    shareId: string,
+    action: 'ACCEPT' | 'REJECT'
+  ) => {
+    setErr(null)
+    setShareBusyId(shareId)
+
+    const res = await fetch(`/api/schedule-shares/${shareId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action }),
+    })
+    if (!res.ok) {
+      const payload = await readJsonSafely(res)
+      const msg =
+        extractApiMessage(payload) ??
+        (action === 'ACCEPT' ? '승인 실패' : '거절 실패')
+      const human = toHumanHttpError(res.status, msg)
+      setErr(human ?? `${res.status} · ${msg}`)
+      setShareBusyId(null)
+      return
+    }
+
+    setShareBusyId(null)
+    await Promise.all([loadShares(), load()])
+  }
+
+  const removeShare = async (shareId: string) => {
+    setErr(null)
+    setShareBusyId(shareId)
+
+    const res = await fetch(`/api/schedule-shares/${shareId}`, {
+      method: 'DELETE',
+    })
+    if (!res.ok) {
+      const payload = await readJsonSafely(res)
+      const msg = extractApiMessage(payload) ?? '공유 해제 실패'
+      const human = toHumanHttpError(res.status, msg)
+      setErr(human ?? `${res.status} · ${msg}`)
+      setShareBusyId(null)
+      return
+    }
+
+    setShareBusyId(null)
+    await Promise.all([loadShares(), load()])
+  }
 
   const create = async () => {
     const payload = {
@@ -422,7 +605,7 @@ export default function TodosClient() {
           <div>
             <h1 className="text-2xl font-bold">/todos</h1>
             <p className="mt-1 text-sm" style={{ color: 'var(--muted)' }}>
-              보드 기반 TODO 관리
+              보드 기반 TODO 관리 (공유받은 보드는 읽기 전용)
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -437,6 +620,104 @@ export default function TodosClient() {
             {err}
           </div>
         ) : null}
+
+        <section className="mt-6 card card-pad">
+          <div className="font-extrabold">TODO 공유 권한 관리</div>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            <input
+              className="input"
+              value={shareEmail}
+              onChange={(e) => setShareEmail(e.target.value)}
+              placeholder="상대 계정 이메일"
+            />
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={sendShareRequest}
+              disabled={shareBusyId === 'new' || shareLoading}
+            >
+              {shareBusyId === 'new' ? '요청중...' : 'TODO 공유 요청'}
+            </button>
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={loadShares}
+              disabled={shareLoading}
+            >
+              목록 새로고침
+            </button>
+          </div>
+
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <div className="grid gap-2">
+              <div className="text-sm font-semibold">받은 TODO 요청</div>
+              {incomingShares.length === 0 ? (
+                <div className="text-sm opacity-70">
+                  대기 중인 TODO 공유 요청이 없습니다.
+                </div>
+              ) : (
+                incomingShares.map((row) => (
+                  <div key={row.id} className="card p-3">
+                    <div className="font-semibold">{row.requester.label}</div>
+                    <div className="mt-1 text-xs opacity-70">
+                      요청일: {new Date(row.createdAt).toLocaleString()}
+                    </div>
+                    <div className="mt-2 flex gap-2">
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={() => respondShareRequest(row.id, 'ACCEPT')}
+                        disabled={shareBusyId === row.id}
+                      >
+                        승인
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-outline"
+                        onClick={() => respondShareRequest(row.id, 'REJECT')}
+                        disabled={shareBusyId === row.id}
+                      >
+                        거절
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="grid gap-2">
+              <div className="text-sm font-semibold">보낸 TODO 요청</div>
+              {outgoingShares.length === 0 ? (
+                <div className="text-sm opacity-70">
+                  보낸 TODO 공유 요청이 없습니다.
+                </div>
+              ) : (
+                outgoingShares.map((row) => (
+                  <div key={row.id} className="card p-3">
+                    <div className="font-semibold">{row.owner.label}</div>
+                    <div className="mt-1 text-xs opacity-70">
+                      상태: {row.status}
+                      {row.respondedAt
+                        ? ` · 처리일: ${new Date(row.respondedAt).toLocaleString()}`
+                        : ''}
+                    </div>
+                    <div className="mt-2">
+                      <button
+                        type="button"
+                        className="btn btn-outline"
+                        onClick={() => removeShare(row.id)}
+                        disabled={shareBusyId === row.id}
+                      >
+                        {row.status === 'ACCEPTED' ? '공유 해제' : '요청 취소'}
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </section>
 
         <div className="mt-6 card card-pad">
           <div className="flex items-center justify-between gap-3">

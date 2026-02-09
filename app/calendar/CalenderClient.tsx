@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { toHumanHttpError } from '@/app/lib/httpErrorText'
 
@@ -11,15 +11,44 @@ type CalItem = {
   boardId: string
   boardName: string
   boardType: 'GENERAL' | 'BLOG' | 'PORTFOLIO' | 'TODO' | 'CALENDAR' | 'HELP'
+  ownerId: string
+  ownerLabel: string
+  shared: boolean
+  canEdit: boolean
   title: string
   displayTitle: string
-  dayLabel: string
   status: 'TODO' | 'DOING' | 'DONE'
   isSecret: boolean
   startAt: string | null
   endAt: string | null
   allDay: boolean
   createdAt?: string | null
+}
+
+type SharePeer = {
+  id: string
+  name: string | null
+  email: string | null
+  label: string
+}
+
+type OutgoingShare = {
+  id: string
+  scope: 'CALENDAR' | 'TODO'
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED'
+  owner: SharePeer
+  createdAt: string
+  updatedAt: string
+  respondedAt: string | null
+}
+
+type IncomingShare = {
+  id: string
+  scope: 'CALENDAR' | 'TODO'
+  status: 'PENDING'
+  requester: SharePeer
+  createdAt: string
+  updatedAt: string
 }
 
 function extractApiMessage(payload: unknown): string | null {
@@ -139,6 +168,11 @@ export default function CalendarClient() {
   const [editEnd, setEditEnd] = useState('')
   const [editAllDay, setEditAllDay] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [shareEmail, setShareEmail] = useState('')
+  const [outgoingShares, setOutgoingShares] = useState<OutgoingShare[]>([])
+  const [incomingShares, setIncomingShares] = useState<IncomingShare[]>([])
+  const [shareLoading, setShareLoading] = useState(false)
+  const [shareBusyId, setShareBusyId] = useState<string | null>(null)
   const MAX_VISIBLE_BARS = 3
   const [moreDay, setMoreDay] = useState<{
     dateKey: string
@@ -169,7 +203,7 @@ export default function CalendarClient() {
     })
   }, [items, boardFilter, statusFilter])
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setErr(null)
     const res = await fetch(`/api/calendar?month=${ym}`)
     if (res.ok) {
@@ -180,6 +214,106 @@ export default function CalendarClient() {
     const msg = extractApiMessage(payload) ?? '캘린더 불러오기 실패'
     const human = toHumanHttpError(res.status, msg)
     setErr(human ?? `${res.status} · ${msg}`)
+  }, [ym])
+
+  const loadShares = useCallback(async () => {
+    setShareLoading(true)
+    const res = await fetch('/api/schedule-shares', { cache: 'no-store' })
+    if (!res.ok) {
+      const payload = await readJsonSafely(res)
+      const msg = extractApiMessage(payload) ?? '공유 정보 불러오기 실패'
+      const human = toHumanHttpError(res.status, msg)
+      setErr(human ?? `${res.status} · ${msg}`)
+      setShareLoading(false)
+      return
+    }
+
+    const payload = (await res.json()) as {
+      outgoing?: OutgoingShare[]
+      incoming?: IncomingShare[]
+    }
+    setOutgoingShares(
+      (payload.outgoing ?? []).filter((row) => row.scope === 'CALENDAR')
+    )
+    setIncomingShares(
+      (payload.incoming ?? []).filter((row) => row.scope === 'CALENDAR')
+    )
+    setShareLoading(false)
+  }, [])
+
+  const sendShareRequest = async () => {
+    const targetEmail = shareEmail.trim()
+    if (!targetEmail) {
+      setErr('공유 요청 이메일을 입력해 주세요.')
+      return
+    }
+    setErr(null)
+    setShareBusyId('new')
+
+    const res = await fetch('/api/schedule-shares', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ targetEmail, scope: 'CALENDAR' }),
+    })
+    if (!res.ok) {
+      const payload = await readJsonSafely(res)
+      const msg = extractApiMessage(payload) ?? '공유 요청 실패'
+      const human = toHumanHttpError(res.status, msg)
+      setErr(human ?? `${res.status} · ${msg}`)
+      setShareBusyId(null)
+      return
+    }
+
+    setShareEmail('')
+    setShareBusyId(null)
+    await Promise.all([loadShares(), load()])
+  }
+
+  const respondShareRequest = async (
+    shareId: string,
+    action: 'ACCEPT' | 'REJECT'
+  ) => {
+    setErr(null)
+    setShareBusyId(shareId)
+
+    const res = await fetch(`/api/schedule-shares/${shareId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action }),
+    })
+    if (!res.ok) {
+      const payload = await readJsonSafely(res)
+      const msg =
+        extractApiMessage(payload) ??
+        (action === 'ACCEPT' ? '승인 실패' : '거절 실패')
+      const human = toHumanHttpError(res.status, msg)
+      setErr(human ?? `${res.status} · ${msg}`)
+      setShareBusyId(null)
+      return
+    }
+
+    setShareBusyId(null)
+    await Promise.all([loadShares(), load()])
+  }
+
+  const removeShare = async (shareId: string) => {
+    setErr(null)
+    setShareBusyId(shareId)
+
+    const res = await fetch(`/api/schedule-shares/${shareId}`, {
+      method: 'DELETE',
+    })
+    if (!res.ok) {
+      const payload = await readJsonSafely(res)
+      const msg = extractApiMessage(payload) ?? '공유 해제 실패'
+      const human = toHumanHttpError(res.status, msg)
+      setErr(human ?? `${res.status} · ${msg}`)
+      setShareBusyId(null)
+      return
+    }
+
+    setShareBusyId(null)
+    await Promise.all([loadShares(), load()])
   }
 
   const openEdit = (it: CalItem) => {
@@ -194,7 +328,11 @@ export default function CalendarClient() {
   const closeEdit = () => setEditing(null)
 
   const getDetailHref = (it: CalItem) => {
-    if (it.kind === 'BOARD') return `/boards/${it.boardId}`
+    if (it.kind === 'BOARD') {
+      if (it.boardType === 'TODO') return `/todos/${it.boardId}`
+      if (it.boardType === 'CALENDAR') return '/calendar'
+      return `/boards/${it.boardId}`
+    }
     const key = encodeURIComponent(it.slug ?? it.id)
     switch (it.boardType) {
       case 'BLOG':
@@ -212,6 +350,10 @@ export default function CalendarClient() {
 
   const saveEdit = async () => {
     if (!editing) return
+    if (!editing.canEdit) {
+      setErr('공유받은 일정은 수정할 수 없습니다.')
+      return
+    }
     setSaving(true)
     setErr(null)
 
@@ -252,6 +394,10 @@ export default function CalendarClient() {
 
   const deleteEdit = async () => {
     if (!editing) return
+    if (!editing.canEdit) {
+      setErr('공유받은 일정은 삭제할 수 없습니다.')
+      return
+    }
     const ok = window.confirm('이 일정을 삭제할까요?')
     if (!ok) return
 
@@ -280,6 +426,10 @@ export default function CalendarClient() {
   }
 
   const shiftItemDays = async (it: CalItem, days: number) => {
+    if (!it.canEdit) {
+      setErr('공유받은 일정은 날짜 이동할 수 없습니다.')
+      return
+    }
     setErr(null)
 
     const startAt = shiftIsoByDays(it.startAt ?? null, days)
@@ -313,23 +463,16 @@ export default function CalendarClient() {
   }
 
   useEffect(() => {
-    let alive = true
-    ;(async () => {
-      const res = await fetch(`/api/calendar?month=${ym}`)
-      if (!alive) return
-      if (res.ok) {
-        setItems(await res.json())
-        return
-      }
-      const payload = await readJsonSafely(res)
-      const msg = extractApiMessage(payload) ?? '캘린더 불러오기 실패'
-      const human = toHumanHttpError(res.status, msg)
-      setErr(human ?? `${res.status} · ${msg}`)
-    })()
-    return () => {
-      alive = false
-    }
-  }, [ym])
+    Promise.resolve().then(() => {
+      void load()
+    })
+  }, [load])
+
+  useEffect(() => {
+    Promise.resolve().then(() => {
+      void loadShares()
+    })
+  }, [loadShares])
 
   const year = cursor.getFullYear()
   const month = cursor.getMonth()
@@ -525,6 +668,104 @@ export default function CalendarClient() {
 
       {err && <p style={{ color: 'crimson', marginTop: 10 }}>{err}</p>}
 
+      <section className="mt-6 card card-pad">
+        <div className="font-extrabold">캘린더 공유 권한 관리</div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          <input
+            className="input"
+            value={shareEmail}
+            onChange={(e) => setShareEmail(e.target.value)}
+            placeholder="상대 계정 이메일"
+          />
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={sendShareRequest}
+            disabled={shareBusyId === 'new' || shareLoading}
+          >
+            {shareBusyId === 'new' ? '요청중...' : '캘린더 공유 요청'}
+          </button>
+          <button
+            type="button"
+            className="btn btn-outline"
+            onClick={loadShares}
+            disabled={shareLoading}
+          >
+            목록 새로고침
+          </button>
+        </div>
+
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <div className="grid gap-2">
+            <div className="text-sm font-semibold">받은 캘린더 요청</div>
+            {incomingShares.length === 0 ? (
+              <div className="text-sm opacity-70">
+                대기 중인 캘린더 공유 요청이 없습니다.
+              </div>
+            ) : (
+              incomingShares.map((row) => (
+                <div key={row.id} className="card p-3">
+                  <div className="font-semibold">{row.requester.label}</div>
+                  <div className="mt-1 text-xs opacity-70">
+                    요청일: {new Date(row.createdAt).toLocaleString()}
+                  </div>
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => respondShareRequest(row.id, 'ACCEPT')}
+                      disabled={shareBusyId === row.id}
+                    >
+                      승인
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-outline"
+                      onClick={() => respondShareRequest(row.id, 'REJECT')}
+                      disabled={shareBusyId === row.id}
+                    >
+                      거절
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="grid gap-2">
+            <div className="text-sm font-semibold">보낸 캘린더 요청</div>
+            {outgoingShares.length === 0 ? (
+              <div className="text-sm opacity-70">
+                보낸 캘린더 공유 요청이 없습니다.
+              </div>
+            ) : (
+              outgoingShares.map((row) => (
+                <div key={row.id} className="card p-3">
+                  <div className="font-semibold">{row.owner.label}</div>
+                  <div className="mt-1 text-xs opacity-70">
+                    상태: {row.status}
+                    {row.respondedAt
+                      ? ` · 처리일: ${new Date(row.respondedAt).toLocaleString()}`
+                      : ''}
+                  </div>
+                  <div className="mt-2">
+                    <button
+                      type="button"
+                      className="btn btn-outline"
+                      onClick={() => removeShare(row.id)}
+                      disabled={shareBusyId === row.id}
+                    >
+                      {row.status === 'ACCEPTED' ? '공유 해제' : '요청 취소'}
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </section>
+
       <div style={{ marginTop: 16 }}>
         {/* 요일 헤더 */}
         <div
@@ -639,44 +880,50 @@ export default function CalendarClient() {
                             </div>
 
                             {/* shift buttons: bar 클릭과 분리 */}
-                            <div
-                              style={{
-                                display: 'flex',
-                                gap: 6,
-                                flexShrink: 0,
-                              }}
-                            >
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  shiftItemDays(b.it, -1)
-                                }}
+                            {b.it.canEdit ? (
+                              <div
                                 style={{
-                                  padding: '0 6px',
-                                  height: 18,
+                                  display: 'flex',
+                                  gap: 6,
                                   flexShrink: 0,
                                 }}
-                                title="하루 전으로"
                               >
-                                ◀
-                              </button>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  shiftItemDays(b.it, 1)
-                                }}
-                                style={{
-                                  padding: '0 6px',
-                                  height: 18,
-                                  flexShrink: 0,
-                                }}
-                                title="하루 후로"
-                              >
-                                ▶
-                              </button>
-                            </div>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    shiftItemDays(b.it, -1)
+                                  }}
+                                  style={{
+                                    padding: '0 6px',
+                                    height: 18,
+                                    flexShrink: 0,
+                                  }}
+                                  title="하루 전으로"
+                                >
+                                  ◀
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    shiftItemDays(b.it, 1)
+                                  }}
+                                  style={{
+                                    padding: '0 6px',
+                                    height: 18,
+                                    flexShrink: 0,
+                                  }}
+                                  title="하루 후로"
+                                >
+                                  ▶
+                                </button>
+                              </div>
+                            ) : (
+                              <span style={{ fontSize: 11, opacity: 0.7 }}>
+                                공유
+                              </span>
+                            )}
                           </div>
                         )
                       })}
@@ -841,8 +1088,8 @@ export default function CalendarClient() {
                             {it.displayTitle || it.title}
                           </div>
                           <div className="mt-1 text-xs opacity-70 truncate">
+                            {it.shared ? `공유:${it.ownerLabel} · ` : ''}
                             {it.boardName} · {it.status}
-                            {it.dayLabel ? ` · ${it.dayLabel}` : ''}
                           </div>
                         </button>
                       ))}
@@ -903,8 +1150,8 @@ export default function CalendarClient() {
                       {it.displayTitle || it.title}
                     </div>
                     <div style={{ fontSize: 12, opacity: 0.75 }}>
+                      {it.shared ? `공유:${it.ownerLabel} · ` : ''}
                       {it.boardName} · {it.status}
-                      {it.dayLabel ? ` · ${it.dayLabel}` : ''}
                     </div>
                   </button>
                 ))
@@ -944,11 +1191,17 @@ export default function CalendarClient() {
                 gap: 12,
               }}
             >
-              <h3 style={{ margin: 0 }}>일정 수정</h3>
+              <h3 style={{ margin: 0 }}>
+                {editing.canEdit ? '일정 수정' : '일정 보기 (공유 읽기 전용)'}
+              </h3>
               <button onClick={closeEdit}>닫기</button>
             </div>
 
             <div style={{ marginTop: 12, display: 'grid', gap: 10 }}>
+              <div style={{ fontSize: 12, opacity: 0.75 }}>
+                소유자: {editing.ownerLabel}
+              </div>
+
               {editing.kind === 'BOARD' ? (
                 <div style={{ display: 'grid', gap: 6 }}>
                   <div style={{ fontSize: 12, opacity: 0.7 }}>보드</div>
@@ -964,6 +1217,7 @@ export default function CalendarClient() {
                   <input
                     value={editTitle}
                     onChange={(e) => setEditTitle(e.target.value)}
+                    disabled={!editing.canEdit}
                   />
                 </label>
               )}
@@ -975,6 +1229,7 @@ export default function CalendarClient() {
                   onChange={(e) =>
                     setEditStatus(e.target.value as CalItem['status'])
                   }
+                  disabled={!editing.canEdit}
                 >
                   <option value="TODO">TODO</option>
                   <option value="DOING">DOING</option>
@@ -987,6 +1242,7 @@ export default function CalendarClient() {
                   type="checkbox"
                   checked={editAllDay}
                   onChange={(e) => setEditAllDay(e.target.checked)}
+                  disabled={!editing.canEdit}
                 />
                 allDay
               </label>
@@ -997,6 +1253,7 @@ export default function CalendarClient() {
                   type="datetime-local"
                   value={editStart}
                   onChange={(e) => setEditStart(e.target.value)}
+                  disabled={!editing.canEdit}
                 />
               </label>
 
@@ -1006,6 +1263,7 @@ export default function CalendarClient() {
                   type="datetime-local"
                   value={editEnd}
                   onChange={(e) => setEditEnd(e.target.value)}
+                  disabled={!editing.canEdit}
                 />
               </label>
 
@@ -1019,14 +1277,20 @@ export default function CalendarClient() {
               >
                 <Link href={getDetailHref(editing)}>자세히 보기</Link>
 
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button onClick={deleteEdit} disabled={saving}>
-                    삭제
-                  </button>
-                  <button onClick={saveEdit} disabled={saving}>
-                    {saving ? '저장중...' : '저장'}
-                  </button>
-                </div>
+                {editing.canEdit ? (
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={deleteEdit} disabled={saving}>
+                      삭제
+                    </button>
+                    <button onClick={saveEdit} disabled={saving}>
+                      {saving ? '저장중...' : '저장'}
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 12, opacity: 0.7 }}>
+                    공유받은 일정은 수정/삭제할 수 없습니다.
+                  </div>
+                )}
               </div>
             </div>
           </div>

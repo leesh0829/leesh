@@ -3,6 +3,10 @@ import { prisma } from '@/app/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import { toISOStringSafe } from '@/app/lib/date'
+import {
+  getReadableScheduleOwnerIds,
+  toUserLabel,
+} from '@/app/lib/scheduleShare'
 
 type JsonError = { message: string }
 const jsonError = (status: number, message: string) =>
@@ -18,13 +22,19 @@ export async function GET() {
   })
   if (!me) return jsonError(401, 'unauthorized')
 
+  const readableOwnerIds = await getReadableScheduleOwnerIds(me.id, 'TODO')
+
   const boards = await prisma.board.findMany({
-    where: { ownerId: me.id },
+    where: { ownerId: { in: readableOwnerIds } },
     orderBy: { createdAt: 'desc' },
     select: {
       id: true,
       name: true,
       description: true,
+      ownerId: true,
+      owner: {
+        select: { id: true, name: true, email: true },
+      },
       scheduleStatus: true,
       singleSchedule: true,
       scheduleStartAt: true,
@@ -36,11 +46,20 @@ export async function GET() {
 
   return NextResponse.json(
     boards.map((b) => ({
-      ...b,
+      id: b.id,
+      name: b.name,
+      description: b.description,
+      ownerId: b.ownerId,
+      ownerLabel: toUserLabel(b.owner.name, b.owner.email),
+      shared: b.ownerId !== me.id,
+      canEdit: b.ownerId === me.id,
+      scheduleStatus: b.scheduleStatus,
+      singleSchedule: b.singleSchedule,
       scheduleStartAt: b.scheduleStartAt
         ? toISOStringSafe(b.scheduleStartAt)
         : null,
       scheduleEndAt: b.scheduleEndAt ? toISOStringSafe(b.scheduleEndAt) : null,
+      scheduleAllDay: b.scheduleAllDay,
       createdAt: toISOStringSafe(b.createdAt),
     }))
   )

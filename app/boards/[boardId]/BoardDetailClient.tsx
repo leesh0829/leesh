@@ -499,7 +499,7 @@ export default function BoardDetailClient({
               </div>
             ) : (
               <p className="mt-3 text-sm" style={{ color: 'var(--muted)' }}>
-                로그인 후, 보드 소유자만 작성 가능
+                이 보드는 읽기 전용입니다. (공유받은 보드 또는 권한 없음)
               </p>
             )}
           </section>

@@ -2,6 +2,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import { prisma } from '@/app/lib/prisma'
 import PermissionClient from './PermissionClient'
+import { redirect } from 'next/navigation'
 
 export const runtime = 'nodejs'
 
@@ -9,13 +10,7 @@ export default async function PermissionPage() {
   const session = await getServerSession(authOptions)
   const email = session?.user?.email ?? null
   if (!email) {
-    return (
-      <main className="space-y-3">
-        <div className="surface card-pad">
-          <div className="text-sm font-semibold">로그인이 필요합니다.</div>
-        </div>
-      </main>
-    )
+    redirect('/')
   }
 
   const me = await prisma.user.findUnique({
@@ -23,13 +18,7 @@ export default async function PermissionPage() {
     select: { role: true },
   })
   if (!me || me.role !== 'ADMIN') {
-    return (
-      <main className="space-y-3">
-        <div className="surface card-pad">
-          <div className="text-sm font-semibold">권한 없음</div>
-        </div>
-      </main>
-    )
+    redirect('/')
   }
 
   return (

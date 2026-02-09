@@ -34,6 +34,9 @@ export default function PermissionClient() {
 
   const [users, setUsers] = useState<UserRow[]>([])
   const [selectedUserId, setSelectedUserId] = useState<string>('')
+  const [selectedUserRole, setSelectedUserRole] = useState<'USER' | 'ADMIN'>(
+    'USER'
+  )
   const [overrides, setOverrides] = useState<Record<string, OverrideModeUI>>({})
   const [userMsg, setUserMsg] = useState('')
 
@@ -80,7 +83,15 @@ export default function PermissionClient() {
     }
     const data = (await r.json()) as UserRow[]
     setUsers(data)
-    if (!selectedUserId && data[0]?.id) setSelectedUserId(data[0].id)
+    if (!selectedUserId && data[0]?.id) {
+      setSelectedUserId(data[0].id)
+      setSelectedUserRole(data[0].role)
+      return
+    }
+    if (selectedUserId) {
+      const selected = data.find((u) => u.id === selectedUserId)
+      if (selected) setSelectedUserRole(selected.role)
+    }
   }
 
   const loadOverrides = async (userId: string) => {
@@ -128,6 +139,31 @@ export default function PermissionClient() {
     setUserMsg('저장 완료')
   }
 
+  const saveUserRole = async () => {
+    if (!selectedUserId) return
+    setUserMsg('')
+
+    const r = await fetch(`/api/permission/users/${selectedUserId}/role`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role: selectedUserRole }),
+    })
+
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}))
+      setUserMsg(
+        `역할 저장 실패: ${r.status} ${r.statusText} (${d?.message ?? 'unknown'})`
+      )
+      return
+    }
+
+    const updated = (await r.json()) as UserRow
+    setUsers((prev) =>
+      prev.map((u) => (u.id === updated.id ? { ...u, role: updated.role } : u))
+    )
+    setUserMsg('역할 저장 완료')
+  }
+
   // 초기 로드 (lint: effect body에서 setState를 직접 트리거하지 않도록 microtask로 분리)
   useEffect(() => {
     Promise.resolve().then(() => {
@@ -153,6 +189,13 @@ export default function PermissionClient() {
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedUserId, menus.length])
+
+  useEffect(() => {
+    if (!selectedUserId) return
+    const selected = users.find((u) => u.id === selectedUserId)
+    if (!selected) return
+    setSelectedUserRole(selected.role)
+  }, [selectedUserId, users])
 
   return (
     <div className="space-y-4">
@@ -314,6 +357,14 @@ export default function PermissionClient() {
             <button
               type="button"
               className="btn btn-primary"
+              onClick={saveUserRole}
+              disabled={!selectedUserId}
+            >
+              역할 저장
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
               onClick={saveOverrides}
               disabled={!selectedUserId}
             >
@@ -338,6 +389,21 @@ export default function PermissionClient() {
                     {u.role}
                   </option>
                 ))}
+              </select>
+            </label>
+
+            <label className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="font-semibold">역할</span>
+              <select
+                className="select"
+                value={selectedUserRole}
+                onChange={(e) =>
+                  setSelectedUserRole(e.target.value as 'USER' | 'ADMIN')
+                }
+                disabled={!selectedUserId}
+              >
+                <option value="USER">USER</option>
+                <option value="ADMIN">ADMIN</option>
               </select>
             </label>
 

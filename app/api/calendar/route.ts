@@ -3,12 +3,40 @@ import { prisma } from '@/app/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import { toISOStringSafe } from '@/app/lib/date'
+import type { BoardType, PostStatus } from '@prisma/client'
 import {
   getReadableScheduleOwnerIds,
   toUserLabel,
 } from '@/app/lib/scheduleShare'
 
 export const runtime = 'nodejs'
+
+type CalendarBoardRow = {
+  id: string
+  name: string
+  type: BoardType
+  ownerId: string
+  owner: { id: string; name: string | null; email: string | null }
+  singleSchedule: boolean
+  scheduleStatus: PostStatus
+  scheduleStartAt: Date | null
+  scheduleEndAt: Date | null
+  scheduleAllDay: boolean
+}
+
+type CalendarPostRow = {
+  id: string
+  slug: string | null
+  boardId: string
+  authorId: string
+  title: string
+  status: PostStatus
+  isSecret: boolean
+  startAt: Date | null
+  endAt: Date | null
+  allDay: boolean
+  createdAt: Date
+}
 
 function ymToRange(month: string) {
   const [y, m] = month.split('-').map(Number)
@@ -43,7 +71,7 @@ export async function GET(req: Request) {
   )
 
   // 내 보드 + 공유 허용된 사용자 보드
-  const boards = await prisma.board.findMany({
+  const boards: CalendarBoardRow[] = await prisma.board.findMany({
     where: { ownerId: { in: readableOwnerIds } },
     select: {
       id: true,
@@ -58,10 +86,10 @@ export async function GET(req: Request) {
       scheduleAllDay: true,
     },
   })
-  const boardIds = boards.map((b) => b.id)
+  const boardIds = boards.map((b: CalendarBoardRow) => b.id)
 
   // 1) 게시글(Post) 기반 일정
-  const posts = await prisma.post.findMany({
+  const posts: CalendarPostRow[] = await prisma.post.findMany({
     where: {
       boardId: { in: boardIds },
       startAt: { not: null, lt: end },
@@ -84,7 +112,7 @@ export async function GET(req: Request) {
   })
 
   const boardInfoMap = new Map(
-    boards.map((b) => [
+    boards.map((b: CalendarBoardRow) => [
       b.id,
       {
         name: b.name,
@@ -96,8 +124,8 @@ export async function GET(req: Request) {
   )
 
   const data = posts
-    .filter((p) => p.startAt)
-    .map((p) => {
+    .filter((p: CalendarPostRow) => p.startAt)
+    .map((p: CalendarPostRow) => {
       const info = boardInfoMap.get(p.boardId)
       const ownerId = info?.ownerId ?? user.id
       const ownerLabel = info?.ownerLabel ?? '알 수 없는 사용자'
@@ -128,15 +156,15 @@ export async function GET(req: Request) {
 
   // 2) 보드(Board) 자체 일정 (singleSchedule=true)
   const boardSchedules = boards
-    .filter((b) => b.singleSchedule && b.scheduleStartAt)
-    .filter((b) => {
+    .filter((b: CalendarBoardRow) => b.singleSchedule && b.scheduleStartAt)
+    .filter((b: CalendarBoardRow) => {
       const s = b.scheduleStartAt!
       const e = b.scheduleEndAt
       if (s >= end) return false
       if (!e) return s >= start
       return e >= start
     })
-    .map((b) => {
+    .map((b: CalendarBoardRow) => {
       const ownerLabel = toUserLabel(b.owner.name, b.owner.email)
       const shared = b.ownerId !== user.id
       const canEdit = b.ownerId === user.id

@@ -12,6 +12,20 @@ type JsonError = { message: string }
 const jsonError = (status: number, message: string) =>
   NextResponse.json({ message } satisfies JsonError, { status })
 
+type TodoBoardRow = {
+  id: string
+  name: string
+  description: string | null
+  ownerId: string
+  owner: { id: string; name: string | null; email: string | null }
+  scheduleStatus: 'TODO' | 'DOING' | 'DONE'
+  singleSchedule: boolean
+  scheduleStartAt: Date | null
+  scheduleEndAt: Date | null
+  scheduleAllDay: boolean
+  createdAt: Date
+}
+
 export async function GET() {
   const session = await getServerSession(authOptions)
   if (!session?.user?.email) return jsonError(401, 'unauthorized')
@@ -24,7 +38,7 @@ export async function GET() {
 
   const readableOwnerIds = await getReadableScheduleOwnerIds(me.id, 'TODO')
 
-  const boards = await prisma.board.findMany({
+  const boards: TodoBoardRow[] = await prisma.board.findMany({
     where: { ownerId: { in: readableOwnerIds } },
     orderBy: { createdAt: 'desc' },
     select: {
@@ -45,7 +59,7 @@ export async function GET() {
   })
 
   return NextResponse.json(
-    boards.map((b) => ({
+    boards.map((b: TodoBoardRow) => ({
       id: b.id,
       name: b.name,
       description: b.description,

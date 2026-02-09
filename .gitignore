@@ -46,3 +46,6 @@ next-env.d.ts
 *.zip
 
 /public/uploads/
+
+# neon ai
+.agents/

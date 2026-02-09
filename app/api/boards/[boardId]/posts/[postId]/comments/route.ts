@@ -6,6 +6,13 @@ import { toISOStringSafe } from '@/app/lib/date'
 
 export const runtime = 'nodejs'
 
+type CommentRow = {
+  id: string
+  content: string
+  createdAt: Date
+  author: { name: string | null; email: string | null }
+}
+
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ boardId: string; postId: string }> }
@@ -30,12 +37,7 @@ export async function GET(
   if (!board)
     return NextResponse.json({ message: 'not found' }, { status: 404 })
 
-  const commentsRaw: Array<{
-    id: string
-    content: string
-    createdAt: Date
-    author: { name: string | null; email: string | null }
-  }> = await prisma.comment.findMany({
+  const commentsRaw: CommentRow[] = await prisma.comment.findMany({
     where: { postId: postId },
     orderBy: { createdAt: 'asc' },
     select: {
@@ -46,7 +48,7 @@ export async function GET(
     },
   })
 
-  const comments = commentsRaw.map((c) => ({
+  const comments = commentsRaw.map((c: CommentRow) => ({
     ...c,
     createdAt: toISOStringSafe(c.createdAt),
   }))

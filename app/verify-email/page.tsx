@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 
-export default function VerifyEmailPage() {
+function VerifyEmailContent() {
   const sp = useSearchParams();
   const router = useRouter();
   const [msg, setMsg] = useState("인증 처리중...");
@@ -25,9 +25,17 @@ export default function VerifyEmailPage() {
   }, [sp, router]);
 
   return (
+    <p>{msg}</p>
+  );
+}
+
+export default function VerifyEmailPage() {
+  return (
     <main style={{ padding: 24 }}>
       <h1>Verify Email</h1>
-      <p>{msg}</p>
+      <Suspense fallback={<p>인증 처리중...</p>}>
+        <VerifyEmailContent />
+      </Suspense>
     </main>
   );
 }

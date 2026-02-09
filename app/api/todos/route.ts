@@ -6,6 +6,16 @@ import { toISOStringSafe } from "@/app/lib/date";
 
 export const runtime = "nodejs";
 
+type TodoItemRow = {
+  id: string;
+  title: string;
+  status: "TODO" | "DOING" | "DONE";
+  createdAt: Date;
+  startAt: Date | null;
+  endAt: Date | null;
+  allDay: boolean;
+};
+
 async function getUser() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) return null;
@@ -35,13 +45,13 @@ export async function GET() {
 
   const board = await getOrCreateTodoBoard(user.id);
 
-  const itemsRaw = await prisma.post.findMany({
+  const itemsRaw: TodoItemRow[] = await prisma.post.findMany({
     where: { boardId: board.id },
     orderBy: { createdAt: "desc" },
     select: { id: true, title: true, status: true, createdAt: true, startAt: true, endAt: true, allDay: true },
   });
 
-  const items = itemsRaw.map((t) => ({
+  const items = itemsRaw.map((t: TodoItemRow) => ({
     ...t,
     createdAt: toISOStringSafe(t.createdAt),
     startAt: t.startAt ? toISOStringSafe(t.startAt) : null,

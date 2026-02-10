@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import ImageUploadButton from '@/app/components/ImageUploadButton'
 import MarkdownEditor from '@/app/components/MarkdownEditor'
@@ -73,7 +73,10 @@ export default function BoardDetailClient({
   backHref?: string
   backLabel?: string
 }) {
+  const POST_PAGE_SIZE = 10
   const [posts, setPosts] = useState<Post[]>(initialPosts)
+  const [postSortOrder, setPostSortOrder] = useState<'desc' | 'asc'>('desc')
+  const [postPage, setPostPage] = useState(1)
 
   const [boardName, setBoardName] = useState(board.name)
   const [boardDesc, setBoardDesc] = useState(board.description ?? '')
@@ -254,6 +257,34 @@ export default function BoardDetailClient({
     const err = await res.json().catch(() => ({}))
     alert(err.message ?? '생성 실패')
   }
+
+  const sortedPosts = useMemo(() => {
+    const copied = [...posts]
+    copied.sort((a, b) => {
+      const at = new Date(a.createdAt).getTime()
+      const bt = new Date(b.createdAt).getTime()
+      return postSortOrder === 'desc' ? bt - at : at - bt
+    })
+    return copied
+  }, [posts, postSortOrder])
+
+  const postTotalPages = Math.max(
+    1,
+    Math.ceil(sortedPosts.length / POST_PAGE_SIZE)
+  )
+  const currentPostPage = Math.min(postPage, postTotalPages)
+  const pagedPosts = useMemo(() => {
+    const start = (currentPostPage - 1) * POST_PAGE_SIZE
+    return sortedPosts.slice(start, start + POST_PAGE_SIZE)
+  }, [sortedPosts, currentPostPage])
+
+  useEffect(() => {
+    setPostPage(1)
+  }, [postSortOrder])
+
+  useEffect(() => {
+    setPostPage((prev) => Math.min(prev, postTotalPages))
+  }, [postTotalPages])
 
   return (
     <main className="container-page py-8">
@@ -516,8 +547,25 @@ export default function BoardDetailClient({
 
         <section className="mt-6">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-bold">목록</h3>
-            <span className="badge">{posts.length}</span>
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-bold">목록</h3>
+              <span className="badge">{posts.length}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm" style={{ color: 'var(--muted)' }}>
+                정렬
+              </span>
+              <select
+                className="select w-auto"
+                value={postSortOrder}
+                onChange={(e) =>
+                  setPostSortOrder(e.target.value as 'desc' | 'asc')
+                }
+              >
+                <option value="desc">최신순</option>
+                <option value="asc">오래된순</option>
+              </select>
+            </div>
           </div>
 
           {singleSchedule ? (
@@ -527,7 +575,7 @@ export default function BoardDetailClient({
           ) : null}
 
           <div className="mt-4 grid gap-3">
-            {posts.map((p) => (
+            {pagedPosts.map((p) => (
               <Link
                 key={p.id}
                 href={`/boards/${board.id}/${encodeURIComponent(p.slug ?? p.id)}`}
@@ -548,6 +596,32 @@ export default function BoardDetailClient({
               </Link>
             ))}
           </div>
+
+          {postTotalPages > 1 ? (
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={() => setPostPage((p) => Math.max(1, p - 1))}
+                disabled={currentPostPage <= 1}
+              >
+                이전
+              </button>
+              <span className="badge">
+                {currentPostPage} / {postTotalPages}
+              </span>
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={() =>
+                  setPostPage((p) => Math.min(postTotalPages, p + 1))
+                }
+                disabled={currentPostPage >= postTotalPages}
+              >
+                다음
+              </button>
+            </div>
+          ) : null}
         </section>
       </div>
     </main>

@@ -1,12 +1,13 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 
 type Board = {
   id: string
   name: string
   description: string | null
+  createdAt: string | Date
   owner?: { name: string | null; email: string | null }
 }
 
@@ -26,7 +27,10 @@ export default function BoardsClient({
   initialBoards: Board[]
   canCreate: boolean
 }) {
+  const BOARD_PAGE_SIZE = 8
   const [boards, setBoards] = useState(initialBoards)
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc')
+  const [page, setPage] = useState(1)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
 
@@ -41,6 +45,31 @@ export default function BoardsClient({
     [scheduleStartAt]
   )
   const endIso = useMemo(() => toIsoOrNull(scheduleEndAt), [scheduleEndAt])
+
+  const sortedBoards = useMemo(() => {
+    const copied = [...boards]
+    copied.sort((a, b) => {
+      const at = new Date(a.createdAt).getTime()
+      const bt = new Date(b.createdAt).getTime()
+      return sortOrder === 'desc' ? bt - at : at - bt
+    })
+    return copied
+  }, [boards, sortOrder])
+
+  const totalPages = Math.max(1, Math.ceil(sortedBoards.length / BOARD_PAGE_SIZE))
+  const currentPage = Math.min(page, totalPages)
+  const pagedBoards = useMemo(() => {
+    const start = (currentPage - 1) * BOARD_PAGE_SIZE
+    return sortedBoards.slice(start, start + BOARD_PAGE_SIZE)
+  }, [sortedBoards, currentPage])
+
+  useEffect(() => {
+    setPage(1)
+  }, [sortOrder])
+
+  useEffect(() => {
+    setPage((prev) => Math.min(prev, totalPages))
+  }, [totalPages])
 
   const reload = async () => {
     const res = await fetch('/api/boards')
@@ -86,6 +115,7 @@ export default function BoardsClient({
       setScheduleEndAt('')
       setScheduleAllDay(false)
       await reload()
+      setPage(1)
       return
     }
 
@@ -104,9 +134,22 @@ export default function BoardsClient({
             </p>
           </div>
 
-          {!canCreate ? (
-            <span className="badge">로그인하면 보드 생성 가능</span>
-          ) : null}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm" style={{ color: 'var(--muted)' }}>
+              정렬
+            </span>
+            <select
+              className="select w-auto"
+              value={sortOrder}
+              onChange={(e) => setSortOrder(e.target.value as 'desc' | 'asc')}
+            >
+              <option value="desc">최신순</option>
+              <option value="asc">오래된순</option>
+            </select>
+            {!canCreate ? (
+              <span className="badge">로그인하면 보드 생성 가능</span>
+            ) : null}
+          </div>
         </div>
 
         {canCreate ? (
@@ -204,7 +247,7 @@ export default function BoardsClient({
         ) : null}
 
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
-          {boards.map((b) => (
+          {pagedBoards.map((b) => (
             <Link
               key={b.id}
               href={`/boards/${b.id}`}
@@ -245,6 +288,30 @@ export default function BoardsClient({
             </Link>
           ))}
         </div>
+
+        {totalPages > 1 ? (
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage <= 1}
+            >
+              이전
+            </button>
+            <span className="badge">
+              {currentPage} / {totalPages}
+            </span>
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage >= totalPages}
+            >
+              다음
+            </button>
+          </div>
+        ) : null}
       </div>
     </main>
   )

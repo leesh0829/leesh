@@ -3,6 +3,7 @@ import { prisma } from "@/app/lib/prisma";
 import crypto from "crypto";
 import { sendMail } from "@/app/lib/mailer";
 import { resolveAppUrl } from "@/app/lib/appUrl";
+import { hashVerificationToken } from "@/app/lib/verificationToken";
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
@@ -19,11 +20,12 @@ export async function POST(req: Request) {
   if (user.emailVerified) return NextResponse.json({ ok: true, message: "already verified" });
 
   const token = crypto.randomBytes(32).toString("hex");
+  const tokenHash = hashVerificationToken(token);
   const expires = new Date(Date.now() + 1000 * 60 * 60 * 24);
 
   await prisma.verificationToken.deleteMany({ where: { identifier: email } });
   await prisma.verificationToken.create({
-    data: { identifier: email, token, expires },
+    data: { identifier: email, token: tokenHash, expires },
   });
 
   const appUrl = resolveAppUrl(req);

@@ -4,6 +4,7 @@ import { prisma } from '@/app/lib/prisma'
 import crypto from 'crypto'
 import { sendMail } from '@/app/lib/mailer'
 import { resolveAppUrl } from '@/app/lib/appUrl'
+import { hashVerificationToken } from '@/app/lib/verificationToken'
 
 export async function POST(req: Request) {
   try {
@@ -62,6 +63,7 @@ export async function POST(req: Request) {
 
     // 인증 토큰 생성/저장 (24시간)
     const token = crypto.randomBytes(32).toString('hex')
+    const tokenHash = hashVerificationToken(token)
     const expires = new Date(Date.now() + 1000 * 60 * 60 * 24)
 
     // 기존 토큰 제거(재가입/재발송 대비)
@@ -71,7 +73,7 @@ export async function POST(req: Request) {
     await prisma.verificationToken.create({
       data: {
         identifier: cleanEmail,
-        token,
+        token: tokenHash,
         expires,
       },
     })

@@ -25,9 +25,10 @@ export async function PATCH(
 
   const exist = await prisma.board.findUnique({
     where: { id: boardId },
-    select: { ownerId: true },
+    select: { ownerId: true, type: true },
   })
   if (!exist) return jsonError(404, 'not found')
+  if (exist.type !== 'TODO') return jsonError(404, 'not found')
   if (exist.ownerId !== me.id) return jsonError(403, 'forbidden')
 
   const body = (await req.json().catch(() => null)) as {

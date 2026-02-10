@@ -1,10 +1,28 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-export async function middleware(req: NextRequest) {
-  // 접근 제어는 각 페이지/API에서 서버 권한 검사로 처리.
-  // middleware에서 토큰 파싱 실패로 오탐 리다이렉트가 발생하던 문제를 제거.
-  return NextResponse.next();
+export async function middleware(_req: NextRequest) {
+  void _req;
+  const res = NextResponse.next();
+
+  res.headers.set("X-Content-Type-Options", "nosniff");
+  res.headers.set("X-Frame-Options", "DENY");
+  res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.headers.set(
+    "Permissions-Policy",
+    "camera=(), microphone=(), geolocation=()",
+  );
+  res.headers.set("Cross-Origin-Opener-Policy", "same-origin");
+  res.headers.set("Cross-Origin-Resource-Policy", "same-origin");
+
+  if (process.env.NODE_ENV === "production") {
+    res.headers.set(
+      "Strict-Transport-Security",
+      "max-age=63072000; includeSubDomains; preload",
+    );
+  }
+
+  return res;
 }
 
 export const config = {

@@ -39,7 +39,7 @@ export async function GET() {
   const readableOwnerIds = await getReadableScheduleOwnerIds(me.id, 'TODO')
 
   const boards: TodoBoardRow[] = await prisma.board.findMany({
-    where: { ownerId: { in: readableOwnerIds } },
+    where: { ownerId: { in: readableOwnerIds }, type: 'TODO' },
     orderBy: { createdAt: 'desc' },
     select: {
       id: true,

@@ -17,8 +17,12 @@ function unbase64url(input: string) {
 }
 
 function getSecret() {
-  // NEXTAUTH_SECRET 있으면 그걸 쓰고, 없으면 아무거나 하나 env로 넣어야함
-  return process.env.NEXTAUTH_SECRET || process.env.APP_SECRET || "dev-secret-change-me";
+  const secret = process.env.NEXTAUTH_SECRET || process.env.APP_SECRET;
+  if (secret) return secret;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("NEXTAUTH_SECRET or APP_SECRET is required in production");
+  }
+  return "dev-secret-change-me";
 }
 
 export type UnlockPayload = { ids: string[] };

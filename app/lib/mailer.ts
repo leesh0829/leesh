@@ -13,6 +13,9 @@ export async function sendMail({ to, subject, text }: SendMailArgs) {
   const from = process.env.SMTP_FROM ?? process.env.SMTP_USER;
 
   if (!host || !user || !pass || !from) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("SMTP env is missing in production");
+    }
     console.log("[EMAIL:FALLBACK]");
     console.log("to:", to);
     console.log("subject:", subject);

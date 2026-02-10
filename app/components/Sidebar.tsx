@@ -63,10 +63,7 @@ function NavItem({
       href={href}
       onClick={onNavigate}
       className={
-        'block rounded-md px-3 py-2 text-sm transition ' +
-        (active
-          ? 'btn btn-primary'
-          : 'hover:bg-zinc-100 dark:hover:bg-zinc-900')
+        'nav-link ' + (active ? 'nav-link-active' : '')
       }
     >
       {label}

@@ -124,6 +124,9 @@ function dayKey(d: Date) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
+const TODAY_BORDER_COLOR = 'var(--accent)'
+const TODAY_BG_COLOR = 'var(--ring)'
+
 /**
  * endAt 보정:
  * - endAt이 null이면 startAt 하루짜리로
@@ -977,10 +980,10 @@ export default function CalendarClient() {
                           key={key}
                           style={{
                             border: isToday
-                              ? '2px solid #111'
+                              ? `2px solid ${TODAY_BORDER_COLOR}`
                               : '1px solid #ddd',
                             background: isToday
-                              ? 'rgba(255, 235, 59, 0.18)'
+                              ? TODAY_BG_COLOR
                               : 'transparent',
                             borderRadius: 8,
                             position: 'relative',

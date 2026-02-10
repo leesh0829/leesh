@@ -730,19 +730,33 @@ export default function CalendarClient() {
     <main className="w-full px-3 py-6 sm:px-4 lg:px-6">
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div>
-          <h1>Calendar</h1>
+          <div>
+            <div className="text-xs opacity-60">Calendar</div>
+            <h1 className="text-2xl font-semibold">달력 일정 관리</h1>
+            <p className="mt-1 text-sm opacity-70">
+              달력으로 일정을 관리 및 확인합니다.
+            </p>
+          </div>
 
           <section className="mt-3 card card-pad card-hover-border-only">
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2">
                 <span className="badge">월 이동</span>
-                <button type="button" className="btn btn-outline" onClick={goPrev}>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={goPrev}
+                >
                   ◀
                 </button>
                 <div className="min-w-[96px] text-center text-sm font-semibold">
                   {ym}
                 </div>
-                <button type="button" className="btn btn-outline" onClick={goNext}>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={goNext}
+                >
                   ▶
                 </button>
               </div>
@@ -774,7 +788,9 @@ export default function CalendarClient() {
                     className="select w-32"
                     value={statusFilter}
                     onChange={(e) =>
-                      setStatusFilter(e.target.value as 'ALL' | CalItem['status'])
+                      setStatusFilter(
+                        e.target.value as 'ALL' | CalItem['status']
+                      )
                     }
                   >
                     <option value="ALL">전체 상태</option>
@@ -861,7 +877,9 @@ export default function CalendarClient() {
                           const top = lane * laneStep
                           const ownerColor =
                             ownerColorMap[b.it.ownerId] ??
-                            (b.it.shared ? getOwnerColor(b.it.ownerId) : '#ffffff')
+                            (b.it.shared
+                              ? getOwnerColor(b.it.ownerId)
+                              : '#ffffff')
 
                           return (
                             <div

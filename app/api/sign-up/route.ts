@@ -5,9 +5,30 @@ import crypto from 'crypto'
 import { sendMail } from '@/app/lib/mailer'
 import { resolveAppUrl } from '@/app/lib/appUrl'
 import { hashVerificationToken } from '@/app/lib/verificationToken'
+import { getClientIp, takeRateLimit } from '@/app/lib/rateLimit'
+
+const SIGN_UP_LIMIT = 8
+const SIGN_UP_WINDOW_MS = 10 * 60 * 1000
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export async function POST(req: Request) {
   try {
+    const ip = getClientIp(req)
+    const rate = takeRateLimit(
+      `sign-up:${ip}`,
+      SIGN_UP_LIMIT,
+      SIGN_UP_WINDOW_MS
+    )
+    if (!rate.ok) {
+      return NextResponse.json(
+        { message: '요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.' },
+        {
+          status: 429,
+          headers: { 'Retry-After': String(rate.retryAfterSec) },
+        }
+      )
+    }
+
     const { email, password, name } = await req.json()
 
     const cleanEmail = String(email || '').trim()
@@ -17,6 +38,13 @@ export async function POST(req: Request) {
     if (!cleanEmail || !cleanPassword) {
       return NextResponse.json(
         { message: 'email/password required' },
+        { status: 400 }
+      )
+    }
+
+    if (!EMAIL_REGEX.test(cleanEmail)) {
+      return NextResponse.json(
+        { message: 'invalid email format' },
         { status: 400 }
       )
     }

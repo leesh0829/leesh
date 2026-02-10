@@ -7,6 +7,9 @@ export async function middleware(_req: NextRequest) {
 
   res.headers.set("X-Content-Type-Options", "nosniff");
   res.headers.set("X-Frame-Options", "DENY");
+  res.headers.set("X-DNS-Prefetch-Control", "off");
+  res.headers.set("X-Permitted-Cross-Domain-Policies", "none");
+  res.headers.set("Origin-Agent-Cluster", "?1");
   res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   res.headers.set(
     "Permissions-Policy",

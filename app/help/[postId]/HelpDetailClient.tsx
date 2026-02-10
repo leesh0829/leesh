@@ -141,7 +141,7 @@ export default function HelpDetailClient({ postId }: { postId: string }) {
 
   return (
     <main className="space-y-4">
-      <section className="surface card-pad">
+      <section className="surface card-pad card-hover-border-only">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <Link href="/help" className="btn btn-outline">
@@ -175,7 +175,7 @@ export default function HelpDetailClient({ postId }: { postId: string }) {
         {err ? <p className="mt-3 text-sm text-red-600">{err}</p> : null}
       </section>
 
-      <article className="card card-pad">
+      <article className="card card-pad card-hover-border-only">
         <ReactMarkdown
           remarkPlugins={[remarkGfm, remarkBreaks]}
           rehypePlugins={[rehypeHighlight]}
@@ -192,13 +192,13 @@ export default function HelpDetailClient({ postId }: { postId: string }) {
         </div>
 
         {answers.length === 0 ? (
-          <div className="surface card-pad text-sm opacity-70">
+          <div className="surface card-pad text-sm opacity-70 card-hover-border-only">
             아직 답변이 없습니다.
           </div>
         ) : (
           <div className="grid gap-2">
             {answers.map((a) => (
-              <div key={a.id} className="surface card-pad">
+              <div key={a.id} className="surface card-pad card-hover-border-only">
                 <div className="flex flex-wrap items-center gap-2 text-xs opacity-70">
                   <span className="badge">
                     {displayUserLabel(
@@ -218,7 +218,7 @@ export default function HelpDetailClient({ postId }: { postId: string }) {
         )}
 
         {post.canAnswer ? (
-          <div className="surface card-pad space-y-2">
+          <div className="surface card-pad space-y-2 card-hover-border-only">
             <div className="flex items-center justify-between">
               <div className="text-sm font-semibold">운영진 답변 작성</div>
               <span className="badge">Enter=줄바꿈</span>

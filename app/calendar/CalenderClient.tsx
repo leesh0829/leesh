@@ -695,7 +695,7 @@ export default function CalendarClient() {
 
       {err && <p style={{ color: 'crimson', marginTop: 10 }}>{err}</p>}
 
-      <section className="mt-6 card card-pad">
+      <section className="mt-6 card card-pad card-hover-border-only">
         <div className="font-extrabold">캘린더 공유 권한 관리</div>
 
         <div className="mt-4 flex flex-wrap gap-2">
@@ -1070,8 +1070,9 @@ export default function CalendarClient() {
                                 position: 'absolute',
                                 top: 6,
                                 right: 8,
-                                border: '1px solid #ddd',
-                                background: 'white',
+                                border: '1px solid var(--border)',
+                                background: 'var(--card)',
+                                color: 'var(--foreground)',
                                 borderRadius: 10,
                                 padding: '2px 8px',
                                 fontSize: 12,

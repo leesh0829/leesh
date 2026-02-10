@@ -282,6 +282,16 @@
   .nav-link:hover {
     transform: translateY(-1px);
   }
+
+  .card-hover-border-only::after {
+    opacity: 0 !important;
+    transform: none !important;
+  }
+
+  .card-hover-border-only:hover::after {
+    opacity: 0 !important;
+    transform: none !important;
+  }
 }
 
 @media (max-width: 640px) {

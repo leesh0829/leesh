@@ -31,7 +31,7 @@ export default async function PermissionPage() {
         </p>
       </div>
 
-      <div className="surface card-pad">
+      <div className="surface card-pad card-hover-border-only">
         <PermissionClient />
       </div>
     </main>

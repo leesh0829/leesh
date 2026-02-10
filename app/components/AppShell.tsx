@@ -15,6 +15,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     () => NO_SHELL_PREFIXES.some((p) => pathname.startsWith(p)),
     [pathname]
   )
+  const isBlogDetail = useMemo(() => {
+    if (!pathname.startsWith('/blog/')) return false
+    if (pathname.startsWith('/blog/new') || pathname.startsWith('/blog/edit'))
+      return false
+    const segments = pathname.split('/').filter(Boolean)
+    return segments.length === 2 && segments[0] === 'blog'
+  }, [pathname])
 
   // mobile sidebar
   const [open, setOpen] = useState(false)
@@ -89,7 +96,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               </div>
             ) : null}
 
-            <div className="container-page py-6 flex-1">{children}</div>
+            <div
+              className={
+                (isBlogDetail
+                  ? 'w-full px-3 sm:px-4 lg:px-6'
+                  : 'container-page') + ' py-6 flex-1'
+              }
+            >
+              {children}
+            </div>
             <Footer />
           </div>
         </div>

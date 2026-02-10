@@ -4,8 +4,17 @@ import bcrypt from "bcrypt";
 import { prisma } from "@/app/lib/prisma";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 
+const isProd = process.env.NODE_ENV === "production";
+if (isProd && !process.env.NEXTAUTH_SECRET) {
+  throw new Error("NEXTAUTH_SECRET is required in production");
+}
+if (isProd && !process.env.NEXTAUTH_URL && !process.env.APP_URL) {
+  throw new Error("NEXTAUTH_URL or APP_URL is required in production");
+}
+
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
+  secret: process.env.NEXTAUTH_SECRET,
   session: { strategy: "jwt" },
   providers: [
     Credentials({

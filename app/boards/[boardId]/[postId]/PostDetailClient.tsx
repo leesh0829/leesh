@@ -410,7 +410,7 @@ export default function PostDetailClient({
 
   return (
     <main className="container-page py-8">
-      <div className="surface card-pad">
+      <div className="surface card-pad card-hover-border-only">
         <Link href={`/boards/${boardId}`} className="btn btn-outline">
           ← {boardName}
         </Link>
@@ -452,7 +452,7 @@ export default function PostDetailClient({
         </header>
 
         {postState.canEdit ? (
-          <section className="card card-pad mt-6">
+          <section className="card card-pad mt-6 card-hover-border-only">
             <div className="flex items-center justify-between">
               <div className="text-sm font-extrabold">일정</div>
               <span className="badge">post 일정</span>
@@ -597,7 +597,7 @@ export default function PostDetailClient({
                 </div>
               </div>
             ) : (
-              <article className="card card-pad">
+              <article className="card card-pad card-hover-border-only">
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm, remarkBreaks]}
                   rehypePlugins={[rehypeHighlight]}
@@ -623,7 +623,7 @@ export default function PostDetailClient({
           </section>
         )}
 
-        <section className="card card-pad mt-6">
+        <section className="card card-pad mt-6 card-hover-border-only">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-bold">댓글</h3>
             <span className="badge">{comments.length}</span>

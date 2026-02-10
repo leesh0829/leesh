@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import Sidebar from './Sidebar'
 import Footer from './Footer'
 import Link from 'next/link'
+import ThemeToggle from './ThemeToggle'
 
 const NO_SHELL_PREFIXES = ['/login', '/sign-up']
 
@@ -51,9 +52,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               className="btn btn-outline"
               aria-label="Open menu"
             >
-              메뉴
+              ☰
             </button>
-            <div className="text-sm font-semibold">Leesh</div>
+            <Link href="/" className="text-sm font-semibold">
+              Leesh
+            </Link>
+            <div className="ml-auto">
+              <ThemeToggle />
+            </div>
           </div>
         </div>
 
@@ -77,7 +83,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   onClick={() => setDesktopOpen(true)}
                   className="btn btn-outline"
                 >
-                  사이드바 열기
+                  ☰
                 </button>
                 <div className="text-xs opacity-60"></div>
               </div>

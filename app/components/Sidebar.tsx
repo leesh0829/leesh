@@ -62,12 +62,7 @@ function NavItem({
     <Link
       href={href}
       onClick={onNavigate}
-      className={
-        'block rounded-md px-3 py-2 text-sm transition ' +
-        (active
-          ? 'btn btn-primary'
-          : 'hover:bg-zinc-100 dark:hover:bg-zinc-900')
-      }
+      className={'nav-link ' + (active ? 'nav-link-active' : '')}
     >
       {label}
     </Link>
@@ -84,6 +79,7 @@ export default function Sidebar({
   const { data: session, status } = useSession()
 
   const [perms, setPerms] = useState<Perm[] | null>(null)
+  const [showUpdates, setShowUpdates] = useState(false)
 
   useEffect(() => {
     ;(async () => {
@@ -178,6 +174,35 @@ export default function Sidebar({
 
   return (
     <>
+      {showUpdates ? (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/45"
+            aria-label="업데이트 내역 닫기"
+            onClick={() => setShowUpdates(false)}
+          />
+          <div className="surface card-pad relative z-[71] w-full max-w-md">
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-base font-semibold">업데이트 내역</div>
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={() => setShowUpdates(false)}
+              >
+                X
+              </button>
+            </div>
+            <ul>
+              <li className="mt-3 text-sm">반응형 UI 추가</li>
+              <li className="mt-3 text-sm">업데이트 내역 기능 추가</li>
+              <li className="mt-3 text-sm">캘린더 UI 변경</li>
+              <li className="mt-3 text-sm">일부 버튼 UI 기호로 변경</li>
+            </ul>
+          </div>
+        </div>
+      ) : null}
+
       {/* mobile overlay */}
       {open && (
         <button
@@ -200,83 +225,95 @@ export default function Sidebar({
             : ' lg:w-0 lg:p-0 lg:overflow-hidden lg:border-r-0')
         }
       >
-        <div className="mb-4 flex items-center justify-between">
-          <Link href="/" onClick={onClose} className="text-base font-bold">
-            Leesh
-          </Link>
+        <div className="flex h-full min-h-0 flex-col">
+          <div className="mb-4 flex items-center justify-between">
+            <Link href="/" onClick={onClose} className="text-base font-bold">
+              Leesh
+            </Link>
 
-          {/* desktop hide 버튼 */}
-          <button
-            type="button"
-            className="hidden btn btn-outline text-xs lg:inline-flex"
-            onClick={onToggleDesktop}
-            aria-label="Hide sidebar"
-            title="사이드바 숨기기"
-          >
-            숨김
-          </button>
+            {/* desktop hide 버튼 */}
+            <button
+              type="button"
+              className="hidden btn btn-outline text-xs lg:inline-flex"
+              onClick={onToggleDesktop}
+              aria-label="Hide sidebar"
+              title="사이드바 숨기기"
+            >
+              &lt;
+            </button>
 
-          {/* mobile close 버튼 */}
-          <button
-            type="button"
-            className="btn btn-outline lg:hidden"
-            onClick={onClose}
-          >
-            닫기
-          </button>
-        </div>
+            {/* mobile close 버튼 */}
+            <button
+              type="button"
+              className="btn btn-outline lg:hidden"
+              onClick={onClose}
+            >
+              &lt;
+            </button>
+          </div>
 
-        <nav className="grid gap-1">
-          {nav.map((n) => (
-            <NavItem
-              key={n.href}
-              href={n.href}
-              label={n.label}
-              active={
-                pathname === n.href ||
-                (n.href !== '/' && pathname.startsWith(n.href))
-              }
-              onNavigate={onClose}
-            />
-          ))}
-        </nav>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <nav className="grid gap-1">
+              {nav.map((n) => (
+                <NavItem
+                  key={n.href}
+                  href={n.href}
+                  label={n.label}
+                  active={
+                    pathname === n.href ||
+                    (n.href !== '/' && pathname.startsWith(n.href))
+                  }
+                  onNavigate={onClose}
+                />
+              ))}
+            </nav>
 
-        <div className="mt-6 card p-3 text-sm">
-          <div className="mb-2 font-semibold">계정</div>
-          <div className="truncate opacity-80">{userLabel}</div>
+            <div className="mt-6 card p-3 text-sm">
+              <div className="mb-2 font-semibold">계정</div>
+              <div className="truncate opacity-80">{userLabel}</div>
 
-          <div className="mt-3 flex gap-2">
-            {session?.user ? (
-              <button
-                type="button"
-                onClick={() => signOut({ callbackUrl: '/' })}
-                className="w-full btn btn-primary"
-              >
-                로그아웃
-              </button>
-            ) : (
-              <div className="flex w-full gap-2">
-                <Link
-                  href="/login"
-                  onClick={onClose}
-                  className="w-1/2 btn btn-primary text-center"
-                >
-                  로그인
-                </Link>
+              <div className="mt-3 flex gap-2">
+                {session?.user ? (
+                  <button
+                    type="button"
+                    onClick={() => signOut({ callbackUrl: '/' })}
+                    className="w-full btn btn-primary"
+                  >
+                    로그아웃
+                  </button>
+                ) : (
+                  <div className="flex w-full gap-2">
+                    <Link
+                      href="/login"
+                      onClick={onClose}
+                      className="w-1/2 btn btn-primary text-center"
+                    >
+                      로그인
+                    </Link>
 
-                <Link
-                  href="/sign-up"
-                  onClick={onClose}
-                  className="w-1/2 btn btn-outline text-center"
-                >
-                  회원가입
-                </Link>
+                    <Link
+                      href="/sign-up"
+                      onClick={onClose}
+                      className="w-1/2 btn btn-outline text-center"
+                    >
+                      회원가입
+                    </Link>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <button
+              type="button"
+              className="btn btn-outline w-full"
+              onClick={() => setShowUpdates(true)}
+            >
+              📄
+            </button>
           </div>
         </div>
-
-        <div className="mt-4 text-xs opacity-60"></div>
       </aside>
     </>
   )

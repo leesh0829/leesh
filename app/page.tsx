@@ -3,7 +3,7 @@ import Link from 'next/link'
 export default function HomePage() {
   return (
     <main className="mx-auto w-full max-w-4xl">
-      <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-black">
+      <section className="surface card-pad">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">
@@ -75,7 +75,7 @@ export default function HomePage() {
         />
       </section>
 
-      <section className="mt-6 rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-black">
+      <section className="surface card-pad mt-6">
         <h2 className="text-base font-semibold">다음에 할 것들</h2>
         <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-zinc-700 dark:text-zinc-300">
           <li>할일1</li>
@@ -100,7 +100,7 @@ function Card({
   actions: Array<{ label: string; href: string }>
 }) {
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-black">
+    <div className="surface p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-base font-semibold">{title}</h3>
@@ -110,7 +110,7 @@ function Card({
         </div>
         <Link
           href={href}
-          className="shrink-0 rounded-md border border-zinc-200 px-3 py-1.5 text-sm hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-900"
+          className="btn btn-outline shrink-0 px-3 py-1.5 text-sm"
         >
           열기
         </Link>

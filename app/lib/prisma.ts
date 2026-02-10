@@ -2,6 +2,8 @@ import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 
+const DB_TIMEZONE = "Asia/Seoul";
+
 const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;
   pgPool?: Pool;
@@ -15,6 +17,12 @@ const pool =
   new Pool({
     connectionString,
   });
+
+pool.on("connect", (client) => {
+  void client.query(`SET TIME ZONE '${DB_TIMEZONE}'`).catch((err) => {
+    console.error("Failed to set DB timezone:", err);
+  });
+});
 
 const adapter = new PrismaPg(pool);
 

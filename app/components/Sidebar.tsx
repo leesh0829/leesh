@@ -193,7 +193,12 @@ export default function Sidebar({
                 X
               </button>
             </div>
-            <div className="mt-3 text-sm">테스트 업데이트 내역입니다.</div>
+            <ul>
+              <li className="mt-3 text-sm">반응형 UI 추가</li>
+              <li className="mt-3 text-sm">업데이트 내역 기능 추가</li>
+              <li className="mt-3 text-sm">캘린더 UI 변경</li>
+              <li className="mt-3 text-sm">일부 버튼 UI 기호로 변경</li>
+            </ul>
           </div>
         </div>
       ) : null}

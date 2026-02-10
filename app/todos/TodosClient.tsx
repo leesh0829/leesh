@@ -49,6 +49,30 @@ type IncomingShare = {
   updatedAt: string
 }
 
+type ShareAccount = {
+  id: string
+  label: string
+  color: string
+  isSelf: boolean
+}
+
+function hashString(input: string) {
+  let hash = 2166136261
+  for (let i = 0; i < input.length; i += 1) {
+    hash ^= input.charCodeAt(i)
+    hash = Math.imul(hash, 16777619)
+  }
+  return hash >>> 0
+}
+
+function getPastelColor(seed: string) {
+  const hash = hashString(seed || 'account')
+  const hue = hash % 360
+  const saturation = 62 + ((hash >>> 7) % 8) // 62~69
+  const lightness = 82 + ((hash >>> 15) % 6) // 82~87
+  return `hsl(${hue} ${saturation}% ${lightness}%)`
+}
+
 function toDatetimeLocalValue(iso: string | null): string {
   if (!iso) return ''
   const d = new Date(iso)
@@ -101,6 +125,7 @@ async function readJsonSafely(res: Response): Promise<unknown> {
 
 type BoardItemProps = {
   board: BoardCard
+  ownerColor: string | null
   onMove: (id: string, next: ScheduleStatus) => Promise<void>
   onDelete: (id: string) => Promise<void>
   onToggleSingle: (id: string, next: boolean) => Promise<void>
@@ -118,6 +143,7 @@ type BoardItemProps = {
 
 function BoardItem({
   board,
+  ownerColor,
   onMove,
   onDelete,
   onToggleSingle,
@@ -145,6 +171,14 @@ function BoardItem({
         (isDragging ? ' opacity-60 scale-[0.99]' : '')
       }
       draggable={dndEnabled && board.canEdit}
+      style={
+        board.shared && ownerColor
+          ? {
+              background: `color-mix(in srgb, ${ownerColor} 38%, var(--card))`,
+              borderColor: `color-mix(in srgb, ${ownerColor} 55%, var(--border))`,
+            }
+          : undefined
+      }
       onDragStart={(event) => onDragStart(board, event)}
       onDragEnd={onDragEnd}
       title={dndEnabled && board.canEdit ? '드래그해서 상태 이동' : undefined}
@@ -325,6 +359,7 @@ function BoardColumn({
   onDropStatus,
   onDragEndAll,
   onDragStart,
+  ownerColors,
 }: {
   status: ScheduleStatus
   title: string
@@ -345,6 +380,7 @@ function BoardColumn({
   onDropStatus: (status: ScheduleStatus) => Promise<void>
   onDragEndAll: () => void
   onDragStart: (board: BoardCard, event: DragEvent<HTMLDivElement>) => void
+  ownerColors: Record<string, string>
 }) {
   return (
     <div
@@ -376,6 +412,7 @@ function BoardColumn({
           <BoardItem
             key={`${b.id}:${b.singleSchedule ? 1 : 0}:${b.scheduleStartAt ?? ''}:${b.scheduleEndAt ?? ''}:${b.scheduleAllDay ? 1 : 0}`}
             board={b}
+            ownerColor={b.shared ? ownerColors[b.ownerId] ?? getPastelColor(b.ownerId) : null}
             onMove={onMove}
             onDelete={onDelete}
             onToggleSingle={onToggleSingle}
@@ -405,8 +442,12 @@ export default function TodosClient() {
   const [shareEmail, setShareEmail] = useState('')
   const [outgoingShares, setOutgoingShares] = useState<OutgoingShare[]>([])
   const [incomingShares, setIncomingShares] = useState<IncomingShare[]>([])
+  const [meShare, setMeShare] = useState<SharePeer | null>(null)
   const [shareLoading, setShareLoading] = useState(false)
   const [shareBusyId, setShareBusyId] = useState<string | null>(null)
+  const [visibleOwners, setVisibleOwners] = useState<Record<string, boolean>>(
+    {}
+  )
   const [dndEnabled, setDndEnabled] = useState(false)
   const [draggingBoardId, setDraggingBoardId] = useState<string | null>(null)
   const [dragOverStatus, setDragOverStatus] = useState<ScheduleStatus | null>(
@@ -438,9 +479,11 @@ export default function TodosClient() {
     }
 
     const payload = (await res.json()) as {
+      me?: SharePeer
       outgoing?: OutgoingShare[]
       incoming?: IncomingShare[]
     }
+    setMeShare(payload.me ?? null)
     setOutgoingShares(
       (payload.outgoing ?? []).filter((row) => row.scope === 'TODO')
     )
@@ -705,274 +748,371 @@ export default function TodosClient() {
   }
 
   const normalizedBoards = useMemo(() => boards ?? [], [boards])
-  const todos = normalizedBoards.filter((b) => b.scheduleStatus === 'TODO')
-  const doing = normalizedBoards.filter((b) => b.scheduleStatus === 'DOING')
-  const done = normalizedBoards.filter((b) => b.scheduleStatus === 'DONE')
+  const selfOwnerIdFromBoards =
+    normalizedBoards.find((b) => !b.shared)?.ownerId ?? null
+  const selfLabelFromBoards =
+    normalizedBoards.find((b) => !b.shared)?.ownerLabel ?? '내 계정'
+  const selfAccountId = meShare?.id ?? selfOwnerIdFromBoards ?? 'self'
+  const selfAccountLabel = meShare?.label ?? selfLabelFromBoards
+
+  const shareAccounts = useMemo<ShareAccount[]>(() => {
+    const acceptedOwners = outgoingShares
+      .filter((row) => row.status === 'ACCEPTED')
+      .map((row) => row.owner)
+
+    const map = new Map<string, ShareAccount>()
+    map.set(selfAccountId, {
+      id: selfAccountId,
+      label: selfAccountLabel,
+      color: getPastelColor(selfAccountId),
+      isSelf: true,
+    })
+
+    for (const owner of acceptedOwners) {
+      if (owner.id === selfAccountId) continue
+      if (map.has(owner.id)) continue
+      map.set(owner.id, {
+        id: owner.id,
+        label: owner.label,
+        color: getPastelColor(owner.id),
+        isSelf: false,
+      })
+    }
+
+    return [
+      map.get(selfAccountId)!,
+      ...Array.from(map.values())
+        .filter((row) => row.id !== selfAccountId)
+        .sort((a, b) => a.label.localeCompare(b.label)),
+    ]
+  }, [outgoingShares, selfAccountId, selfAccountLabel])
+
+  const ownerColorMap = useMemo<Record<string, string>>(() => {
+    return shareAccounts.reduce<Record<string, string>>((acc, row) => {
+      acc[row.id] = row.color
+      return acc
+    }, {})
+  }, [shareAccounts])
+
+  const visibleOwnerIds = useMemo(() => {
+    return new Set(
+      shareAccounts
+        .filter((row) => visibleOwners[row.id] !== false)
+        .map((row) => row.id)
+    )
+  }, [shareAccounts, visibleOwners])
+
+  const ownerVisible = (ownerId: string) => {
+    if (visibleOwnerIds.size === 0) return true
+    return visibleOwnerIds.has(ownerId)
+  }
+
+  const visibleBoards = normalizedBoards.filter((b) => ownerVisible(b.ownerId))
+  const todos = visibleBoards.filter((b) => b.scheduleStatus === 'TODO')
+  const doing = visibleBoards.filter((b) => b.scheduleStatus === 'DOING')
+  const done = visibleBoards.filter((b) => b.scheduleStatus === 'DONE')
 
   return (
-    <main className="container-page py-8">
-      <div className="surface card-pad card-hover-border-only">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">/todos</h1>
-            <p className="mt-1 text-sm" style={{ color: 'var(--muted)' }}>
-              보드 기반 TODO 관리 (공유받은 보드는 읽기 전용)
-            </p>
+    <main className="w-full px-3 py-6 sm:px-4 lg:px-6">
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="surface card-pad card-hover-border-only">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h1 className="text-2xl font-bold">/todos</h1>
+              <p className="mt-1 text-sm" style={{ color: 'var(--muted)' }}>
+                보드 기반 TODO 관리 (공유받은 보드는 읽기 전용)
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Link href="/calendar" className="btn btn-outline">
+                캘린더
+              </Link>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Link href="/calendar" className="btn btn-outline">
-              캘린더
-            </Link>
+
+          {err ? (
+            <div className="mt-4 card p-3" style={{ color: 'crimson' }}>
+              {err}
+            </div>
+          ) : null}
+
+          <div className="mt-6 card card-pad card-hover-border-only">
+            <div className="flex items-center justify-between gap-3">
+              <div className="font-extrabold">보드 생성</div>
+              <span className="badge">단일 일정은 캘린더 연동</span>
+            </div>
+
+            <form
+              className="mt-4 grid gap-3"
+              onSubmit={(e) => {
+                e.preventDefault()
+                void create()
+              }}
+            >
+              <div className="grid gap-2">
+                <label className="text-sm font-medium">보드 이름</label>
+                <input
+                  className="input"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="보드 이름"
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <label className="text-sm font-medium">설명 (선택)</label>
+                <input
+                  className="input"
+                  value={desc}
+                  onChange={(e) => setDesc(e.target.value)}
+                  placeholder="설명 (선택)"
+                />
+              </div>
+
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={singleSchedule}
+                  onChange={(e) => setSingleSchedule(e.target.checked)}
+                />
+                단일 일정 모드
+              </label>
+
+              {singleSchedule ? (
+                <div className="grid min-w-0 gap-3 md:grid-cols-2">
+                  <div className="grid gap-2">
+                    <div className="text-xs" style={{ color: 'var(--muted)' }}>
+                      시작
+                    </div>
+                    <input
+                      className="input"
+                      type="datetime-local"
+                      value={scheduleStartLocal}
+                      onChange={(e) => setScheduleStartLocal(e.target.value)}
+                      disabled={scheduleAllDay}
+                    />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <div className="text-xs" style={{ color: 'var(--muted)' }}>
+                      종료
+                    </div>
+                    <input
+                      className="input"
+                      type="datetime-local"
+                      value={scheduleEndLocal}
+                      onChange={(e) => setScheduleEndLocal(e.target.value)}
+                      disabled={scheduleAllDay}
+                    />
+                  </div>
+
+                  <label className="flex items-center gap-2 text-sm sm:col-span-2">
+                    <input
+                      type="checkbox"
+                      checked={scheduleAllDay}
+                      onChange={(e) => setScheduleAllDay(e.target.checked)}
+                    />
+                    하루종일
+                  </label>
+                </div>
+              ) : null}
+
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={!name.trim()}
+                >
+                  생성
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <div className="mt-6 grid gap-4 lg:grid-cols-3">
+            <BoardColumn
+              status="TODO"
+              title="TODO"
+              list={todos}
+              onMove={move}
+              onDelete={del}
+              onToggleSingle={toggleSingle}
+              onSaveSchedule={saveSchedule}
+              dndEnabled={dndEnabled}
+              draggingBoardId={draggingBoardId}
+              isDragOver={dragOverStatus === 'TODO'}
+              onDragOverStatus={setDragOverStatus}
+              onDropStatus={handleDropToStatus}
+              onDragEndAll={clearDragState}
+              onDragStart={handleDragStart}
+              ownerColors={ownerColorMap}
+            />
+            <BoardColumn
+              status="DOING"
+              title="DOING"
+              list={doing}
+              onMove={move}
+              onDelete={del}
+              onToggleSingle={toggleSingle}
+              onSaveSchedule={saveSchedule}
+              dndEnabled={dndEnabled}
+              draggingBoardId={draggingBoardId}
+              isDragOver={dragOverStatus === 'DOING'}
+              onDragOverStatus={setDragOverStatus}
+              onDropStatus={handleDropToStatus}
+              onDragEndAll={clearDragState}
+              onDragStart={handleDragStart}
+              ownerColors={ownerColorMap}
+            />
+            <BoardColumn
+              status="DONE"
+              title="DONE"
+              list={done}
+              onMove={move}
+              onDelete={del}
+              onToggleSingle={toggleSingle}
+              onSaveSchedule={saveSchedule}
+              dndEnabled={dndEnabled}
+              draggingBoardId={draggingBoardId}
+              isDragOver={dragOverStatus === 'DONE'}
+              onDragOverStatus={setDragOverStatus}
+              onDropStatus={handleDropToStatus}
+              onDragEndAll={clearDragState}
+              onDragStart={handleDragStart}
+              ownerColors={ownerColorMap}
+            />
           </div>
         </div>
 
-        {err ? (
-          <div className="mt-4 card p-3" style={{ color: 'crimson' }}>
-            {err}
-          </div>
-        ) : null}
+        <aside className="surface card-pad card-hover-border-only xl:sticky xl:top-6">
+          <div className="text-base font-extrabold">TODO 공유 계정 관리</div>
 
-        <section className="mt-6 card card-pad card-hover-border-only">
-          <div className="font-extrabold">TODO 공유 권한 관리</div>
-
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-4 grid gap-2">
             <input
               className="input"
               value={shareEmail}
               onChange={(e) => setShareEmail(e.target.value)}
-              placeholder="상대 계정 이메일"
+              placeholder="상대 계정 이메일 또는 ID"
             />
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={sendShareRequest}
-              disabled={shareBusyId === 'new' || shareLoading}
-            >
-              {shareBusyId === 'new' ? '요청중...' : 'TODO 공유 요청'}
-            </button>
-            <button
-              type="button"
-              className="btn btn-outline"
-              onClick={loadShares}
-              disabled={shareLoading}
-            >
-              목록 새로고침
-            </button>
-          </div>
-
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
-            <div className="grid gap-2">
-              <div className="text-sm font-semibold">받은 TODO 요청</div>
-              {incomingShares.length === 0 ? (
-                <div className="text-sm opacity-70">
-                  대기 중인 TODO 공유 요청이 없습니다.
-                </div>
-              ) : (
-                incomingShares.map((row) => (
-                  <div key={row.id} className="card p-3">
-                    <div className="font-semibold">{row.requester.label}</div>
-                    <div className="mt-1 text-xs opacity-70">
-                      요청일: {new Date(row.createdAt).toLocaleString()}
-                    </div>
-                    <div className="mt-2 flex gap-2">
-                      <button
-                        type="button"
-                        className="btn btn-primary"
-                        onClick={() => respondShareRequest(row.id, 'ACCEPT')}
-                        disabled={shareBusyId === row.id}
-                      >
-                        승인
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-outline"
-                        onClick={() => respondShareRequest(row.id, 'REJECT')}
-                        disabled={shareBusyId === row.id}
-                      >
-                        거절
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-
-            <div className="grid gap-2">
-              <div className="text-sm font-semibold">보낸 TODO 요청</div>
-              {outgoingShares.length === 0 ? (
-                <div className="text-sm opacity-70">
-                  보낸 TODO 공유 요청이 없습니다.
-                </div>
-              ) : (
-                outgoingShares.map((row) => (
-                  <div key={row.id} className="card p-3">
-                    <div className="font-semibold">{row.owner.label}</div>
-                    <div className="mt-1 text-xs opacity-70">
-                      상태: {row.status}
-                      {row.respondedAt
-                        ? ` · 처리일: ${new Date(row.respondedAt).toLocaleString()}`
-                        : ''}
-                    </div>
-                    <div className="mt-2">
-                      <button
-                        type="button"
-                        className="btn btn-outline"
-                        onClick={() => removeShare(row.id)}
-                        disabled={shareBusyId === row.id}
-                      >
-                        {row.status === 'ACCEPTED' ? '공유 해제' : '요청 취소'}
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </section>
-
-        <div className="mt-6 card card-pad card-hover-border-only">
-          <div className="flex items-center justify-between gap-3">
-            <div className="font-extrabold">보드 생성</div>
-            <span className="badge">단일 일정은 캘린더 연동</span>
-          </div>
-
-          <form
-            className="mt-4 grid gap-3"
-            onSubmit={(e) => {
-              e.preventDefault()
-              void create()
-            }}
-          >
-            <div className="grid gap-2">
-              <label className="text-sm font-medium">보드 이름</label>
-              <input
-                className="input"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="보드 이름"
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <label className="text-sm font-medium">설명 (선택)</label>
-              <input
-                className="input"
-                value={desc}
-                onChange={(e) => setDesc(e.target.value)}
-                placeholder="설명 (선택)"
-              />
-            </div>
-
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={singleSchedule}
-                onChange={(e) => setSingleSchedule(e.target.checked)}
-              />
-              단일 일정 모드
-            </label>
-
-            {singleSchedule ? (
-              <div className="grid min-w-0 gap-3 md:grid-cols-2">
-                <div className="grid gap-2">
-                  <div className="text-xs" style={{ color: 'var(--muted)' }}>
-                    시작
-                  </div>
-                  <input
-                    className="input"
-                    type="datetime-local"
-                    value={scheduleStartLocal}
-                    onChange={(e) => setScheduleStartLocal(e.target.value)}
-                    disabled={scheduleAllDay}
-                  />
-                </div>
-
-                <div className="grid gap-2">
-                  <div className="text-xs" style={{ color: 'var(--muted)' }}>
-                    종료
-                  </div>
-                  <input
-                    className="input"
-                    type="datetime-local"
-                    value={scheduleEndLocal}
-                    onChange={(e) => setScheduleEndLocal(e.target.value)}
-                    disabled={scheduleAllDay}
-                  />
-                </div>
-
-                <label className="flex items-center gap-2 text-sm sm:col-span-2">
-                  <input
-                    type="checkbox"
-                    checked={scheduleAllDay}
-                    onChange={(e) => setScheduleAllDay(e.target.checked)}
-                  />
-                  하루종일
-                </label>
-              </div>
-            ) : null}
-
-            <div className="flex justify-end">
+            <div className="flex gap-2">
               <button
-                type="submit"
+                type="button"
                 className="btn btn-primary"
-                disabled={!name.trim()}
+                onClick={sendShareRequest}
+                disabled={shareBusyId === 'new' || shareLoading}
               >
-                생성
+                {shareBusyId === 'new' ? '요청중...' : 'TODO 공유 요청'}
+              </button>
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={loadShares}
+                disabled={shareLoading}
+              >
+                목록 새로고침
               </button>
             </div>
-          </form>
-        </div>
+          </div>
 
-        <div className="mt-6 grid gap-4 lg:grid-cols-3">
-          <BoardColumn
-            status="TODO"
-            title="TODO"
-            list={todos}
-            onMove={move}
-            onDelete={del}
-            onToggleSingle={toggleSingle}
-            onSaveSchedule={saveSchedule}
-            dndEnabled={dndEnabled}
-            draggingBoardId={draggingBoardId}
-            isDragOver={dragOverStatus === 'TODO'}
-            onDragOverStatus={setDragOverStatus}
-            onDropStatus={handleDropToStatus}
-            onDragEndAll={clearDragState}
-            onDragStart={handleDragStart}
-          />
-          <BoardColumn
-            status="DOING"
-            title="DOING"
-            list={doing}
-            onMove={move}
-            onDelete={del}
-            onToggleSingle={toggleSingle}
-            onSaveSchedule={saveSchedule}
-            dndEnabled={dndEnabled}
-            draggingBoardId={draggingBoardId}
-            isDragOver={dragOverStatus === 'DOING'}
-            onDragOverStatus={setDragOverStatus}
-            onDropStatus={handleDropToStatus}
-            onDragEndAll={clearDragState}
-            onDragStart={handleDragStart}
-          />
-          <BoardColumn
-            status="DONE"
-            title="DONE"
-            list={done}
-            onMove={move}
-            onDelete={del}
-            onToggleSingle={toggleSingle}
-            onSaveSchedule={saveSchedule}
-            dndEnabled={dndEnabled}
-            draggingBoardId={draggingBoardId}
-            isDragOver={dragOverStatus === 'DONE'}
-            onDragOverStatus={setDragOverStatus}
-            onDropStatus={handleDropToStatus}
-            onDragEndAll={clearDragState}
-            onDragStart={handleDragStart}
-          />
-        </div>
+          <section className="mt-5 grid gap-2">
+            <div className="text-sm font-semibold">계정 리스트</div>
+            {shareAccounts.map((account) => (
+              <label
+                key={account.id}
+                className="card card-hover-border-only flex items-center gap-2 px-3 py-2 text-sm"
+              >
+                <input
+                  type="checkbox"
+                  checked={visibleOwners[account.id] !== false}
+                  onChange={(e) =>
+                    setVisibleOwners((prev) => ({
+                      ...prev,
+                      [account.id]: e.target.checked,
+                    }))
+                  }
+                  style={{ accentColor: account.isSelf ? '#ffffff' : account.color }}
+                />
+                <span
+                  className="h-3 w-3 rounded-sm border"
+                  style={{
+                    background: account.isSelf ? '#ffffff' : account.color,
+                    borderColor: 'color-mix(in srgb, var(--border) 70%, white)',
+                  }}
+                />
+                <span className="truncate">{account.label}</span>
+                {account.isSelf ? <span className="badge ml-auto">나</span> : null}
+              </label>
+            ))}
+          </section>
+
+          <section className="mt-5 grid gap-2">
+            <div className="text-sm font-semibold">요청한 계정</div>
+            {outgoingShares.length === 0 ? (
+              <div className="text-sm opacity-70">
+                보낸 TODO 공유 요청이 없습니다.
+              </div>
+            ) : (
+              outgoingShares.map((row) => (
+                <div key={row.id} className="card card-hover-border-only p-3">
+                  <div className="font-semibold">{row.owner.label}</div>
+                  <div className="mt-1 text-xs opacity-70">
+                    상태: {row.status}
+                    {row.respondedAt
+                      ? ` · 처리일: ${new Date(row.respondedAt).toLocaleString()}`
+                      : ''}
+                  </div>
+                  <div className="mt-2">
+                    <button
+                      type="button"
+                      className="btn btn-outline"
+                      onClick={() => removeShare(row.id)}
+                      disabled={shareBusyId === row.id}
+                    >
+                      {row.status === 'ACCEPTED' ? '공유 해제' : '요청 취소'}
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </section>
+
+          <section className="mt-5 grid gap-2">
+            <div className="text-sm font-semibold">요청 받은 계정</div>
+            {incomingShares.length === 0 ? (
+              <div className="text-sm opacity-70">
+                대기 중인 TODO 공유 요청이 없습니다.
+              </div>
+            ) : (
+              incomingShares.map((row) => (
+                <div key={row.id} className="card card-hover-border-only p-3">
+                  <div className="font-semibold">{row.requester.label}</div>
+                  <div className="mt-1 text-xs opacity-70">
+                    상태: {row.status} · 요청일:{' '}
+                    {new Date(row.createdAt).toLocaleString()}
+                  </div>
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => respondShareRequest(row.id, 'ACCEPT')}
+                      disabled={shareBusyId === row.id}
+                    >
+                      승인
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-outline"
+                      onClick={() => respondShareRequest(row.id, 'REJECT')}
+                      disabled={shareBusyId === row.id}
+                    >
+                      거절
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </section>
+        </aside>
       </div>
     </main>
   )

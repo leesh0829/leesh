@@ -51,6 +51,13 @@ type IncomingShare = {
   updatedAt: string
 }
 
+type ShareAccount = {
+  id: string
+  label: string
+  color: string
+  isSelf: boolean
+}
+
 function extractApiMessage(payload: unknown): string | null {
   if (!payload || typeof payload !== 'object') return null
   const record = payload as Record<string, unknown>
@@ -125,7 +132,7 @@ function dayKey(d: Date) {
 }
 
 const TODAY_BORDER_COLOR = 'var(--accent)'
-const TODAY_BG_COLOR = 'var(--ring)'
+const TODAY_BG_COLOR = 'transparent'
 
 function hashString(input: string) {
   let hash = 2166136261
@@ -148,6 +155,21 @@ function getBoardColor(boardId: string) {
   const lightness = 46 + ((hash >>> 17) % 10) // 46~55
   const color = `hsl(${hue} ${saturation}% ${lightness}%)`
   boardColorCache.set(boardId, color)
+  return color
+}
+
+const ownerColorCache = new Map<string, string>()
+
+function getOwnerColor(ownerId: string) {
+  const cached = ownerColorCache.get(ownerId)
+  if (cached) return cached
+
+  const hash = hashString(ownerId || 'owner')
+  const hue = hash % 360
+  const saturation = 63 + ((hash >>> 8) % 8) // 63~70
+  const lightness = 82 + ((hash >>> 16) % 6) // 82~87
+  const color = `hsl(${hue} ${saturation}% ${lightness}%)`
+  ownerColorCache.set(ownerId, color)
   return color
 }
 
@@ -198,9 +220,13 @@ export default function CalendarClient() {
   const [shareEmail, setShareEmail] = useState('')
   const [outgoingShares, setOutgoingShares] = useState<OutgoingShare[]>([])
   const [incomingShares, setIncomingShares] = useState<IncomingShare[]>([])
+  const [meShare, setMeShare] = useState<SharePeer | null>(null)
   const [shareLoading, setShareLoading] = useState(false)
   const [shareBusyId, setShareBusyId] = useState<string | null>(null)
-  const MAX_VISIBLE_BARS = 3
+  const [visibleOwners, setVisibleOwners] = useState<Record<string, boolean>>(
+    {}
+  )
+  const MAX_VISIBLE_BARS = 5
   const [moreDay, setMoreDay] = useState<{
     dateKey: string
     items: CalItem[]
@@ -222,13 +248,70 @@ export default function CalendarClient() {
       .sort((a, b) => a.name.localeCompare(b.name))
   }, [items])
 
+  const selfOwnerIdFromItems = items.find((it) => !it.shared)?.ownerId ?? null
+  const selfLabelFromItems =
+    items.find((it) => !it.shared)?.ownerLabel ?? '내 계정'
+  const selfAccountId = meShare?.id ?? selfOwnerIdFromItems ?? 'self'
+  const selfAccountLabel = meShare?.label ?? selfLabelFromItems
+
+  const shareAccounts = useMemo<ShareAccount[]>(() => {
+    const acceptedOwners = outgoingShares
+      .filter((row) => row.status === 'ACCEPTED')
+      .map((row) => row.owner)
+
+    const map = new Map<string, ShareAccount>()
+    map.set(selfAccountId, {
+      id: selfAccountId,
+      label: selfAccountLabel,
+      color: '#ffffff',
+      isSelf: true,
+    })
+
+    for (const owner of acceptedOwners) {
+      if (owner.id === selfAccountId) continue
+      if (map.has(owner.id)) continue
+      map.set(owner.id, {
+        id: owner.id,
+        label: owner.label,
+        color: getOwnerColor(owner.id),
+        isSelf: false,
+      })
+    }
+
+    return [
+      map.get(selfAccountId)!,
+      ...Array.from(map.values())
+        .filter((row) => row.id !== selfAccountId)
+        .sort((a, b) => a.label.localeCompare(b.label)),
+    ]
+  }, [outgoingShares, selfAccountId, selfAccountLabel])
+
+  const ownerColorMap = useMemo<Record<string, string>>(() => {
+    return shareAccounts.reduce<Record<string, string>>((acc, row) => {
+      acc[row.id] = row.color
+      return acc
+    }, {})
+  }, [shareAccounts])
+
+  const visibleOwnerIds = useMemo(
+    () =>
+      new Set(
+        shareAccounts
+          .filter((row) => visibleOwners[row.id] !== false)
+          .map((row) => row.id)
+      ),
+    [shareAccounts, visibleOwners]
+  )
+
   const filteredItems = useMemo(() => {
     return items.filter((it) => {
       if (boardFilter !== 'ALL' && it.boardId !== boardFilter) return false
       if (statusFilter !== 'ALL' && it.status !== statusFilter) return false
+      if (visibleOwnerIds.size > 0 && !visibleOwnerIds.has(it.ownerId))
+        return false
       return true
     })
-  }, [items, boardFilter, statusFilter])
+  }, [items, boardFilter, statusFilter, visibleOwnerIds])
 
   const load = useCallback(async () => {
     setErr(null)
@@ -256,9 +339,11 @@ export default function CalendarClient() {
     }
 
     const payload = (await res.json()) as {
+      me?: SharePeer
       outgoing?: OutgoingShare[]
       incoming?: IncomingShare[]
     }
+    setMeShare(payload.me ?? null)
     setOutgoingShares(
       (payload.outgoing ?? []).filter((row) => row.scope === 'CALENDAR')
     )
@@ -642,100 +727,590 @@ export default function CalendarClient() {
     setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))
 
   return (
-    <main style={{ padding: 24, maxWidth: 1100 }}>
-      <h1>Calendar</h1>
+    <main className="w-full px-3 py-6 sm:px-4 lg:px-6">
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <div>
+          <div>
+            <div className="text-xs opacity-60">Calendar</div>
+            <h1 className="text-2xl font-semibold">달력 일정 관리</h1>
+            <p className="mt-1 text-sm opacity-70">
+              달력으로 일정을 관리 및 확인합니다.
+            </p>
+          </div>
 
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-          marginTop: 12,
-        }}
-      >
-        <button onClick={goPrev}>←</button>
-        <div style={{ fontWeight: 700 }}>{ym}</div>
-        <button onClick={goNext}>→</button>
-        <button onClick={load} style={{ marginLeft: 12 }}>
-          새로고침
-        </button>
+          <section className="mt-3 card card-pad card-hover-border-only">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2">
+                <span className="badge">월 이동</span>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={goPrev}
+                >
+                  ◀
+                </button>
+                <div className="min-w-[96px] text-center text-sm font-semibold">
+                  {ym}
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={goNext}
+                >
+                  ▶
+                </button>
+              </div>
 
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            보드
-            <select
-              value={boardFilter}
-              onChange={(e) => setBoardFilter(e.target.value)}
+              <button type="button" className="btn btn-primary" onClick={load}>
+                일정 새로고침
+              </button>
+
+              <div className="ml-auto flex flex-wrap items-center gap-2">
+                <label className="flex items-center gap-2 text-sm">
+                  <span className="badge">보드 필터</span>
+                  <select
+                    className="select w-40"
+                    value={boardFilter}
+                    onChange={(e) => setBoardFilter(e.target.value)}
+                  >
+                    <option value="ALL">전체 보드</option>
+                    {boardOptions.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="flex items-center gap-2 text-sm">
+                  <span className="badge">상태 필터</span>
+                  <select
+                    className="select w-32"
+                    value={statusFilter}
+                    onChange={(e) =>
+                      setStatusFilter(
+                        e.target.value as 'ALL' | CalItem['status']
+                      )
+                    }
+                  >
+                    <option value="ALL">전체 상태</option>
+                    <option value="TODO">TODO</option>
+                    <option value="DOING">DOING</option>
+                    <option value="DONE">DONE</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+          </section>
+
+          {err && <p style={{ color: 'crimson', marginTop: 10 }}>{err}</p>}
+
+          <div style={{ marginTop: 16 }}>
+            {/* 요일 헤더 */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(7, 1fr)',
+                gap: 8,
+                marginBottom: 8,
+              }}
             >
-              <option value="ALL">전체</option>
-              {boardOptions.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((w) => (
+                <div key={w} style={{ fontWeight: 700, opacity: 0.7 }}>
+                  {w}
+                </div>
               ))}
-            </select>
-          </label>
+            </div>
 
-          <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            상태
-            <select
-              value={statusFilter}
-              onChange={(e) =>
-                setStatusFilter(e.target.value as 'ALL' | CalItem['status'])
-              }
-            >
-              <option value="ALL">전체</option>
-              <option value="TODO">TODO</option>
-              <option value="DOING">DOING</option>
-              <option value="DONE">DONE</option>
-            </select>
-          </label>
+            {/* 주 단위 렌더: week 내부에 day grid + bar overlay */}
+            <div className="hidden sm:block">
+              <div style={{ display: 'grid', gap: 8 }}>
+                {weeks.map((wk, wIdx) => {
+                  const rowStartIdx = wIdx * 7
+                  const visibleBars = wk.bars.filter(
+                    (b) => b.lane < MAX_VISIBLE_BARS
+                  )
+                  const visibleLaneIds = Array.from(
+                    new Set(visibleBars.map((b) => b.lane))
+                  ).sort((a, b) => a - b)
+                  const laneIndexById = new Map<number, number>(
+                    visibleLaneIds.map((laneId, idx) => [laneId, idx])
+                  )
+                  const visibleLanes = visibleLaneIds.length
+                  const laneStep = 16
+                  const barHeight = 15
+                  const barAreaHeight =
+                    visibleLanes > 0
+                      ? (visibleLanes - 1) * laneStep + barHeight
+                      : 0
+                  // 날짜 숫자 / +n more 헤더 영역과 막대 영역을 분리
+                  const overlayTop = 32
+                  const cellPaddingTop = overlayTop + barAreaHeight + 6
+                  const minCellHeight = Math.max(84, cellPaddingTop + 18)
+
+                  return (
+                    <div
+                      key={dayKey(wk.weekStart)}
+                      style={{
+                        position: 'relative',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      {/* bar overlay */}
+                      <div
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(7, 1fr)',
+                          gap: 8,
+                          alignItems: 'start',
+                          paddingTop: overlayTop,
+                          zIndex: 5,
+                          pointerEvents: 'none',
+                        }}
+                      >
+                        {visibleBars.map((b) => {
+                          const colFrom = b.colStart + 1
+                          const colTo = b.colEnd + 2
+                          const lane = laneIndexById.get(b.lane) ?? 0
+                          const top = lane * laneStep
+                          const ownerColor =
+                            ownerColorMap[b.it.ownerId] ??
+                            (b.it.shared
+                              ? getOwnerColor(b.it.ownerId)
+                              : '#ffffff')
+                          const barTextColor = '#111827'
+
+                          return (
+                            <div
+                              key={`${b.it.id}:${b.lane}:${b.colStart}:${b.colEnd}`}
+                              style={{
+                                gridColumn: `${colFrom} / ${colTo}`,
+                                gridRow: 1,
+                                transform: `translateY(${top}px)`,
+                                height: barHeight,
+                                border:
+                                  ownerColor === '#ffffff'
+                                    ? '1px solid var(--border)'
+                                    : `1px solid color-mix(in srgb, ${ownerColor} 68%, var(--border))`,
+                                background: ownerColor,
+                                color: barTextColor,
+                                borderRadius: 999,
+                                padding: '1px 7px',
+                                overflow: 'hidden',
+                                whiteSpace: 'nowrap',
+                                textOverflow: 'ellipsis',
+                                fontSize: 11,
+                                fontWeight: 700,
+                                pointerEvents: 'auto',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 6,
+                              }}
+                              onClick={() => openEdit(b.it)}
+                              title={b.it.displayTitle || b.it.title}
+                            >
+                              <div
+                                style={{
+                                  flex: 1,
+                                  minWidth: 0,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 5,
+                                }}
+                              >
+                                <span
+                                  style={{
+                                    width: 6,
+                                    height: 6,
+                                    borderRadius: 999,
+                                    background: getBoardColor(b.it.boardId),
+                                    flexShrink: 0,
+                                  }}
+                                />
+                                {!b.isStart ? (
+                                  <span style={{ opacity: 0.6 }}>…</span>
+                                ) : null}
+
+                                <span
+                                  style={{
+                                    flex: 1,
+                                    minWidth: 0,
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                  }}
+                                >
+                                  {b.it.displayTitle || b.it.title}
+                                </span>
+
+                                {!b.isEnd ? (
+                                  <span style={{ opacity: 0.6 }}>…</span>
+                                ) : null}
+                              </div>
+
+                              {/* shift buttons: bar 클릭과 분리 */}
+                              {b.it.canEdit ? (
+                                <div
+                                  style={{
+                                    display: 'flex',
+                                    gap: 6,
+                                    flexShrink: 0,
+                                  }}
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      shiftItemDays(b.it, -1)
+                                    }}
+                                    style={{
+                                      border: 'none',
+                                      background: 'transparent',
+                                      color: barTextColor,
+                                      padding: 0,
+                                      width: 14,
+                                      height: 14,
+                                      lineHeight: '14px',
+                                      fontSize: 9,
+                                      flexShrink: 0,
+                                      cursor: 'pointer',
+                                    }}
+                                    title="하루 전으로"
+                                  >
+                                    ◀
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      shiftItemDays(b.it, 1)
+                                    }}
+                                    style={{
+                                      border: 'none',
+                                      background: 'transparent',
+                                      color: barTextColor,
+                                      padding: 0,
+                                      width: 14,
+                                      height: 14,
+                                      lineHeight: '14px',
+                                      fontSize: 9,
+                                      flexShrink: 0,
+                                      cursor: 'pointer',
+                                    }}
+                                    title="하루 후로"
+                                  >
+                                    ▶
+                                  </button>
+                                </div>
+                              ) : (
+                                <span style={{ fontSize: 11, opacity: 0.7 }}>
+                                  공유
+                                </span>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+
+                      {/* day cells */}
+                      <div
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(7, 1fr)',
+                          gap: 8,
+                        }}
+                      >
+                        {Array.from({ length: 7 }).map((_, dIdx) => {
+                          const idx = rowStartIdx + dIdx
+                          const dayNum = idx - startDay + 1
+                          const inMonth = dayNum >= 1 && dayNum <= totalDays
+
+                          const d = new Date(
+                            cursor.getFullYear(),
+                            cursor.getMonth(),
+                            dayNum
+                          )
+                          const key = dayKey(d)
+                          const isToday = inMonth && key === todayKey
+                          const col = dIdx
+                          const barHit = wk.bars.filter(
+                            (b) => b.colStart <= col && col <= b.colEnd
+                          )
+
+                          const uniq = new Map<string, CalItem>()
+                          for (const b of barHit) {
+                            uniq.set(`${b.it.kind}:${b.it.id}`, b.it)
+                          }
+                          const dayItems = Array.from(uniq.values()).sort(
+                            (a, b) =>
+                              (a.displayTitle || a.title).localeCompare(
+                                b.displayTitle || b.title
+                              )
+                          )
+
+                          const hiddenUniq = new Set<string>()
+                          for (const b of barHit) {
+                            if (b.lane >= MAX_VISIBLE_BARS) {
+                              hiddenUniq.add(`${b.it.kind}:${b.it.id}`)
+                            }
+                          }
+                          const hiddenCount = hiddenUniq.size
+
+                          return (
+                            <div
+                              key={key}
+                              style={{
+                                border: isToday
+                                  ? `2px solid ${TODAY_BORDER_COLOR}`
+                                  : '1px solid #ddd',
+                                background: isToday
+                                  ? TODAY_BG_COLOR
+                                  : 'transparent',
+                                borderRadius: 8,
+                                position: 'relative',
+                                minHeight: minCellHeight,
+                                padding: 8,
+                                opacity: inMonth ? 1 : 0.35,
+                                paddingTop: cellPaddingTop,
+                              }}
+                            >
+                              <div
+                                style={{
+                                  fontWeight: 700,
+                                  position: 'absolute',
+                                  top: 6,
+                                  left: 8,
+                                  zIndex: 8,
+                                }}
+                              >
+                                {inMonth ? dayNum : ''}
+                              </div>
+                              {inMonth && hiddenCount > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => openMore(key, dayItems)}
+                                  style={{
+                                    position: 'absolute',
+                                    top: 6,
+                                    right: 8,
+                                    border: '1px solid var(--border)',
+                                    background: 'var(--card)',
+                                    color: 'var(--fg)',
+                                    borderRadius: 10,
+                                    padding: '2px 8px',
+                                    fontSize: 12,
+                                    cursor: 'pointer',
+                                    zIndex: 8,
+                                  }}
+                                  title="해당 날짜 전체 일정 보기"
+                                >
+                                  +{hiddenCount} more
+                                </button>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+            <div className="sm:hidden surface card-pad">
+              <div className="flex items-center justify-between">
+                <div className="text-sm font-semibold">이번 달 일정</div>
+                <div className="badge">{ym}</div>
+              </div>
+
+              <div className="mt-3 grid gap-2">
+                {Array.from({ length: totalDays }).map((_, i) => {
+                  const dayNum = i + 1
+                  const d = new Date(
+                    cursor.getFullYear(),
+                    cursor.getMonth(),
+                    dayNum
+                  )
+                  const key = dayKey(d)
+
+                  const dayItems = filteredItems.filter((it) => {
+                    if (!it.startAt) return false
+                    const s = startOfDayLocal(new Date(it.startAt))
+                    if (Number.isNaN(s.getTime())) return false
+                    const e = normalizeSpanEnd(it, s)
+                    const t = startOfDayLocal(d).getTime()
+                    return s.getTime() <= t && t <= e.getTime()
+                  })
+
+                  const visible = dayItems.slice(0, 5)
+                  const hidden = Math.max(0, dayItems.length - visible.length)
+
+                  return (
+                    <div key={key} className="surface card-pad">
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm font-semibold">{dayNum}일</div>
+                        {hidden > 0 ? (
+                          <button
+                            type="button"
+                            className="btn btn-outline"
+                            onClick={() => openMore(key, dayItems)}
+                          >
+                            +{hidden} more
+                          </button>
+                        ) : null}
+                      </div>
+
+                      {dayItems.length === 0 ? (
+                        <div className="mt-2 text-sm opacity-70">일정 없음</div>
+                      ) : (
+                        <div className="mt-2 grid gap-2">
+                          {visible.map((it) => (
+                            <button
+                              key={`${it.kind}:${it.id}`}
+                              type="button"
+                              className="surface card-pad text-left"
+                              onClick={() => openEdit(it)}
+                              style={
+                                it.shared
+                                  ? {
+                                      background: `color-mix(in srgb, ${
+                                        ownerColorMap[it.ownerId] ??
+                                        getOwnerColor(it.ownerId)
+                                      } 44%, var(--card))`,
+                                      color: '#111827',
+                                    }
+                                  : undefined
+                              }
+                              title={it.displayTitle || it.title}
+                            >
+                              <div className="font-semibold truncate">
+                                {it.displayTitle || it.title}
+                              </div>
+                              <div className="mt-1 text-xs opacity-70 truncate">
+                                {it.shared ? `공유:${it.ownerLabel} · ` : ''}
+                                {it.boardName} · {it.status}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
 
-      {err && <p style={{ color: 'crimson', marginTop: 10 }}>{err}</p>}
+        <aside className="surface card-pad card-hover-border-only xl:sticky xl:top-6">
+          <div className="text-base font-extrabold">캘린더 공유 계정 관리</div>
 
-      <section className="mt-6 card card-pad card-hover-border-only">
-        <div className="font-extrabold">캘린더 공유 권한 관리</div>
+          <div className="mt-4 grid gap-2">
+            <input
+              className="input"
+              value={shareEmail}
+              onChange={(e) => setShareEmail(e.target.value)}
+              placeholder="상대 계정 이메일 또는 ID"
+            />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={sendShareRequest}
+                disabled={shareBusyId === 'new' || shareLoading}
+              >
+                {shareBusyId === 'new' ? '요청중...' : '캘린더 공유 요청'}
+              </button>
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={loadShares}
+                disabled={shareLoading}
+              >
+                목록 새로고침
+              </button>
+            </div>
+          </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
-          <input
-            className="input"
-            value={shareEmail}
-            onChange={(e) => setShareEmail(e.target.value)}
-            placeholder="상대 계정 이메일"
-          />
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={sendShareRequest}
-            disabled={shareBusyId === 'new' || shareLoading}
-          >
-            {shareBusyId === 'new' ? '요청중...' : '캘린더 공유 요청'}
-          </button>
-          <button
-            type="button"
-            className="btn btn-outline"
-            onClick={loadShares}
-            disabled={shareLoading}
-          >
-            목록 새로고침
-          </button>
-        </div>
+          <section className="mt-5 grid gap-2">
+            <div className="text-sm font-semibold">계정 리스트</div>
+            {shareAccounts.map((account) => (
+              <label
+                key={account.id}
+                className="card card-hover-border-only flex items-center gap-2 px-3 py-2 text-sm"
+              >
+                <input
+                  type="checkbox"
+                  checked={visibleOwners[account.id] !== false}
+                  onChange={(e) =>
+                    setVisibleOwners((prev) => ({
+                      ...prev,
+                      [account.id]: e.target.checked,
+                    }))
+                  }
+                  style={{ accentColor: account.color }}
+                />
+                <span
+                  className="h-3 w-3 rounded-sm border"
+                  style={{
+                    background: account.color,
+                    borderColor: 'color-mix(in srgb, var(--border) 70%, white)',
+                  }}
+                />
+                <span className="truncate">{account.label}</span>
+                {account.isSelf ? (
+                  <span className="badge ml-auto">나</span>
+                ) : null}
+              </label>
+            ))}
+          </section>
 
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <div className="grid gap-2">
-            <div className="text-sm font-semibold">받은 캘린더 요청</div>
+          <section className="mt-5 grid gap-2">
+            <div className="text-sm font-semibold">요청한 계정</div>
+            {outgoingShares.length === 0 ? (
+              <div className="text-sm opacity-70">
+                보낸 캘린더 공유 요청이 없습니다.
+              </div>
+            ) : (
+              outgoingShares.map((row) => (
+                <div key={row.id} className="card card-hover-border-only p-3">
+                  <div className="font-semibold">{row.owner.label}</div>
+                  <div className="mt-1 text-xs opacity-70">
+                    상태: {row.status}
+                    {row.respondedAt
+                      ? ` · 처리일: ${new Date(row.respondedAt).toLocaleString()}`
+                      : ''}
+                  </div>
+                  <div className="mt-2">
+                    <button
+                      type="button"
+                      className="btn btn-outline"
+                      onClick={() => removeShare(row.id)}
+                      disabled={shareBusyId === row.id}
+                    >
+                      {row.status === 'ACCEPTED' ? '공유 해제' : '요청 취소'}
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </section>
+
+          <section className="mt-5 grid gap-2">
+            <div className="text-sm font-semibold">요청 받은 계정</div>
             {incomingShares.length === 0 ? (
               <div className="text-sm opacity-70">
                 대기 중인 캘린더 공유 요청이 없습니다.
               </div>
             ) : (
               incomingShares.map((row) => (
-                <div key={row.id} className="card p-3">
+                <div key={row.id} className="card card-hover-border-only p-3">
                   <div className="font-semibold">{row.requester.label}</div>
                   <div className="mt-1 text-xs opacity-70">
-                    요청일: {new Date(row.createdAt).toLocaleString()}
+                    상태: {row.status} · 요청일:{' '}
+                    {new Date(row.createdAt).toLocaleString()}
                   </div>
                   <div className="mt-2 flex gap-2">
                     <button
@@ -758,412 +1333,8 @@ export default function CalendarClient() {
                 </div>
               ))
             )}
-          </div>
-
-          <div className="grid gap-2">
-            <div className="text-sm font-semibold">보낸 캘린더 요청</div>
-            {outgoingShares.length === 0 ? (
-              <div className="text-sm opacity-70">
-                보낸 캘린더 공유 요청이 없습니다.
-              </div>
-            ) : (
-              outgoingShares.map((row) => (
-                <div key={row.id} className="card p-3">
-                  <div className="font-semibold">{row.owner.label}</div>
-                  <div className="mt-1 text-xs opacity-70">
-                    상태: {row.status}
-                    {row.respondedAt
-                      ? ` · 처리일: ${new Date(row.respondedAt).toLocaleString()}`
-                      : ''}
-                  </div>
-                  <div className="mt-2">
-                    <button
-                      type="button"
-                      className="btn btn-outline"
-                      onClick={() => removeShare(row.id)}
-                      disabled={shareBusyId === row.id}
-                    >
-                      {row.status === 'ACCEPTED' ? '공유 해제' : '요청 취소'}
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      </section>
-
-      <div style={{ marginTop: 16 }}>
-        {/* 요일 헤더 */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(7, 1fr)',
-            gap: 8,
-            marginBottom: 8,
-          }}
-        >
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((w) => (
-            <div key={w} style={{ fontWeight: 700, opacity: 0.7 }}>
-              {w}
-            </div>
-          ))}
-        </div>
-
-        {/* 주 단위 렌더: week 내부에 day grid + bar overlay */}
-        <div className="hidden sm:block">
-          <div style={{ display: 'grid', gap: 8 }}>
-            {weeks.map((wk, wIdx) => {
-              const rowStartIdx = wIdx * 7
-              const visibleBars = wk.bars.filter(
-                (b) => b.lane < MAX_VISIBLE_BARS
-              )
-              const visibleLaneIds = Array.from(
-                new Set(visibleBars.map((b) => b.lane))
-              ).sort((a, b) => a - b)
-              const laneIndexById = new Map<number, number>(
-                visibleLaneIds.map((laneId, idx) => [laneId, idx])
-              )
-              const visibleLanes = visibleLaneIds.length
-              const laneStep = 17
-              const barHeight = 15
-              const barAreaHeight =
-                visibleLanes > 0 ? (visibleLanes - 1) * laneStep + barHeight : 0
-              // 날짜 숫자 / +n more 헤더 영역과 막대 영역을 분리
-              const overlayTop = 32
-              const cellPaddingTop = overlayTop + barAreaHeight + 6
-              const minCellHeight = Math.max(72, cellPaddingTop + 16)
-
-              return (
-                <div
-                  key={dayKey(wk.weekStart)}
-                  style={{
-                    position: 'relative',
-                    overflow: 'hidden',
-                  }}
-                >
-                  {/* bar overlay */}
-                  <div
-                    style={{
-                      position: 'absolute',
-                      inset: 0,
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(7, 1fr)',
-                      gap: 8,
-                      alignItems: 'start',
-                      paddingTop: overlayTop,
-                      zIndex: 5,
-                      pointerEvents: 'none',
-                    }}
-                  >
-                    {visibleBars.map((b) => {
-                      const colFrom = b.colStart + 1
-                      const colTo = b.colEnd + 2
-                      const lane = laneIndexById.get(b.lane) ?? 0
-                      const top = lane * laneStep
-
-                      return (
-                        <div
-                          key={`${b.it.id}:${b.lane}:${b.colStart}:${b.colEnd}`}
-                          style={{
-                            gridColumn: `${colFrom} / ${colTo}`,
-                            gridRow: 1,
-                            transform: `translateY(${top}px)`,
-                            height: barHeight,
-                            border: '1px solid var(--border)',
-                            background:
-                              'linear-gradient(135deg, rgba(109, 90, 255, 0.16), rgba(38, 198, 255, 0.12))',
-                            borderRadius: 999,
-                            padding: '1px 7px',
-                            overflow: 'hidden',
-                            whiteSpace: 'nowrap',
-                            textOverflow: 'ellipsis',
-                            fontSize: 11,
-                            fontWeight: 700,
-                            pointerEvents: 'auto',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 6,
-                          }}
-                          onClick={() => openEdit(b.it)}
-                          title={b.it.displayTitle || b.it.title}
-                        >
-                          <div
-                            style={{
-                              flex: 1,
-                              minWidth: 0,
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 5,
-                            }}
-                          >
-                            <span
-                              style={{
-                                width: 6,
-                                height: 6,
-                                borderRadius: 999,
-                                background: getBoardColor(b.it.boardId),
-                                flexShrink: 0,
-                              }}
-                            />
-                            {!b.isStart ? (
-                              <span style={{ opacity: 0.6 }}>…</span>
-                            ) : null}
-
-                            <span
-                              style={{
-                                flex: 1,
-                                minWidth: 0,
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
-                              }}
-                            >
-                              {b.it.displayTitle || b.it.title}
-                            </span>
-
-                            {!b.isEnd ? (
-                              <span style={{ opacity: 0.6 }}>…</span>
-                            ) : null}
-                          </div>
-
-                          {/* shift buttons: bar 클릭과 분리 */}
-                          {b.it.canEdit ? (
-                            <div
-                              style={{
-                                display: 'flex',
-                                gap: 6,
-                                flexShrink: 0,
-                              }}
-                            >
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  shiftItemDays(b.it, -1)
-                                }}
-                                style={{
-                                  border: 'none',
-                                  background: 'transparent',
-                                  padding: 0,
-                                  width: 14,
-                                  height: 14,
-                                  lineHeight: '14px',
-                                  fontSize: 9,
-                                  flexShrink: 0,
-                                  cursor: 'pointer',
-                                }}
-                                title="하루 전으로"
-                              >
-                                ◀
-                              </button>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  shiftItemDays(b.it, 1)
-                                }}
-                                style={{
-                                  border: 'none',
-                                  background: 'transparent',
-                                  padding: 0,
-                                  width: 14,
-                                  height: 14,
-                                  lineHeight: '14px',
-                                  fontSize: 9,
-                                  flexShrink: 0,
-                                  cursor: 'pointer',
-                                }}
-                                title="하루 후로"
-                              >
-                                ▶
-                              </button>
-                            </div>
-                          ) : (
-                            <span style={{ fontSize: 11, opacity: 0.7 }}>
-                              공유
-                            </span>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-
-                  {/* day cells */}
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(7, 1fr)',
-                      gap: 8,
-                    }}
-                  >
-                    {Array.from({ length: 7 }).map((_, dIdx) => {
-                      const idx = rowStartIdx + dIdx
-                      const dayNum = idx - startDay + 1
-                      const inMonth = dayNum >= 1 && dayNum <= totalDays
-
-                      const d = new Date(
-                        cursor.getFullYear(),
-                        cursor.getMonth(),
-                        dayNum
-                      )
-                      const key = dayKey(d)
-                      const isToday = inMonth && key === todayKey
-                      const col = dIdx
-                      const barHit = wk.bars.filter(
-                        (b) => b.colStart <= col && col <= b.colEnd
-                      )
-
-                      const uniq = new Map<string, CalItem>()
-                      for (const b of barHit) {
-                        uniq.set(`${b.it.kind}:${b.it.id}`, b.it)
-                      }
-                      const dayItems = Array.from(uniq.values()).sort((a, b) =>
-                        (a.displayTitle || a.title).localeCompare(
-                          b.displayTitle || b.title
-                        )
-                      )
-
-                      const hiddenUniq = new Set<string>()
-                      for (const b of barHit) {
-                        if (b.lane >= MAX_VISIBLE_BARS) {
-                          hiddenUniq.add(`${b.it.kind}:${b.it.id}`)
-                        }
-                      }
-                      const hiddenCount = hiddenUniq.size
-
-                      return (
-                        <div
-                          key={key}
-                          style={{
-                            border: isToday
-                              ? `2px solid ${TODAY_BORDER_COLOR}`
-                              : '1px solid #ddd',
-                            background: isToday
-                              ? TODAY_BG_COLOR
-                              : 'transparent',
-                            borderRadius: 8,
-                            position: 'relative',
-                            minHeight: minCellHeight,
-                            padding: 8,
-                            opacity: inMonth ? 1 : 0.35,
-                            paddingTop: cellPaddingTop,
-                          }}
-                        >
-                          <div
-                            style={{
-                              fontWeight: 700,
-                              position: 'absolute',
-                              top: 6,
-                              left: 8,
-                              zIndex: 8,
-                            }}
-                          >
-                            {inMonth ? dayNum : ''}
-                          </div>
-                          {inMonth && hiddenCount > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => openMore(key, dayItems)}
-                              style={{
-                                position: 'absolute',
-                                top: 6,
-                                right: 8,
-                                border: '1px solid var(--border)',
-                                background: 'var(--card)',
-                                color: 'var(--foreground)',
-                                borderRadius: 10,
-                                padding: '2px 8px',
-                                fontSize: 12,
-                                cursor: 'pointer',
-                                zIndex: 8,
-                              }}
-                              title="해당 날짜 전체 일정 보기"
-                            >
-                              +{hiddenCount} more
-                            </button>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-        <div className="sm:hidden surface card-pad">
-          <div className="flex items-center justify-between">
-            <div className="text-sm font-semibold">이번 달 일정</div>
-            <div className="badge">{ym}</div>
-          </div>
-
-          <div className="mt-3 grid gap-2">
-            {Array.from({ length: totalDays }).map((_, i) => {
-              const dayNum = i + 1
-              const d = new Date(
-                cursor.getFullYear(),
-                cursor.getMonth(),
-                dayNum
-              )
-              const key = dayKey(d)
-
-              const dayItems = filteredItems.filter((it) => {
-                if (!it.startAt) return false
-                const s = startOfDayLocal(new Date(it.startAt))
-                if (Number.isNaN(s.getTime())) return false
-                const e = normalizeSpanEnd(it, s)
-                const t = startOfDayLocal(d).getTime()
-                return s.getTime() <= t && t <= e.getTime()
-              })
-
-              const visible = dayItems.slice(0, 3)
-              const hidden = Math.max(0, dayItems.length - visible.length)
-
-              return (
-                <div key={key} className="surface card-pad">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm font-semibold">{dayNum}일</div>
-                    {hidden > 0 ? (
-                      <button
-                        type="button"
-                        className="btn btn-outline"
-                        onClick={() => openMore(key, dayItems)}
-                      >
-                        +{hidden} more
-                      </button>
-                    ) : null}
-                  </div>
-
-                  {dayItems.length === 0 ? (
-                    <div className="mt-2 text-sm opacity-70">일정 없음</div>
-                  ) : (
-                    <div className="mt-2 grid gap-2">
-                      {visible.map((it) => (
-                        <button
-                          key={`${it.kind}:${it.id}`}
-                          type="button"
-                          className="surface card-pad text-left"
-                          onClick={() => openEdit(it)}
-                          title={it.displayTitle || it.title}
-                        >
-                          <div className="font-semibold truncate">
-                            {it.displayTitle || it.title}
-                          </div>
-                          <div className="mt-1 text-xs opacity-70 truncate">
-                            {it.shared ? `공유:${it.ownerLabel} · ` : ''}
-                            {it.boardName} · {it.status}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        </div>
+          </section>
+        </aside>
       </div>
 
       {moreDay && (

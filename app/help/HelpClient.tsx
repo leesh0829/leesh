@@ -8,6 +8,7 @@ type HelpPost = {
   id: string
   title: string
   createdAt: string
+  hasOperatorAnswer: boolean
   author: { name: string | null; email: string | null }
 }
 
@@ -146,7 +147,14 @@ export default function HelpClient() {
                   className="surface card-pad block no-underline hover:underline"
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div className="font-semibold">{p.title}</div>
+                    <div className="min-w-0">
+                      <div className="font-semibold wrap-break-word">{p.title}</div>
+                      <div className="mt-1">
+                        <span className="badge">
+                          {p.hasOperatorAnswer ? '답변완료' : '답변대기'}
+                        </span>
+                      </div>
+                    </div>
                     <div className="text-xs opacity-60">
                       {p.createdAt.slice(0, 10)}
                     </div>

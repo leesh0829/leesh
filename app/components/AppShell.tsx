@@ -22,6 +22,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     const segments = pathname.split('/').filter(Boolean)
     return segments.length === 2 && segments[0] === 'blog'
   }, [pathname])
+  const isWideLayout = useMemo(
+    () =>
+      isBlogDetail ||
+      pathname.startsWith('/calendar') ||
+      pathname.startsWith('/todos'),
+    [isBlogDetail, pathname]
+  )
 
   // mobile sidebar
   const [open, setOpen] = useState(false)
@@ -98,7 +105,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
             <div
               className={
-                (isBlogDetail
+                (isWideLayout
                   ? 'w-full px-3 sm:px-4 lg:px-6'
                   : 'container-page') + ' py-6 flex-1'
               }

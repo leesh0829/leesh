@@ -38,7 +38,7 @@ async function getMe() {
   if (!session?.user?.email) return null
   return prisma.user.findUnique({
     where: { email: session.user.email },
-    select: { id: true, email: true },
+    select: { id: true, name: true, email: true },
   })
 }
 
@@ -49,38 +49,44 @@ export async function GET() {
 
     const [outgoing, incoming]: [OutgoingShareRow[], IncomingShareRow[]] =
       await Promise.all([
-      prisma.scheduleShare.findMany({
-        where: { requesterId: me.id },
-        orderBy: [{ status: 'asc' }, { updatedAt: 'desc' }],
-        select: {
-          id: true,
-          scope: true,
-          status: true,
-          createdAt: true,
-          updatedAt: true,
-          respondedAt: true,
-          owner: {
-            select: { id: true, name: true, email: true },
+        prisma.scheduleShare.findMany({
+          where: { requesterId: me.id },
+          orderBy: [{ status: 'asc' }, { updatedAt: 'desc' }],
+          select: {
+            id: true,
+            scope: true,
+            status: true,
+            createdAt: true,
+            updatedAt: true,
+            respondedAt: true,
+            owner: {
+              select: { id: true, name: true, email: true },
+            },
           },
-        },
-      }),
-      prisma.scheduleShare.findMany({
-        where: { ownerId: me.id, status: 'PENDING' },
-        orderBy: { createdAt: 'desc' },
-        select: {
-          id: true,
-          scope: true,
-          status: true,
-          createdAt: true,
-          updatedAt: true,
-          requester: {
-            select: { id: true, name: true, email: true },
+        }),
+        prisma.scheduleShare.findMany({
+          where: { ownerId: me.id, status: 'PENDING' },
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            scope: true,
+            status: true,
+            createdAt: true,
+            updatedAt: true,
+            requester: {
+              select: { id: true, name: true, email: true },
+            },
           },
-        },
-      }),
+        }),
       ])
 
     return NextResponse.json({
+      me: {
+        id: me.id,
+        name: me.name,
+        email: me.email,
+        label: toUserLabel(me.name, me.email),
+      },
       outgoing: outgoing.map((row: OutgoingShareRow) => ({
         id: row.id,
         scope: row.scope,

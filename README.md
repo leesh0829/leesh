@@ -34,3 +34,30 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Security Checklist (Production)
+
+Use HTTPS-only domain deployment and verify these before release:
+
+1. Required environment variables
+   - `APP_URL=https://your-domain`
+   - `NEXTAUTH_URL=https://your-domain`
+   - `NEXTAUTH_SECRET` (strong random secret)
+   - `DATABASE_URL` (TLS-enabled)
+   - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`
+2. Cookie and auth safety
+   - Production cookies must be `Secure` + `HttpOnly`
+   - Do not expose admin routes to non-admin users
+3. API abuse protection
+   - Rate limiting is applied to signup, resend verification, email/name checks, and uploads
+   - Monitor `429` logs and tune limits as needed
+4. Upload hardening
+   - Upload API requires login
+   - Only verified image formats are accepted (`jpg/png/webp/gif`, max 5MB)
+5. Security headers
+   - Middleware sets `HSTS`, `X-Frame-Options`, `nosniff`, `Referrer-Policy`, etc.
+6. Database timezone
+   - DB session timezone is set to `Asia/Seoul`
+7. Secrets hygiene
+   - Never commit `.env` to git
+   - Rotate secrets immediately if leaked

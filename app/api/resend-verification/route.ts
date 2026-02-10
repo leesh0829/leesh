@@ -4,12 +4,32 @@ import crypto from "crypto";
 import { sendMail } from "@/app/lib/mailer";
 import { resolveAppUrl } from "@/app/lib/appUrl";
 import { hashVerificationToken } from "@/app/lib/verificationToken";
+import { getClientIp, takeRateLimit } from "@/app/lib/rateLimit";
+
+const RESEND_LIMIT = 5;
+const RESEND_WINDOW_MS = 10 * 60 * 1000;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   const email = (body?.email as string | undefined)?.trim();
 
   if (!email) return NextResponse.json({ message: "email required" }, { status: 400 });
+  if (!EMAIL_REGEX.test(email)) {
+    return NextResponse.json({ message: "invalid email format" }, { status: 400 });
+  }
+
+  const ip = getClientIp(req);
+  const rate = takeRateLimit(`resend-verification:${ip}`, RESEND_LIMIT, RESEND_WINDOW_MS);
+  if (!rate.ok) {
+    return NextResponse.json(
+      { message: "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(rate.retryAfterSec) },
+      },
+    );
+  }
 
   const user = await prisma.user.findUnique({
     where: { email },

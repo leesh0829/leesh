@@ -52,7 +52,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               className="btn btn-outline"
               aria-label="Open menu"
             >
-              메뉴
+              ☰
             </button>
             <Link href="/" className="text-sm font-semibold">
               Leesh
@@ -83,7 +83,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   onClick={() => setDesktopOpen(true)}
                   className="btn btn-outline"
                 >
-                  사이드바 열기
+                  ☰
                 </button>
                 <div className="text-xs opacity-60"></div>
               </div>

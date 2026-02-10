@@ -62,9 +62,7 @@ function NavItem({
     <Link
       href={href}
       onClick={onNavigate}
-      className={
-        'nav-link ' + (active ? 'nav-link-active' : '')
-      }
+      className={'nav-link ' + (active ? 'nav-link-active' : '')}
     >
       {label}
     </Link>
@@ -192,7 +190,7 @@ export default function Sidebar({
                 className="btn btn-outline"
                 onClick={() => setShowUpdates(false)}
               >
-                닫기
+                X
               </button>
             </div>
             <div className="mt-3 text-sm">테스트 업데이트 내역입니다.</div>
@@ -236,7 +234,7 @@ export default function Sidebar({
               aria-label="Hide sidebar"
               title="사이드바 숨기기"
             >
-              숨김
+              &lt;
             </button>
 
             {/* mobile close 버튼 */}
@@ -245,7 +243,7 @@ export default function Sidebar({
               className="btn btn-outline lg:hidden"
               onClick={onClose}
             >
-              닫기
+              &lt;
             </button>
           </div>
 
@@ -307,7 +305,7 @@ export default function Sidebar({
               className="btn btn-outline w-full"
               onClick={() => setShowUpdates(true)}
             >
-              업데이트 내역
+              📄
             </button>
           </div>
         </div>

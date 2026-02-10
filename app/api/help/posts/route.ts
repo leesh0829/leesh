@@ -11,6 +11,7 @@ type HelpPostRow = {
   title: string;
   createdAt: Date;
   author: { name: string | null; email: string | null };
+  comments: { authorId: string; author: { role: "USER" | "ADMIN" } }[];
 };
 
 async function getOwnerUserId(): Promise<string | null> {
@@ -55,13 +56,24 @@ export async function GET() {
       title: true,
       createdAt: true,
       author: { select: { name: true, email: true } },
+      comments: {
+        select: {
+          authorId: true,
+          author: { select: { role: true } },
+        },
+      },
     },
   });
 
   return NextResponse.json(
     posts.map((p: HelpPostRow) => ({
-      ...p,
+      id: p.id,
+      title: p.title,
       createdAt: toISOStringSafe(p.createdAt),
+      author: p.author,
+      hasOperatorAnswer: p.comments.some(
+        (c) => c.author.role === "ADMIN" || c.authorId === ownerId,
+      ),
     })),
   );
 }

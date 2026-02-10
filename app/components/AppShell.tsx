@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import Sidebar from './Sidebar'
 import Footer from './Footer'
 import Link from 'next/link'
+import ThemeToggle from './ThemeToggle'
 
 const NO_SHELL_PREFIXES = ['/login', '/sign-up']
 
@@ -53,7 +54,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             >
               메뉴
             </button>
-            <div className="text-sm font-semibold">Leesh</div>
+            <Link href="/" className="text-sm font-semibold">
+              Leesh
+            </Link>
+            <div className="ml-auto">
+              <ThemeToggle />
+            </div>
           </div>
         </div>
 

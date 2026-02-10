@@ -880,6 +880,7 @@ export default function CalendarClient() {
                             (b.it.shared
                               ? getOwnerColor(b.it.ownerId)
                               : '#ffffff')
+                          const barTextColor = '#111827'
 
                           return (
                             <div
@@ -894,6 +895,7 @@ export default function CalendarClient() {
                                     ? '1px solid var(--border)'
                                     : `1px solid color-mix(in srgb, ${ownerColor} 68%, var(--border))`,
                                 background: ownerColor,
+                                color: barTextColor,
                                 borderRadius: 999,
                                 padding: '1px 7px',
                                 overflow: 'hidden',
@@ -967,6 +969,7 @@ export default function CalendarClient() {
                                     style={{
                                       border: 'none',
                                       background: 'transparent',
+                                      color: barTextColor,
                                       padding: 0,
                                       width: 14,
                                       height: 14,
@@ -988,6 +991,7 @@ export default function CalendarClient() {
                                     style={{
                                       border: 'none',
                                       background: 'transparent',
+                                      color: barTextColor,
                                       padding: 0,
                                       width: 14,
                                       height: 14,
@@ -1175,6 +1179,7 @@ export default function CalendarClient() {
                                         ownerColorMap[it.ownerId] ??
                                         getOwnerColor(it.ownerId)
                                       } 44%, var(--card))`,
+                                      color: '#111827',
                                     }
                                   : undefined
                               }

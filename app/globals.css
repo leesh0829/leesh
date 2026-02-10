@@ -195,6 +195,13 @@
     background: rgba(255, 255, 255, 0);
   }
 
+  /* Native select popup is OS-controlled; force readable option contrast. */
+  .select option,
+  .select optgroup {
+    color: #111827;
+    background: #ffffff;
+  }
+
   .input:focus-visible,
   .select:focus-visible,
   .textarea:focus-visible {

@@ -194,10 +194,8 @@ export default function Sidebar({
               </button>
             </div>
             <ul>
-              <li className="mt-3 text-sm">반응형 UI 수정</li>
-              <li className="mt-3 text-sm">블로그 트리 추가</li>
-              <li className="mt-3 text-sm">TODO 마우스 연동 추가</li>
-              <li className="mt-3 text-sm">웹 아이콘 추가</li>
+              <li className="mt-3 text-sm">고객 센터 답변 여부 배지 추가</li>
+              <li className="mt-3 text-sm">캘린더 / TODO UI 변경</li>
               <li className="mt-3 text-sm">그 외 버그 수정</li>
             </ul>
           </div>

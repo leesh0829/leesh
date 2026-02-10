@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { DragEvent } from 'react'
 import { toHumanHttpError } from '@/app/lib/httpErrorText'
 
 type ScheduleStatus = 'TODO' | 'DOING' | 'DONE'
@@ -109,6 +110,10 @@ type BoardItemProps = {
     endAt: string | null,
     allDay: boolean
   ) => Promise<void>
+  dndEnabled: boolean
+  isDragging: boolean
+  onDragStart: (board: BoardCard, event: DragEvent<HTMLDivElement>) => void
+  onDragEnd: () => void
 }
 
 function BoardItem({
@@ -117,6 +122,10 @@ function BoardItem({
   onDelete,
   onToggleSingle,
   onSaveSchedule,
+  dndEnabled,
+  isDragging,
+  onDragStart,
+  onDragEnd,
 }: BoardItemProps) {
   const [startLocal, setStartLocal] = useState<string>(
     toDatetimeLocalValue(board.scheduleStartAt)
@@ -127,7 +136,19 @@ function BoardItem({
   const [allDay, setAllDay] = useState<boolean>(!!board.scheduleAllDay)
 
   return (
-    <div className="card p-3">
+    <div
+      className={
+        'card p-3 transition ' +
+        (dndEnabled && board.canEdit
+          ? 'cursor-grab active:cursor-grabbing'
+          : '') +
+        (isDragging ? ' opacity-60 scale-[0.99]' : '')
+      }
+      draggable={dndEnabled && board.canEdit}
+      onDragStart={(event) => onDragStart(board, event)}
+      onDragEnd={onDragEnd}
+      title={dndEnabled && board.canEdit ? '드래그해서 상태 이동' : undefined}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
@@ -290,13 +311,22 @@ function BoardItem({
 }
 
 function BoardColumn({
+  status,
   title,
   list,
   onMove,
   onDelete,
   onToggleSingle,
   onSaveSchedule,
+  dndEnabled,
+  draggingBoardId,
+  isDragOver,
+  onDragOverStatus,
+  onDropStatus,
+  onDragEndAll,
+  onDragStart,
 }: {
+  status: ScheduleStatus
   title: string
   list: BoardCard[]
   onMove: (id: string, next: ScheduleStatus) => Promise<void>
@@ -308,9 +338,34 @@ function BoardColumn({
     endAt: string | null,
     allDay: boolean
   ) => Promise<void>
+  dndEnabled: boolean
+  draggingBoardId: string | null
+  isDragOver: boolean
+  onDragOverStatus: (status: ScheduleStatus) => void
+  onDropStatus: (status: ScheduleStatus) => Promise<void>
+  onDragEndAll: () => void
+  onDragStart: (board: BoardCard, event: DragEvent<HTMLDivElement>) => void
 }) {
   return (
-    <div className="card card-pad">
+    <div
+      className={
+        'card card-pad transition ' +
+        (isDragOver
+          ? 'ring-2 ring-[var(--accent)] bg-[color:var(--ring)]'
+          : '')
+      }
+      onDragOver={(event) => {
+        if (!dndEnabled || !draggingBoardId) return
+        event.preventDefault()
+        event.dataTransfer.dropEffect = 'move'
+        onDragOverStatus(status)
+      }}
+      onDrop={(event) => {
+        if (!dndEnabled || !draggingBoardId) return
+        event.preventDefault()
+        void onDropStatus(status)
+      }}
+    >
       <div className="flex items-center justify-between">
         <div className="text-sm font-extrabold">{title}</div>
         <span className="badge">{list.length}</span>
@@ -325,6 +380,10 @@ function BoardColumn({
             onDelete={onDelete}
             onToggleSingle={onToggleSingle}
             onSaveSchedule={onSaveSchedule}
+            dndEnabled={dndEnabled}
+            isDragging={draggingBoardId === b.id}
+            onDragStart={onDragStart}
+            onDragEnd={onDragEndAll}
           />
         ))}
       </div>
@@ -348,6 +407,11 @@ export default function TodosClient() {
   const [incomingShares, setIncomingShares] = useState<IncomingShare[]>([])
   const [shareLoading, setShareLoading] = useState(false)
   const [shareBusyId, setShareBusyId] = useState<string | null>(null)
+  const [dndEnabled, setDndEnabled] = useState(false)
+  const [draggingBoardId, setDraggingBoardId] = useState<string | null>(null)
+  const [dragOverStatus, setDragOverStatus] = useState<ScheduleStatus | null>(
+    null
+  )
 
   const load = useCallback(async () => {
     const r = await fetch('/api/todos/boards', { cache: 'no-store' })
@@ -405,6 +469,22 @@ export default function TodosClient() {
       window.clearTimeout(t)
     }
   }, [loadShares])
+
+  useEffect(() => {
+    const media = window.matchMedia('(hover: hover) and (pointer: fine)')
+    const apply = () => setDndEnabled(media.matches)
+    apply()
+
+    const onChange = () => apply()
+
+    if (typeof media.addEventListener === 'function') {
+      media.addEventListener('change', onChange)
+      return () => media.removeEventListener('change', onChange)
+    }
+
+    media.addListener(onChange)
+    return () => media.removeListener(onChange)
+  }, [])
 
   const sendShareRequest = async () => {
     const targetEmail = shareEmail.trim()
@@ -530,6 +610,37 @@ export default function TodosClient() {
     }
     await load()
   }
+
+  const clearDragState = useCallback(() => {
+    setDraggingBoardId(null)
+    setDragOverStatus(null)
+  }, [])
+
+  const handleDragStart = useCallback(
+    (board: BoardCard, event: DragEvent<HTMLDivElement>) => {
+      if (!dndEnabled || !board.canEdit) return
+      event.dataTransfer.effectAllowed = 'move'
+      event.dataTransfer.setData('text/plain', board.id)
+      setDraggingBoardId(board.id)
+      setDragOverStatus(board.scheduleStatus)
+    },
+    [dndEnabled]
+  )
+
+  const handleDropToStatus = useCallback(
+    async (next: ScheduleStatus) => {
+      if (!dndEnabled || !draggingBoardId) return
+      const source = boards.find((b) => b.id === draggingBoardId)
+      if (!source || !source.canEdit || source.scheduleStatus === next) {
+        clearDragState()
+        return
+      }
+
+      await move(draggingBoardId, next)
+      clearDragState()
+    },
+    [boards, clearDragState, dndEnabled, draggingBoardId]
+  )
 
   const del = async (id: string) => {
     const ok = window.confirm('보드를 삭제할까요?')
@@ -814,28 +925,52 @@ export default function TodosClient() {
 
         <div className="mt-6 grid gap-4 lg:grid-cols-3">
           <BoardColumn
+            status="TODO"
             title="TODO"
             list={todos}
             onMove={move}
             onDelete={del}
             onToggleSingle={toggleSingle}
             onSaveSchedule={saveSchedule}
+            dndEnabled={dndEnabled}
+            draggingBoardId={draggingBoardId}
+            isDragOver={dragOverStatus === 'TODO'}
+            onDragOverStatus={setDragOverStatus}
+            onDropStatus={handleDropToStatus}
+            onDragEndAll={clearDragState}
+            onDragStart={handleDragStart}
           />
           <BoardColumn
+            status="DOING"
             title="DOING"
             list={doing}
             onMove={move}
             onDelete={del}
             onToggleSingle={toggleSingle}
             onSaveSchedule={saveSchedule}
+            dndEnabled={dndEnabled}
+            draggingBoardId={draggingBoardId}
+            isDragOver={dragOverStatus === 'DOING'}
+            onDragOverStatus={setDragOverStatus}
+            onDropStatus={handleDropToStatus}
+            onDragEndAll={clearDragState}
+            onDragStart={handleDragStart}
           />
           <BoardColumn
+            status="DONE"
             title="DONE"
             list={done}
             onMove={move}
             onDelete={del}
             onToggleSingle={toggleSingle}
             onSaveSchedule={saveSchedule}
+            dndEnabled={dndEnabled}
+            draggingBoardId={draggingBoardId}
+            isDragOver={dragOverStatus === 'DONE'}
+            onDragOverStatus={setDragOverStatus}
+            onDropStatus={handleDropToStatus}
+            onDragEndAll={clearDragState}
+            onDragStart={handleDragStart}
           />
         </div>
       </div>

@@ -127,6 +127,30 @@ function dayKey(d: Date) {
 const TODAY_BORDER_COLOR = 'var(--accent)'
 const TODAY_BG_COLOR = 'var(--ring)'
 
+function hashString(input: string) {
+  let hash = 2166136261
+  for (let i = 0; i < input.length; i += 1) {
+    hash ^= input.charCodeAt(i)
+    hash = Math.imul(hash, 16777619)
+  }
+  return hash >>> 0
+}
+
+const boardColorCache = new Map<string, string>()
+
+function getBoardColor(boardId: string) {
+  const cached = boardColorCache.get(boardId)
+  if (cached) return cached
+
+  const hash = hashString(boardId || 'default')
+  const hue = hash % 360
+  const saturation = 62 + ((hash >>> 9) % 14) // 62~75
+  const lightness = 46 + ((hash >>> 17) % 10) // 46~55
+  const color = `hsl(${hue} ${saturation}% ${lightness}%)`
+  boardColorCache.set(boardId, color)
+  return color
+}
+
 /**
  * endAt 보정:
  * - endAt이 null이면 startAt 하루짜리로
@@ -791,19 +815,31 @@ export default function CalendarClient() {
           <div style={{ display: 'grid', gap: 8 }}>
             {weeks.map((wk, wIdx) => {
               const rowStartIdx = wIdx * 7
-              const visibleLanes = Math.min(
-                MAX_VISIBLE_BARS,
-                Math.max(1, wk.laneCount)
+              const visibleBars = wk.bars.filter(
+                (b) => b.lane < MAX_VISIBLE_BARS
               )
-              const barAreaHeight = visibleLanes * 33
-              const overlayTop = 28 // 8px padding + 20px date Label 영역
-              const cellPaddingTop = overlayTop + barAreaHeight + 8
+              const visibleLaneIds = Array.from(
+                new Set(visibleBars.map((b) => b.lane))
+              ).sort((a, b) => a - b)
+              const laneIndexById = new Map<number, number>(
+                visibleLaneIds.map((laneId, idx) => [laneId, idx])
+              )
+              const visibleLanes = visibleLaneIds.length
+              const laneStep = 17
+              const barHeight = 15
+              const barAreaHeight =
+                visibleLanes > 0 ? (visibleLanes - 1) * laneStep + barHeight : 0
+              // 날짜 숫자 / +n more 헤더 영역과 막대 영역을 분리
+              const overlayTop = 32
+              const cellPaddingTop = overlayTop + barAreaHeight + 6
+              const minCellHeight = Math.max(72, cellPaddingTop + 16)
 
               return (
                 <div
                   key={dayKey(wk.weekStart)}
                   style={{
                     position: 'relative',
+                    overflow: 'hidden',
                   }}
                 >
                   {/* bar overlay */}
@@ -820,116 +856,138 @@ export default function CalendarClient() {
                       pointerEvents: 'none',
                     }}
                   >
-                    {wk.bars
-                      .filter((b) => b.lane < MAX_VISIBLE_BARS)
-                      .map((b) => {
-                        const colFrom = b.colStart + 1
-                        const colTo = b.colEnd + 2
-                        const top = b.lane * 22
+                    {visibleBars.map((b) => {
+                      const colFrom = b.colStart + 1
+                      const colTo = b.colEnd + 2
+                      const lane = laneIndexById.get(b.lane) ?? 0
+                      const top = lane * laneStep
 
-                        return (
+                      return (
+                        <div
+                          key={`${b.it.id}:${b.lane}:${b.colStart}:${b.colEnd}`}
+                          style={{
+                            gridColumn: `${colFrom} / ${colTo}`,
+                            gridRow: 1,
+                            transform: `translateY(${top}px)`,
+                            height: barHeight,
+                            border: '1px solid var(--border)',
+                            background:
+                              'linear-gradient(135deg, rgba(109, 90, 255, 0.16), rgba(38, 198, 255, 0.12))',
+                            borderRadius: 999,
+                            padding: '1px 7px',
+                            overflow: 'hidden',
+                            whiteSpace: 'nowrap',
+                            textOverflow: 'ellipsis',
+                            fontSize: 11,
+                            fontWeight: 700,
+                            pointerEvents: 'auto',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 6,
+                          }}
+                          onClick={() => openEdit(b.it)}
+                          title={b.it.displayTitle || b.it.title}
+                        >
                           <div
-                            key={`${b.it.id}:${b.lane}:${b.colStart}:${b.colEnd}`}
                             style={{
-                              gridColumn: `${colFrom} / ${colTo}`,
-                              transform: `translateY(${top}px)`,
-                              height: 20,
-                              border: '1px solid #ddd',
-                              background: 'white',
-                              borderRadius: 8,
-                              padding: '2px 8px',
-                              overflow: 'hidden',
-                              whiteSpace: 'nowrap',
-                              textOverflow: 'ellipsis',
-                              fontSize: 12,
-                              fontWeight: 700,
-                              pointerEvents: 'auto',
-                              cursor: 'pointer',
+                              flex: 1,
+                              minWidth: 0,
                               display: 'flex',
                               alignItems: 'center',
-                              gap: 8,
+                              gap: 5,
                             }}
-                            onClick={() => openEdit(b.it)}
-                            title={b.it.displayTitle || b.it.title}
                           >
-                            <div
+                            <span
+                              style={{
+                                width: 6,
+                                height: 6,
+                                borderRadius: 999,
+                                background: getBoardColor(b.it.boardId),
+                                flexShrink: 0,
+                              }}
+                            />
+                            {!b.isStart ? (
+                              <span style={{ opacity: 0.6 }}>…</span>
+                            ) : null}
+
+                            <span
                               style={{
                                 flex: 1,
                                 minWidth: 0,
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 6,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
                               }}
                             >
-                              {!b.isStart ? (
-                                <span style={{ opacity: 0.6 }}>…</span>
-                              ) : null}
+                              {b.it.displayTitle || b.it.title}
+                            </span>
 
-                              <span
-                                style={{
-                                  flex: 1,
-                                  minWidth: 0,
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                  whiteSpace: 'nowrap',
-                                }}
-                              >
-                                {b.it.displayTitle || b.it.title}
-                              </span>
-
-                              {!b.isEnd ? (
-                                <span style={{ opacity: 0.6 }}>…</span>
-                              ) : null}
-                            </div>
-
-                            {/* shift buttons: bar 클릭과 분리 */}
-                            {b.it.canEdit ? (
-                              <div
-                                style={{
-                                  display: 'flex',
-                                  gap: 6,
-                                  flexShrink: 0,
-                                }}
-                              >
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    shiftItemDays(b.it, -1)
-                                  }}
-                                  style={{
-                                    padding: '0 6px',
-                                    height: 18,
-                                    flexShrink: 0,
-                                  }}
-                                  title="하루 전으로"
-                                >
-                                  ◀
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    shiftItemDays(b.it, 1)
-                                  }}
-                                  style={{
-                                    padding: '0 6px',
-                                    height: 18,
-                                    flexShrink: 0,
-                                  }}
-                                  title="하루 후로"
-                                >
-                                  ▶
-                                </button>
-                              </div>
-                            ) : (
-                              <span style={{ fontSize: 11, opacity: 0.7 }}>
-                                공유
-                              </span>
-                            )}
+                            {!b.isEnd ? (
+                              <span style={{ opacity: 0.6 }}>…</span>
+                            ) : null}
                           </div>
-                        )
-                      })}
+
+                          {/* shift buttons: bar 클릭과 분리 */}
+                          {b.it.canEdit ? (
+                            <div
+                              style={{
+                                display: 'flex',
+                                gap: 6,
+                                flexShrink: 0,
+                              }}
+                            >
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  shiftItemDays(b.it, -1)
+                                }}
+                                style={{
+                                  border: 'none',
+                                  background: 'transparent',
+                                  padding: 0,
+                                  width: 14,
+                                  height: 14,
+                                  lineHeight: '14px',
+                                  fontSize: 9,
+                                  flexShrink: 0,
+                                  cursor: 'pointer',
+                                }}
+                                title="하루 전으로"
+                              >
+                                ◀
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  shiftItemDays(b.it, 1)
+                                }}
+                                style={{
+                                  border: 'none',
+                                  background: 'transparent',
+                                  padding: 0,
+                                  width: 14,
+                                  height: 14,
+                                  lineHeight: '14px',
+                                  fontSize: 9,
+                                  flexShrink: 0,
+                                  cursor: 'pointer',
+                                }}
+                                title="하루 후로"
+                              >
+                                ▶
+                              </button>
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: 11, opacity: 0.7 }}>
+                              공유
+                            </span>
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
 
                   {/* day cells */}
@@ -987,7 +1045,7 @@ export default function CalendarClient() {
                               : 'transparent',
                             borderRadius: 8,
                             position: 'relative',
-                            minHeight: 140 + barAreaHeight,
+                            minHeight: minCellHeight,
                             padding: 8,
                             opacity: inMonth ? 1 : 0.35,
                             paddingTop: cellPaddingTop,
@@ -999,6 +1057,7 @@ export default function CalendarClient() {
                               position: 'absolute',
                               top: 6,
                               left: 8,
+                              zIndex: 8,
                             }}
                           >
                             {inMonth ? dayNum : ''}
@@ -1017,6 +1076,7 @@ export default function CalendarClient() {
                                 padding: '2px 8px',
                                 fontSize: 12,
                                 cursor: 'pointer',
+                                zIndex: 8,
                               }}
                               title="해당 날짜 전체 일정 보기"
                             >

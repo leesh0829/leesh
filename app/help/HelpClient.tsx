@@ -87,7 +87,7 @@ export default function HelpClient() {
 
       {err ? <p className="text-sm text-red-600">{err}</p> : null}
 
-      <section className="surface card-pad space-y-3">
+      <section className="surface card-pad space-y-3 card-hover-border-only">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-lg font-semibold">요청 작성</h2>
           <span className="badge">로그인 사용자만 작성 가능</span>

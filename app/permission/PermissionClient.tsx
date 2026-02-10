@@ -238,7 +238,7 @@ export default function PermissionClient() {
             ) : null}
           </div>
 
-          <div className="surface overflow-hidden">
+          <div className="surface overflow-hidden card-hover-border-only">
             <div className="hidden md:grid md:grid-cols-[220px_1fr_120px_120px_90px] md:gap-3 md:px-4 md:py-3 md:text-sm md:font-semibold">
               <div>label</div>
               <div>path</div>
@@ -375,7 +375,7 @@ export default function PermissionClient() {
             ) : null}
           </div>
 
-          <div className="surface card-pad space-y-2">
+          <div className="surface card-pad space-y-2 card-hover-border-only">
             <label className="flex flex-wrap items-center gap-2 text-sm">
               <span className="font-semibold">대상 유저</span>
               <select
@@ -413,7 +413,7 @@ export default function PermissionClient() {
             </div>
           </div>
 
-          <div className="surface overflow-hidden">
+          <div className="surface overflow-hidden card-hover-border-only">
             <div className="hidden md:grid md:grid-cols-[220px_1fr_160px] md:gap-3 md:px-4 md:py-3 md:text-sm md:font-semibold">
               <div>menu</div>
               <div>path</div>

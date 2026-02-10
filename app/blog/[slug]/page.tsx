@@ -150,7 +150,7 @@ export default async function BlogDetailPage({
   return (
     <main className="py-8">
       <div className="relative lg:pr-[320px]">
-        <div className="surface card-pad">
+        <div className="surface card-pad card-hover-border-only">
           <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <h1 className="text-2xl font-bold leading-tight">
@@ -176,7 +176,7 @@ export default async function BlogDetailPage({
               </div>
             ) : (
               <>
-                <article className="card card-pad min-w-0">
+                <article className="card card-pad min-w-0 card-hover-border-only">
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     rehypePlugins={[rehypeHighlight]}

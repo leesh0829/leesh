@@ -288,7 +288,7 @@ export default function BoardDetailClient({
 
   return (
     <main className="container-page py-8">
-      <div className="surface card-pad">
+      <div className="surface card-pad card-hover-border-only">
         <Link href={backHref} className="btn btn-outline">
           ← {backLabel}
         </Link>
@@ -303,7 +303,7 @@ export default function BoardDetailClient({
         </header>
 
         {canCreate ? (
-          <section className="card card-pad mt-6">
+          <section className="card card-pad mt-6 card-hover-border-only">
             <div className="flex items-center justify-between gap-3">
               <div className="text-sm font-extrabold">보드 설정</div>
               {singleSchedule ? (
@@ -425,7 +425,7 @@ export default function BoardDetailClient({
         ) : null}
 
         {!singleSchedule ? (
-          <section className="card card-pad mt-6">
+          <section className="card card-pad mt-6 card-hover-border-only">
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-lg font-bold">새 일정/할일</h3>
               {!canCreate ? <span className="badge">로그인 필요</span> : null}
@@ -536,7 +536,7 @@ export default function BoardDetailClient({
             )}
           </section>
         ) : (
-          <section className="card card-pad mt-6">
+          <section className="card card-pad mt-6 card-hover-border-only">
             <h3 className="text-lg font-bold">단일 일정 모드</h3>
             <p className="mt-2 text-sm" style={{ color: 'var(--muted)' }}>
               이 보드는 <b>post 일정 생성이 막혀있고</b>, 캘린더에는{' '}

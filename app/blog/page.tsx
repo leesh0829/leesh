@@ -66,7 +66,7 @@ export default async function BlogListPage(props: {
 
   return (
     <main className="container-page py-8">
-      <div className="surface card-pad">
+      <div className="surface card-pad card-hover-border-only">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold">Blog</h1>

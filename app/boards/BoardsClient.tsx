@@ -125,7 +125,7 @@ export default function BoardsClient({
 
   return (
     <main className="container-page py-8">
-      <div className="surface card-pad">
+      <div className="surface card-pad card-hover-border-only">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold">Boards</h1>
@@ -153,7 +153,7 @@ export default function BoardsClient({
         </div>
 
         {canCreate ? (
-          <section className="card card-pad mt-6">
+          <section className="card card-pad mt-6 card-hover-border-only">
             <div className="flex flex-col gap-3">
               <div className="grid gap-2 sm:grid-cols-2">
                 <div className="grid gap-2">

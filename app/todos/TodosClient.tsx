@@ -138,7 +138,7 @@ function BoardItem({
   return (
     <div
       className={
-        'card p-3 transition ' +
+        'card p-3 card-hover-border-only transition ' +
         (dndEnabled && board.canEdit
           ? 'cursor-grab active:cursor-grabbing'
           : '') +
@@ -349,7 +349,7 @@ function BoardColumn({
   return (
     <div
       className={
-        'card card-pad transition ' +
+        'card card-pad card-hover-border-only transition ' +
         (isDragOver
           ? 'ring-2 ring-[var(--accent)] bg-[color:var(--ring)]'
           : '')
@@ -711,7 +711,7 @@ export default function TodosClient() {
 
   return (
     <main className="container-page py-8">
-      <div className="surface card-pad">
+      <div className="surface card-pad card-hover-border-only">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold">/todos</h1>
@@ -732,7 +732,7 @@ export default function TodosClient() {
           </div>
         ) : null}
 
-        <section className="mt-6 card card-pad">
+        <section className="mt-6 card card-pad card-hover-border-only">
           <div className="font-extrabold">TODO 공유 권한 관리</div>
 
           <div className="mt-4 flex flex-wrap gap-2">
@@ -830,7 +830,7 @@ export default function TodosClient() {
           </div>
         </section>
 
-        <div className="mt-6 card card-pad">
+        <div className="mt-6 card card-pad card-hover-border-only">
           <div className="flex items-center justify-between gap-3">
             <div className="font-extrabold">보드 생성</div>
             <span className="badge">단일 일정은 캘린더 연동</span>

@@ -163,7 +163,7 @@ export default async function DashboardPage() {
 
       <div className="grid gap-3 lg:grid-cols-2">
         {/* 최근 블로그 */}
-        <section className="surface card-pad">
+        <section className="surface card-pad card-hover-border-only">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-lg font-semibold">최근 블로그</h2>
             <Link href="/blog" className="btn btn-outline">
@@ -199,7 +199,7 @@ export default async function DashboardPage() {
         </section>
 
         {/* 최근 댓글 */}
-        <section className="surface card-pad">
+        <section className="surface card-pad card-hover-border-only">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-lg font-semibold">최근 댓글</h2>
             <span className="badge">{recentComments.length}</span>
@@ -210,7 +210,7 @@ export default async function DashboardPage() {
           ) : (
             <ul className="mt-3 grid gap-2">
               {recentComments.map((c) => (
-                <li key={c.id} className="surface card-pad">
+                <li key={c.id} className="surface card-pad card-hover-border-only">
                   <div className="flex flex-wrap items-center gap-2 text-xs opacity-70">
                     <span className="badge">{c.createdAt}</span>
                     <span className="badge">{c.authorName}</span>

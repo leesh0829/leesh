@@ -164,7 +164,7 @@ export default function BlogCommentsClient({
   }, [boardId, postId])
 
   return (
-    <section className="card card-pad">
+    <section className="card card-pad card-hover-border-only">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold">댓글</h2>
         <span className="badge">{items.length}</span>
@@ -214,7 +214,7 @@ export default function BlogCommentsClient({
             const isEditing = editingId === c.id
 
             return (
-              <div key={c.id} className="card p-3">
+              <div key={c.id} className="card p-3 card-hover-border-only">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div className="text-xs" style={{ color: 'var(--muted)' }}>
                     {displayUserLabel(c.author.name, c.author.email, 'unknown')}{' '}

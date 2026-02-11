@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import ImageUploadButton from '@/app/components/ImageUploadButton'
 import MarkdownEditor from '@/app/components/MarkdownEditor'
 
@@ -73,6 +74,7 @@ export default function BoardDetailClient({
   backHref?: string
   backLabel?: string
 }) {
+  const router = useRouter()
   const POST_PAGE_SIZE = 10
   const [posts, setPosts] = useState<Post[]>(initialPosts)
   const [postSortOrder, setPostSortOrder] = useState<'desc' | 'asc'>('desc')
@@ -126,6 +128,11 @@ export default function BoardDetailClient({
       return
     }
 
+    setBoardName(typeof data?.name === 'string' ? data.name : boardName)
+    setBoardDesc(
+      typeof data?.description === 'string' ? data.description : boardDesc
+    )
+    router.refresh()
     alert('보드 저장 완료')
   }
 

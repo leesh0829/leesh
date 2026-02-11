@@ -4,6 +4,10 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 
 export const runtime = 'nodejs'
+const MANAGEABLE_BOARD_TYPES: ReadonlySet<string> = new Set([
+  'GENERAL',
+  'TODO',
+])
 
 async function getMe() {
   const session = await getServerSession(authOptions)
@@ -70,8 +74,8 @@ export async function PATCH(
   if (!canManage)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
-  // 안전장치: GENERAL만 허용 (BLOG/PORTFOLIO/HELP 등은 전용 페이지에서 관리)
-  if (board.type !== 'GENERAL') {
+  // BLOG/PORTFOLIO/HELP 등은 전용 페이지에서 관리
+  if (!MANAGEABLE_BOARD_TYPES.has(board.type)) {
     return NextResponse.json({ message: 'forbidden' }, { status: 403 })
   }
 
@@ -108,7 +112,7 @@ export async function DELETE(
   if (!canManage)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
-  if (board.type !== 'GENERAL') {
+  if (!MANAGEABLE_BOARD_TYPES.has(board.type)) {
     return NextResponse.json({ message: 'forbidden' }, { status: 403 })
   }
 

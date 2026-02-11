@@ -131,9 +131,6 @@ function dayKey(d: Date) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
-const TODAY_BORDER_COLOR = 'var(--accent)'
-const TODAY_BG_COLOR = 'transparent'
-
 function hashString(input: string) {
   let hash = 2166136261
   for (let i = 0; i < input.length; i += 1) {
@@ -1063,12 +1060,8 @@ export default function CalendarClient() {
                             <div
                               key={key}
                               style={{
-                                border: isToday
-                                  ? `2px solid ${TODAY_BORDER_COLOR}`
-                                  : '1px solid #ddd',
-                                background: isToday
-                                  ? TODAY_BG_COLOR
-                                  : 'transparent',
+                                border: '1px solid var(--border)',
+                                background: 'transparent',
                                 borderRadius: 8,
                                 position: 'relative',
                                 minHeight: minCellHeight,
@@ -1079,7 +1072,10 @@ export default function CalendarClient() {
                             >
                               <div
                                 style={{
-                                  fontWeight: 700,
+                                  fontWeight: isToday ? 1000 : 700,
+                                  color: isToday
+                                    ? 'var(--accent)'
+                                    : 'var(--fg)',
                                   position: 'absolute',
                                   top: 6,
                                   left: 8,

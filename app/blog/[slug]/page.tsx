@@ -177,32 +177,34 @@ export default async function BlogDetailPage({
             ) : (
               <>
                 <article className="card card-pad min-w-0 card-hover-border-only">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    rehypePlugins={[rehypeHighlight]}
-                    components={{
-                      h1: headingComponent('h1'),
-                      h2: headingComponent('h2'),
-                      h3: headingComponent('h3'),
-                      h4: headingComponent('h4'),
-                      h5: headingComponent('h5'),
-                      h6: headingComponent('h6'),
-                      img: ({ alt, ...props }) => (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          {...props}
-                          alt={alt ?? ''}
-                          style={{
-                            maxWidth: '100%',
-                            height: 'auto',
-                            borderRadius: 12,
-                          }}
-                        />
-                      ),
-                    }}
-                  >
-                    {post.contentMd ?? ''}
-                  </ReactMarkdown>
+                  <div className="markdown-body">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      rehypePlugins={[rehypeHighlight]}
+                      components={{
+                        h1: headingComponent('h1'),
+                        h2: headingComponent('h2'),
+                        h3: headingComponent('h3'),
+                        h4: headingComponent('h4'),
+                        h5: headingComponent('h5'),
+                        h6: headingComponent('h6'),
+                        img: ({ alt, ...props }) => (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            {...props}
+                            alt={alt ?? ''}
+                            style={{
+                              maxWidth: '100%',
+                              height: 'auto',
+                              borderRadius: 12,
+                            }}
+                          />
+                        ),
+                      }}
+                    >
+                      {post.contentMd ?? ''}
+                    </ReactMarkdown>
+                  </div>
                 </article>
 
                 <div className="mt-6">

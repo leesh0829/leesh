@@ -106,14 +106,16 @@ export default function MarkdownEditor({
             style={{ resize: 'vertical' }}
           />
         ) : (
-          <div className="min-h-[220px] p-4 text-sm leading-7">
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm, remarkBreaks]}
-              rehypePlugins={[rehypeHighlight]}
-              components={markdownComponents}
-            >
-              {value.trim() ? value : previewEmptyText}
-            </ReactMarkdown>
+          <div className="min-h-[220px] p-4">
+            <div className="markdown-body text-sm leading-7">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm, remarkBreaks]}
+                rehypePlugins={[rehypeHighlight]}
+                components={markdownComponents}
+              >
+                {value.trim() ? value : previewEmptyText}
+              </ReactMarkdown>
+            </div>
           </div>
         )}
       </div>

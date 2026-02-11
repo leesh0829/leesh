@@ -176,13 +176,15 @@ export default function HelpDetailClient({ postId }: { postId: string }) {
       </section>
 
       <article className="card card-pad card-hover-border-only">
-        <ReactMarkdown
-          remarkPlugins={[remarkGfm, remarkBreaks]}
-          rehypePlugins={[rehypeHighlight]}
-          components={mdComponents}
-        >
-          {post.contentMd}
-        </ReactMarkdown>
+        <div className="markdown-body">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm, remarkBreaks]}
+            rehypePlugins={[rehypeHighlight]}
+            components={mdComponents}
+          >
+            {post.contentMd}
+          </ReactMarkdown>
+        </div>
       </article>
 
       <section className="space-y-3">

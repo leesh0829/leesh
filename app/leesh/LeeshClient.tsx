@@ -266,7 +266,7 @@ export default function LeeshClient() {
               </div>
             </div>
           ) : (
-            <article>
+            <article className="markdown-body">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm, remarkBreaks]}
                 rehypePlugins={[rehypeHighlight]}

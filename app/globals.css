@@ -232,6 +232,163 @@
     color: var(--accent-foreground);
     background: linear-gradient(135deg, var(--accent), var(--accent2));
   }
+
+  .markdown-body {
+    @apply text-base leading-8;
+    color: var(--fg);
+    overflow-wrap: anywhere;
+    word-break: keep-all;
+    line-break: auto;
+  }
+
+  .markdown-body > :first-child {
+    margin-top: 0;
+  }
+
+  .markdown-body > :last-child {
+    margin-bottom: 0;
+  }
+
+  .markdown-body h1,
+  .markdown-body h2,
+  .markdown-body h3,
+  .markdown-body h4,
+  .markdown-body h5,
+  .markdown-body h6 {
+    @apply font-semibold tracking-tight;
+    color: var(--fg);
+  }
+
+  .markdown-body h1 {
+    @apply mt-10 mb-4 text-3xl;
+  }
+
+  .markdown-body h2 {
+    @apply mt-9 mb-3 text-2xl;
+  }
+
+  .markdown-body h3 {
+    @apply mt-8 mb-3 text-xl;
+  }
+
+  .markdown-body h4 {
+    @apply mt-7 mb-2 text-lg;
+  }
+
+  .markdown-body h5,
+  .markdown-body h6 {
+    @apply mt-6 mb-2 text-base;
+  }
+
+  .markdown-body p,
+  .markdown-body ul,
+  .markdown-body ol,
+  .markdown-body blockquote,
+  .markdown-body pre,
+  .markdown-body table {
+    @apply my-4;
+  }
+
+  .markdown-body ul,
+  .markdown-body ol {
+    @apply pl-6;
+  }
+
+  .markdown-body ul {
+    list-style: disc;
+  }
+
+  .markdown-body ol {
+    list-style: decimal;
+  }
+
+  .markdown-body li + li {
+    @apply mt-1;
+  }
+
+  .markdown-body li > p {
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+
+  .markdown-body a {
+    color: var(--accent);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in srgb, var(--accent), transparent 45%);
+    text-decoration-thickness: 1.5px;
+    text-underline-offset: 3px;
+  }
+
+  .markdown-body hr {
+    @apply my-6 border-0;
+    height: 1px;
+    background: color-mix(in srgb, var(--border), transparent 20%);
+  }
+
+  .markdown-body blockquote {
+    @apply rounded-r-lg pl-4 italic;
+    border-left: 3px solid color-mix(in srgb, var(--accent), transparent 35%);
+    color: color-mix(in srgb, var(--fg), transparent 18%);
+    background: color-mix(in srgb, var(--accent), transparent 94%);
+  }
+
+  .markdown-body code {
+    @apply rounded-md px-1.5 py-0.5 text-[0.86em];
+    font-family:
+      var(--font-mono),
+      ui-monospace,
+      SFMono-Regular,
+      Menlo,
+      Monaco,
+      Consolas,
+      'Liberation Mono',
+      'Courier New',
+      monospace;
+    border: 1px solid color-mix(in srgb, var(--border), transparent 10%);
+    background: color-mix(in srgb, var(--fg), transparent 95%);
+  }
+
+  .markdown-body pre {
+    @apply overflow-x-auto rounded-xl p-4 text-[0.92rem] leading-7;
+    border: 1px solid color-mix(in srgb, var(--border), transparent 4%);
+    background: color-mix(in srgb, var(--bg), var(--fg) 8%);
+  }
+
+  .markdown-body pre code {
+    @apply block rounded-none border-0 bg-transparent p-0 text-inherit;
+    white-space: pre;
+  }
+
+  .dark .markdown-body pre {
+    background: rgba(8, 12, 28, 0.92);
+    border-color: rgba(148, 163, 184, 0.3);
+  }
+
+  .markdown-body table {
+    @apply w-full border-collapse overflow-hidden rounded-xl text-sm;
+    border: 1px solid color-mix(in srgb, var(--border), transparent 12%);
+  }
+
+  .markdown-body thead {
+    background: color-mix(in srgb, var(--fg), transparent 95%);
+  }
+
+  .markdown-body th,
+  .markdown-body td {
+    @apply px-3 py-2 align-top;
+    border: 1px solid color-mix(in srgb, var(--border), transparent 20%);
+  }
+
+  .markdown-body th {
+    @apply text-left font-semibold;
+  }
+
+  .markdown-body img {
+    @apply my-5 rounded-xl;
+    max-width: 100%;
+    height: auto;
+    border: 1px solid color-mix(in srgb, var(--border), transparent 15%);
+  }
 }
 
 @media (hover: hover) and (pointer: fine) {

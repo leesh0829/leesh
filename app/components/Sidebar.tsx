@@ -194,8 +194,8 @@ export default function Sidebar({
               </button>
             </div>
             <ul>
-              <li className="mt-3 text-sm">고객 센터 답변 여부 배지 추가</li>
-              <li className="mt-3 text-sm">캘린더 / TODO UI 변경</li>
+              <li className="mt-3 text-sm">마크다운 스타일 수정</li>
+              <li className="mt-3 text-sm">글 목록 검색 기능 추가</li>
               <li className="mt-3 text-sm">그 외 버그 수정</li>
             </ul>
           </div>

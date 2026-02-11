@@ -114,12 +114,18 @@ export default function HelpDetailClient({ postId }: { postId: string }) {
         </code>
       )
     },
-    img: (props) => (
-      <img
-        {...props}
-        style={{ maxWidth: '100%', height: 'auto', borderRadius: 12 }}
-      />
-    ),
+    img: ({ src, ...props }) => {
+      const safeSrc = typeof src === 'string' ? src.trim() : ''
+      if (!safeSrc) return null
+      return (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          {...props}
+          src={safeSrc}
+          style={{ maxWidth: '100%', height: 'auto', borderRadius: 12 }}
+        />
+      )
+    },
   }
 
   if (!post) {

@@ -29,6 +29,7 @@ export default function BoardsClient({
 }) {
   const BOARD_PAGE_SIZE = 8
   const [boards, setBoards] = useState(initialBoards)
+  const [boardTitleQuery, setBoardTitleQuery] = useState('')
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc')
   const [page, setPage] = useState(1)
   const [name, setName] = useState('')
@@ -46,15 +47,23 @@ export default function BoardsClient({
   )
   const endIso = useMemo(() => toIsoOrNull(scheduleEndAt), [scheduleEndAt])
 
+  const normalizedBoardTitleQuery = boardTitleQuery.trim().toLowerCase()
+  const filteredBoards = useMemo(() => {
+    if (!normalizedBoardTitleQuery) return boards
+    return boards.filter((b) =>
+      b.name.toLowerCase().includes(normalizedBoardTitleQuery)
+    )
+  }, [boards, normalizedBoardTitleQuery])
+
   const sortedBoards = useMemo(() => {
-    const copied = [...boards]
+    const copied = [...filteredBoards]
     copied.sort((a, b) => {
       const at = new Date(a.createdAt).getTime()
       const bt = new Date(b.createdAt).getTime()
       return sortOrder === 'desc' ? bt - at : at - bt
     })
     return copied
-  }, [boards, sortOrder])
+  }, [filteredBoards, sortOrder])
 
   const totalPages = Math.max(1, Math.ceil(sortedBoards.length / BOARD_PAGE_SIZE))
   const currentPage = Math.min(page, totalPages)
@@ -65,7 +74,7 @@ export default function BoardsClient({
 
   useEffect(() => {
     setPage(1)
-  }, [sortOrder])
+  }, [sortOrder, normalizedBoardTitleQuery])
 
   useEffect(() => {
     setPage((prev) => Math.min(prev, totalPages))
@@ -135,6 +144,22 @@ export default function BoardsClient({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <input
+              className="input w-full sm:w-auto sm:min-w-[220px]"
+              value={boardTitleQuery}
+              onChange={(e) => setBoardTitleQuery(e.target.value)}
+              placeholder="제목 검색"
+              aria-label="게시판 보드 제목 검색"
+            />
+            {boardTitleQuery ? (
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => setBoardTitleQuery('')}
+              >
+                초기화
+              </button>
+            ) : null}
             <span className="text-sm" style={{ color: 'var(--muted)' }}>
               정렬
             </span>
@@ -247,46 +272,56 @@ export default function BoardsClient({
         ) : null}
 
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
-          {pagedBoards.map((b) => (
-            <Link
-              key={b.id}
-              href={`/boards/${b.id}`}
-              className="card card-pad block no-underline hover:no-underline"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="font-semibold truncate">{b.name}</div>
-                  {b.description ? (
-                    <div
-                      className="mt-1 text-sm"
-                      style={{ color: 'var(--muted)' }}
-                    >
-                      {b.description}
-                    </div>
-                  ) : (
-                    <div
-                      className="mt-1 text-sm"
-                      style={{ color: 'var(--muted)' }}
-                    >
-                      설명 없음
-                    </div>
-                  )}
-
-                  <div
-                    className="mt-2 text-xs"
-                    style={{ color: 'var(--muted)' }}
-                  >
-                    by{' '}
-                    {b.owner?.name ??
-                      (b.owner?.email
-                        ? b.owner.email.split('@')[0]
-                        : 'unknown')}
-                  </div>
-                </div>
-                <span className="badge">열기</span>
+          {pagedBoards.length === 0 ? (
+            <div className="card card-pad sm:col-span-2">
+              <div className="text-sm" style={{ color: 'var(--muted)' }}>
+                {boardTitleQuery
+                  ? `검색 결과 없음: "${boardTitleQuery}"`
+                  : '보드 없음'}
               </div>
-            </Link>
-          ))}
+            </div>
+          ) : (
+            pagedBoards.map((b) => (
+              <Link
+                key={b.id}
+                href={`/boards/${b.id}`}
+                className="card card-pad block no-underline hover:no-underline"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="font-semibold truncate">{b.name}</div>
+                    {b.description ? (
+                      <div
+                        className="mt-1 text-sm"
+                        style={{ color: 'var(--muted)' }}
+                      >
+                        {b.description}
+                      </div>
+                    ) : (
+                      <div
+                        className="mt-1 text-sm"
+                        style={{ color: 'var(--muted)' }}
+                      >
+                        설명 없음
+                      </div>
+                    )}
+
+                    <div
+                      className="mt-2 text-xs"
+                      style={{ color: 'var(--muted)' }}
+                    >
+                      by{' '}
+                      {b.owner?.name ??
+                        (b.owner?.email
+                          ? b.owner.email.split('@')[0]
+                          : 'unknown')}
+                    </div>
+                  </div>
+                  <span className="badge">열기</span>
+                </div>
+              </Link>
+            ))
+          )}
         </div>
 
         {totalPages > 1 ? (

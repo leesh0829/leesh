@@ -19,14 +19,19 @@ type MarkdownEditorProps = {
 }
 
 const markdownComponents: Parameters<typeof ReactMarkdown>[0]['components'] = {
-  img: ({ alt, ...props }) => (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      {...props}
-      alt={alt ?? ''}
-      style={{ maxWidth: '100%', height: 'auto', borderRadius: 12 }}
-    />
-  ),
+  img: ({ alt, src, ...props }) => {
+    const safeSrc = typeof src === 'string' ? src.trim() : ''
+    if (!safeSrc) return null
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        {...props}
+        src={safeSrc}
+        alt={alt ?? ''}
+        style={{ maxWidth: '100%', height: 'auto', borderRadius: 12 }}
+      />
+    )
+  },
   pre: (props) => (
     <pre
       {...props}
@@ -106,14 +111,16 @@ export default function MarkdownEditor({
             style={{ resize: 'vertical' }}
           />
         ) : (
-          <div className="min-h-[220px] p-4 text-sm leading-7">
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm, remarkBreaks]}
-              rehypePlugins={[rehypeHighlight]}
-              components={markdownComponents}
-            >
-              {value.trim() ? value : previewEmptyText}
-            </ReactMarkdown>
+          <div className="min-h-[220px] p-4">
+            <div className="markdown-body text-sm leading-7">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm, remarkBreaks]}
+                rehypePlugins={[rehypeHighlight]}
+                components={markdownComponents}
+              >
+                {value.trim() ? value : previewEmptyText}
+              </ReactMarkdown>
+            </div>
           </div>
         )}
       </div>

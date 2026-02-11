@@ -21,12 +21,20 @@ function maskEmail(email: string) {
 
 export default function HelpClient() {
   const [posts, setPosts] = useState<HelpPost[]>([])
+  const [listTitleQuery, setListTitleQuery] = useState('')
   const [title, setTitle] = useState('')
   const [contentMd, setContentMd] = useState('')
   const [err, setErr] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
   const canSubmit = useMemo(() => !!title.trim(), [title])
+  const normalizedListTitleQuery = listTitleQuery.trim().toLowerCase()
+  const filteredPosts = useMemo(() => {
+    if (!normalizedListTitleQuery) return posts
+    return posts.filter((p) =>
+      p.title.toLowerCase().includes(normalizedListTitleQuery)
+    )
+  }, [posts, normalizedListTitleQuery])
 
   const load = async () => {
     setErr(null)
@@ -128,15 +136,38 @@ export default function HelpClient() {
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold">요청 목록</h2>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-lg font-semibold">요청 목록</h2>
+          <div className="flex w-full items-center gap-2 sm:w-auto">
+            <input
+              type="text"
+              className="input w-full sm:min-w-[220px]"
+              value={listTitleQuery}
+              onChange={(e) => setListTitleQuery(e.target.value)}
+              placeholder="제목 검색"
+              aria-label="고객센터 글 제목 검색"
+            />
+            {listTitleQuery ? (
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => setListTitleQuery('')}
+              >
+                초기화
+              </button>
+            ) : null}
+          </div>
+        </div>
 
-        {posts.length === 0 ? (
+        {filteredPosts.length === 0 ? (
           <div className="surface card-pad text-sm opacity-70">
-            등록된 요청이 없습니다.
+            {listTitleQuery
+              ? `검색 결과 없음: "${listTitleQuery}"`
+              : '등록된 요청이 없습니다.'}
           </div>
         ) : (
           <div className="grid gap-2">
-            {posts.map((p) => {
+            {filteredPosts.map((p) => {
               const by =
                 p.author?.name ??
                 (p.author?.email ? maskEmail(p.author.email) : 'unknown')

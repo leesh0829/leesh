@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import ImageUploadButton from '@/app/components/ImageUploadButton'
 import MarkdownEditor from '@/app/components/MarkdownEditor'
 
@@ -73,10 +74,12 @@ export default function BoardDetailClient({
   backHref?: string
   backLabel?: string
 }) {
+  const router = useRouter()
   const POST_PAGE_SIZE = 10
   const [posts, setPosts] = useState<Post[]>(initialPosts)
   const [postSortOrder, setPostSortOrder] = useState<'desc' | 'asc'>('desc')
   const [postPage, setPostPage] = useState(1)
+  const [postTitleQuery, setPostTitleQuery] = useState('')
 
   const [boardName, setBoardName] = useState(board.name)
   const [boardDesc, setBoardDesc] = useState(board.description ?? '')
@@ -125,6 +128,11 @@ export default function BoardDetailClient({
       return
     }
 
+    setBoardName(typeof data?.name === 'string' ? data.name : boardName)
+    setBoardDesc(
+      typeof data?.description === 'string' ? data.description : boardDesc
+    )
+    router.refresh()
     alert('보드 저장 완료')
   }
 
@@ -258,15 +266,23 @@ export default function BoardDetailClient({
     alert(err.message ?? '생성 실패')
   }
 
+  const normalizedPostTitleQuery = postTitleQuery.trim().toLowerCase()
+  const filteredPosts = useMemo(() => {
+    if (!normalizedPostTitleQuery) return posts
+    return posts.filter((p) =>
+      p.title.toLowerCase().includes(normalizedPostTitleQuery)
+    )
+  }, [posts, normalizedPostTitleQuery])
+
   const sortedPosts = useMemo(() => {
-    const copied = [...posts]
+    const copied = [...filteredPosts]
     copied.sort((a, b) => {
       const at = new Date(a.createdAt).getTime()
       const bt = new Date(b.createdAt).getTime()
       return postSortOrder === 'desc' ? bt - at : at - bt
     })
     return copied
-  }, [posts, postSortOrder])
+  }, [filteredPosts, postSortOrder])
 
   const postTotalPages = Math.max(
     1,
@@ -280,7 +296,7 @@ export default function BoardDetailClient({
 
   useEffect(() => {
     setPostPage(1)
-  }, [postSortOrder])
+  }, [postSortOrder, normalizedPostTitleQuery])
 
   useEffect(() => {
     setPostPage((prev) => Math.min(prev, postTotalPages))
@@ -549,9 +565,29 @@ export default function BoardDetailClient({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <h3 className="text-lg font-bold">목록</h3>
-              <span className="badge">{posts.length}</span>
+              <span className="badge">
+                {normalizedPostTitleQuery
+                  ? `${filteredPosts.length}/${posts.length}`
+                  : posts.length}
+              </span>
             </div>
             <div className="flex items-center gap-2">
+              <input
+                className="input w-full sm:w-auto sm:min-w-[220px]"
+                value={postTitleQuery}
+                onChange={(e) => setPostTitleQuery(e.target.value)}
+                placeholder="제목 검색"
+                aria-label="게시판 글 제목 검색"
+              />
+              {postTitleQuery ? (
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => setPostTitleQuery('')}
+                >
+                  초기화
+                </button>
+              ) : null}
               <span className="text-sm" style={{ color: 'var(--muted)' }}>
                 정렬
               </span>
@@ -575,26 +611,36 @@ export default function BoardDetailClient({
           ) : null}
 
           <div className="mt-4 grid gap-3">
-            {pagedPosts.map((p) => (
-              <Link
-                key={p.id}
-                href={`/boards/${board.id}/${encodeURIComponent(p.slug ?? p.id)}`}
-                className="card card-pad block no-underline hover:no-underline"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="badge">{p.status}</span>
-                      {p.isSecret ? (
-                        <span className="badge">SECRET</span>
-                      ) : null}
-                    </div>
-                    <div className="mt-2 font-semibold truncate">{p.title}</div>
-                  </div>
-                  <span className="badge">열기</span>
+            {pagedPosts.length === 0 ? (
+              <div className="card card-pad">
+                <div className="text-sm" style={{ color: 'var(--muted)' }}>
+                  {postTitleQuery
+                    ? `검색 결과 없음: "${postTitleQuery}"`
+                    : '글 없음'}
                 </div>
-              </Link>
-            ))}
+              </div>
+            ) : (
+              pagedPosts.map((p) => (
+                <Link
+                  key={p.id}
+                  href={`/boards/${board.id}/${encodeURIComponent(p.slug ?? p.id)}`}
+                  className="card card-pad block no-underline hover:no-underline"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="badge">{p.status}</span>
+                        {p.isSecret ? (
+                          <span className="badge">SECRET</span>
+                        ) : null}
+                      </div>
+                      <div className="mt-2 font-semibold truncate">{p.title}</div>
+                    </div>
+                    <span className="badge">열기</span>
+                  </div>
+                </Link>
+              ))
+            )}
           </div>
 
           {postTotalPages > 1 ? (

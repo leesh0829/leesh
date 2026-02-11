@@ -598,26 +598,34 @@ export default function PostDetailClient({
               </div>
             ) : (
               <article className="card card-pad card-hover-border-only">
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm, remarkBreaks]}
-                  rehypePlugins={[rehypeHighlight]}
-                  components={{
-                    img: ({ alt, ...props }) => (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        {...props}
-                        alt={alt ?? ''}
-                        style={{
-                          maxWidth: '100%',
-                          height: 'auto',
-                          borderRadius: 12,
-                        }}
-                      />
-                    ),
-                  }}
-                >
-                  {postState.contentMd || '(본문 없음)'}
-                </ReactMarkdown>
+                <div className="markdown-body">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm, remarkBreaks]}
+                    rehypePlugins={[rehypeHighlight]}
+                    components={{
+                      img: ({ alt, src, ...props }) => {
+                        const safeSrc =
+                          typeof src === 'string' ? src.trim() : ''
+                        if (!safeSrc) return null
+                        return (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            {...props}
+                            src={safeSrc}
+                            alt={alt ?? ''}
+                            style={{
+                              maxWidth: '100%',
+                              height: 'auto',
+                              borderRadius: 12,
+                            }}
+                          />
+                        )
+                      },
+                    }}
+                  >
+                    {postState.contentMd || '(본문 없음)'}
+                  </ReactMarkdown>
+                </div>
               </article>
             )}
           </section>

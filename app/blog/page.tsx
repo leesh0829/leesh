@@ -3,6 +3,7 @@ import { prisma } from '@/app/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import { toISOStringSafe } from '@/app/lib/date'
+import type { Prisma } from '@prisma/client'
 
 export const runtime = 'nodejs'
 type SortOrder = 'asc' | 'desc'
@@ -28,15 +29,23 @@ type BlogPostRow = {
 }
 
 export default async function BlogListPage(props: {
-  searchParams?: Promise<{ sort?: string; page?: string }>
+  searchParams?: Promise<{ sort?: string; page?: string; q?: string }>
 }) {
   const searchParams = (await props.searchParams) ?? {}
   const sortOrder = parseSortOrder(searchParams.sort)
   const rawPage = parsePage(searchParams.page)
+  const titleQuery =
+    typeof searchParams.q === 'string' ? searchParams.q.trim() : ''
   const session = await getServerSession(authOptions)
   const canWrite = !!session?.user?.email
 
-  const where = { board: { type: 'BLOG' as const }, status: 'DONE' as const }
+  const where: Prisma.PostWhereInput = {
+    board: { type: 'BLOG' },
+    status: 'DONE',
+    ...(titleQuery
+      ? { title: { contains: titleQuery, mode: 'insensitive' } }
+      : {}),
+  }
   const totalCount = await prisma.post.count({ where })
   const totalPages = Math.max(1, Math.ceil(totalCount / BLOG_PAGE_SIZE))
   const page = Math.min(rawPage, totalPages)
@@ -61,8 +70,19 @@ export default async function BlogListPage(props: {
     slug: p.slug ?? p.id,
   }))
 
-  const pageHref = (nextPage: number) =>
-    `/blog?sort=${sortOrder}&page=${Math.min(totalPages, Math.max(1, nextPage))}`
+  const toHref = (next: { page?: number; sort?: SortOrder; q?: string }) => {
+    const params = new URLSearchParams()
+    params.set('sort', next.sort ?? sortOrder)
+    params.set(
+      'page',
+      String(Math.min(totalPages, Math.max(1, next.page ?? page)))
+    )
+    const q = (next.q ?? titleQuery).trim()
+    if (q) params.set('q', q)
+    return `/blog?${params.toString()}`
+  }
+
+  const pageHref = (nextPage: number) => toHref({ page: nextPage })
 
   return (
     <main className="container-page py-8">
@@ -76,8 +96,36 @@ export default async function BlogListPage(props: {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <form
+              method="get"
+              action="/blog"
+              className="flex w-full items-center gap-2 sm:w-auto"
+            >
+              <input type="hidden" name="sort" value={sortOrder} />
+              <input type="hidden" name="page" value="1" />
+              <input
+                type="text"
+                name="q"
+                defaultValue={titleQuery}
+                placeholder="제목 검색"
+                className="input sm:min-w-[220px]"
+                aria-label="블로그 제목 검색"
+              />
+              <button type="submit" className="btn btn-outline">
+                검색
+              </button>
+              {titleQuery ? (
+                <Link
+                  href={toHref({ page: 1, q: '' })}
+                  className="btn btn-ghost"
+                >
+                  초기화
+                </Link>
+              ) : null}
+            </form>
+
             <Link
-              href="/blog?sort=desc"
+              href={toHref({ sort: 'desc', page: 1 })}
               className={
                 'btn ' + (sortOrder === 'desc' ? 'btn-primary' : 'btn-outline')
               }
@@ -85,7 +133,7 @@ export default async function BlogListPage(props: {
               최신순
             </Link>
             <Link
-              href="/blog?sort=asc"
+              href={toHref({ sort: 'asc', page: 1 })}
               className={
                 'btn ' + (sortOrder === 'asc' ? 'btn-primary' : 'btn-outline')
               }
@@ -106,7 +154,9 @@ export default async function BlogListPage(props: {
           {posts.length === 0 ? (
             <div className="card card-pad">
               <div className="text-sm" style={{ color: 'var(--muted)' }}>
-                글 없음
+                {titleQuery
+                  ? `검색 결과 없음: "${titleQuery}"`
+                  : '글 없음'}
               </div>
             </div>
           ) : (

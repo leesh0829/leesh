@@ -111,7 +111,10 @@ export default async function BlogListPage(props: {
                 className="input sm:min-w-[220px]"
                 aria-label="블로그 제목 검색"
               />
-              <button type="submit" className="btn btn-outline">
+              <button
+                type="submit"
+                className="btn btn-outline shrink-0 whitespace-nowrap"
+              >
                 검색
               </button>
               {titleQuery ? (

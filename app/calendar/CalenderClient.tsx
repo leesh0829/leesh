@@ -790,8 +790,8 @@ export default function CalendarClient() {
           </div>
 
           <section className="mt-3 card card-pad card-hover-border-only">
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="badge">월 이동</span>
                 <button
                   type="button"
@@ -810,17 +810,16 @@ export default function CalendarClient() {
                 >
                   ▶
                 </button>
+                <button type="button" className="btn btn-primary" onClick={load}>
+                  일정 새로고침
+                </button>
               </div>
 
-              <button type="button" className="btn btn-primary" onClick={load}>
-                일정 새로고침
-              </button>
-
-              <div className="ml-auto flex flex-wrap items-center gap-2">
-                <label className="flex items-center gap-2 text-sm">
-                  <span className="badge">보드 필터</span>
+              <div className="flex flex-wrap items-center gap-2 xl:ml-auto xl:justify-end">
+                <label className="flex w-full items-center gap-2 text-sm sm:w-auto">
+                  <span className="badge shrink-0">보드 필터</span>
                   <select
-                    className="select w-40"
+                    className="select w-full sm:w-40"
                     value={boardFilter}
                     onChange={(e) => setBoardFilter(e.target.value)}
                   >
@@ -833,10 +832,10 @@ export default function CalendarClient() {
                   </select>
                 </label>
 
-                <label className="flex items-center gap-2 text-sm">
-                  <span className="badge">상태 필터</span>
+                <label className="flex w-full items-center gap-2 text-sm sm:w-auto">
+                  <span className="badge shrink-0">상태 필터</span>
                   <select
-                    className="select w-32"
+                    className="select w-full sm:w-32"
                     value={statusFilter}
                     onChange={(e) =>
                       setStatusFilter(
@@ -1292,7 +1291,7 @@ export default function CalendarClient() {
               onChange={(e) => setShareEmail(e.target.value)}
               placeholder="상대 계정 이메일 또는 ID"
             />
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 type="button"
                 className="btn btn-primary"
@@ -1327,7 +1326,7 @@ export default function CalendarClient() {
               shareAccounts.map((account) => (
                 <label
                   key={account.id}
-                  className="card card-hover-border-only flex items-center gap-2 px-3 py-2 text-sm"
+                  className="card card-hover-border-only flex min-w-0 items-center gap-2 px-3 py-2 text-sm"
                 >
                   <input
                     type="checkbox"
@@ -1348,7 +1347,7 @@ export default function CalendarClient() {
                         'color-mix(in srgb, var(--border) 70%, white)',
                     }}
                   />
-                  <span className="truncate">{account.label}</span>
+                  <span className="min-w-0 flex-1 truncate">{account.label}</span>
                   {account.isSelf ? (
                     <span className="badge ml-auto">나</span>
                   ) : null}

@@ -138,18 +138,19 @@ export default function BoardsClient({
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <input
-              className="input w-full sm:w-auto sm:min-w-[220px]"
-              value={boardTitleQuery}
-              onChange={(e) => {
-                setBoardTitleQuery(e.target.value)
-                setPage(1)
-              }}
-              placeholder="제목 검색"
-              aria-label="게시판 보드 제목 검색"
-            />
-            {boardTitleQuery ? (
+          <div className="grid w-full gap-2 lg:w-auto">
+            <div className="flex w-full flex-wrap items-center gap-2 lg:justify-end">
+              <input
+                className="input min-w-0 flex-1 sm:min-w-[220px]"
+                value={boardTitleQuery}
+                onChange={(e) => {
+                  setBoardTitleQuery(e.target.value)
+                  setPage(1)
+                }}
+                placeholder="제목 검색"
+                aria-label="게시판 보드 제목 검색"
+              />
+              {boardTitleQuery ? (
                 <button
                   type="button"
                   className="btn btn-ghost"
@@ -160,24 +161,28 @@ export default function BoardsClient({
                 >
                   초기화
                 </button>
-            ) : null}
-            <span className="text-sm" style={{ color: 'var(--muted)' }}>
-              정렬
-            </span>
-            <select
-              className="select w-auto"
-              value={sortOrder}
-              onChange={(e) => {
-                setSortOrder(e.target.value as 'desc' | 'asc')
-                setPage(1)
-              }}
-            >
-              <option value="desc">최신순</option>
-              <option value="asc">오래된순</option>
-            </select>
-            {!canCreate ? (
-              <span className="badge">로그인하면 보드 생성 가능</span>
-            ) : null}
+              ) : null}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+              <span className="text-sm" style={{ color: 'var(--muted)' }}>
+                정렬
+              </span>
+              <select
+                className="select min-w-[140px]"
+                value={sortOrder}
+                onChange={(e) => {
+                  setSortOrder(e.target.value as 'desc' | 'asc')
+                  setPage(1)
+                }}
+              >
+                <option value="desc">최신순</option>
+                <option value="asc">오래된순</option>
+              </select>
+              {!canCreate ? (
+                <span className="badge">로그인하면 보드 생성 가능</span>
+              ) : null}
+            </div>
           </div>
         </div>
 

@@ -95,11 +95,11 @@ export default async function BlogListPage(props: {
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="grid w-full gap-2 lg:w-auto">
             <form
               method="get"
               action="/blog"
-              className="flex w-full items-center gap-2 sm:w-auto"
+              className="flex w-full flex-wrap items-center gap-2 lg:justify-end"
             >
               <input type="hidden" name="sort" value={sortOrder} />
               <input type="hidden" name="page" value="1" />
@@ -108,12 +108,12 @@ export default async function BlogListPage(props: {
                 name="q"
                 defaultValue={titleQuery}
                 placeholder="제목 검색"
-                className="input sm:min-w-[220px]"
+                className="input min-w-0 flex-1 sm:min-w-[220px]"
                 aria-label="블로그 제목 검색"
               />
               <button
                 type="submit"
-                className="btn btn-outline shrink-0 whitespace-nowrap"
+                className="btn btn-outline shrink-0 min-w-[3.25rem]"
               >
                 검색
               </button>
@@ -126,30 +126,32 @@ export default async function BlogListPage(props: {
                 </Link>
               ) : null}
             </form>
-
-            <Link
-              href={toHref({ sort: 'desc', page: 1 })}
-              className={
-                'btn ' + (sortOrder === 'desc' ? 'btn-primary' : 'btn-outline')
-              }
-            >
-              최신순
-            </Link>
-            <Link
-              href={toHref({ sort: 'asc', page: 1 })}
-              className={
-                'btn ' + (sortOrder === 'asc' ? 'btn-primary' : 'btn-outline')
-              }
-            >
-              오래된순
-            </Link>
-            {canWrite ? (
-              <Link href="/blog/new" className="btn btn-primary">
-                글 작성
+            <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+              <Link
+                href={toHref({ sort: 'desc', page: 1 })}
+                className={
+                  'btn ' +
+                  (sortOrder === 'desc' ? 'btn-primary' : 'btn-outline')
+                }
+              >
+                최신순
               </Link>
-            ) : (
-              <span className="badge">로그인하면 글 작성 가능</span>
-            )}
+              <Link
+                href={toHref({ sort: 'asc', page: 1 })}
+                className={
+                  'btn ' + (sortOrder === 'asc' ? 'btn-primary' : 'btn-outline')
+                }
+              >
+                오래된순
+              </Link>
+              {canWrite ? (
+                <Link href="/blog/new" className="btn btn-primary">
+                  글 작성
+                </Link>
+              ) : (
+                <span className="badge">로그인하면 글 작성 가능</span>
+              )}
+            </div>
           </div>
         </div>
 

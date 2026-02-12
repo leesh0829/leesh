@@ -87,7 +87,7 @@ export default function HelpClient() {
           </p>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex w-full gap-2 sm:w-auto">
           <button type="button" className="btn btn-outline" onClick={load}>
             새로고침
           </button>
@@ -138,10 +138,10 @@ export default function HelpClient() {
       <section className="space-y-2">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-lg font-semibold">요청 목록</h2>
-          <div className="flex w-full items-center gap-2 sm:w-auto">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap">
             <input
               type="text"
-              className="input w-full sm:min-w-[220px]"
+              className="input min-w-0 flex-1 sm:min-w-[220px]"
               value={listTitleQuery}
               onChange={(e) => setListTitleQuery(e.target.value)}
               placeholder="제목 검색"

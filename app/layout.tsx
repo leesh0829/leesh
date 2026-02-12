@@ -85,7 +85,7 @@ export default async function RootLayout({
           }}
         />
         <Providers>
-          <div className="fixed right-3 top-3 z-50 hidden lg:block sm:right-4 sm:top-4">
+          <div className="fixed right-3 top-3 z-50 hidden lg:flex lg:items-center lg:gap-2 sm:right-4 sm:top-4">
             <ThemeToggle />
           </div>
           <AppShell>{children}</AppShell>

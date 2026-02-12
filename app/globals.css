@@ -168,17 +168,17 @@
 
   .btn-primary {
     border: 0;
-    color: var(--accent-foreground);
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    box-shadow: 0 10px 25px rgba(109, 90, 255, 0.18);
-    background-size: 140% 140%;
-    background-position: 0% 50%;
+    color: #2b2750;
+    background-image: none;
+    background-color: #ddd9ff;
+    box-shadow: 0 8px 20px rgba(124, 109, 255, 0.22);
   }
 
   .btn-primary:hover {
     filter: none;
-    background-position: 100% 50%;
-    box-shadow: 0 14px 30px rgba(109, 90, 255, 0.28);
+    background-image: none;
+    background-color: #d3cdff;
+    box-shadow: 0 12px 24px rgba(124, 109, 255, 0.3);
   }
 
   .btn-outline {
@@ -235,21 +235,34 @@
   }
 
   .nav-link-active {
-    color: var(--accent-foreground);
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #2b2750;
+    background-image: none;
+    background-color: #ddd9ff;
     text-decoration: none;
-    box-shadow: 0 10px 25px rgba(109, 90, 255, 0.18);
-    background-size: 140% 140%;
-    background-position: 0% 50%;
+    box-shadow: 0 8px 20px rgba(124, 109, 255, 0.22);
   }
 
   .nav-link-active:hover {
-    color: var(--accent-foreground);
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #2b2750;
+    background-image: none;
+    background-color: #d3cdff;
     text-decoration: none;
     filter: none;
-    background-position: 100% 50%;
-    box-shadow: 0 14px 30px rgba(109, 90, 255, 0.28);
+    box-shadow: 0 12px 24px rgba(124, 109, 255, 0.3);
+  }
+
+  :root[data-theme='dark'] .btn-primary,
+  :root[data-theme='dark'] .nav-link-active {
+    color: #18172b;
+    background-color: #c8bfff;
+    box-shadow: 0 10px 22px rgba(145, 130, 255, 0.35);
+  }
+
+  :root[data-theme='dark'] .btn-primary:hover,
+  :root[data-theme='dark'] .nav-link-active:hover {
+    color: #18172b;
+    background-color: #bdb2ff;
+    box-shadow: 0 14px 28px rgba(145, 130, 255, 0.46);
   }
 
   .markdown-body {
@@ -354,15 +367,8 @@
   .markdown-body code {
     @apply rounded-md px-1.5 py-0.5 text-[0.86em];
     font-family:
-      var(--font-mono),
-      ui-monospace,
-      SFMono-Regular,
-      Menlo,
-      Monaco,
-      Consolas,
-      'Liberation Mono',
-      'Courier New',
-      monospace;
+      var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+      'Liberation Mono', 'Courier New', monospace;
     border: 1px solid color-mix(in srgb, var(--border), transparent 10%);
     background: color-mix(in srgb, var(--fg), transparent 95%);
   }

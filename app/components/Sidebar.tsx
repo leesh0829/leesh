@@ -215,16 +215,23 @@ export default function Sidebar({
       <aside
         className={
           // mobile: overlay
-          'fixed z-50 h-dvh w-[82vw] max-w-64 border-r bg-(--card) p-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] transition-transform ' +
+          'fixed z-50 h-dvh w-[82vw] max-w-64 border-r bg-(--card) p-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] transition-transform duration-300 ease-in-out motion-reduce:transition-none ' +
           (open ? 'translate-x-0' : '-translate-x-full') +
           // desktop: sticky sidebar (independent scroll)
-          ' lg:sticky lg:top-0 lg:translate-x-0 lg:h-dvh lg:overflow-y-auto ' +
+          ' lg:sticky lg:top-0 lg:translate-x-0 lg:h-dvh lg:overflow-y-auto lg:transition-[width,padding,border-color,transform] lg:duration-300 lg:ease-in-out lg:will-change-[width] ' +
           (desktopOpen
             ? ' lg:w-64 lg:p-4'
             : ' lg:w-0 lg:p-0 lg:overflow-hidden lg:border-r-0')
         }
       >
-        <div className="flex h-full min-h-0 flex-col">
+        <div
+          className={
+            'flex h-full min-h-0 flex-col transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none ' +
+            (desktopOpen
+              ? 'lg:translate-x-0 lg:opacity-100'
+              : 'lg:-translate-x-2 lg:opacity-0 lg:pointer-events-none')
+          }
+        >
           <div className="mb-4 flex items-center justify-between">
             <Link href="/" onClick={onClose} className="text-base font-bold">
               Leesh

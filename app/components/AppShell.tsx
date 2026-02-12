@@ -110,7 +110,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   : 'container-page') + ' py-6 flex-1'
               }
             >
-              <div key={pathname} className="route-enter">
+              <div key={pathname} className="route-fade-enter">
                 {children}
               </div>
             </div>

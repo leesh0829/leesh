@@ -48,7 +48,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="mt-6 grid gap-4 sm:grid-cols-2">
+      <section className="stagger-in mt-6 grid gap-4 sm:grid-cols-2">
         <Card
           title="블로그"
           desc="마크다운 기반 포스팅 + 로그인 댓글"

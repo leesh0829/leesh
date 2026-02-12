@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import ImageUploadButton from '@/app/components/ImageUploadButton'
@@ -294,14 +294,6 @@ export default function BoardDetailClient({
     return sortedPosts.slice(start, start + POST_PAGE_SIZE)
   }, [sortedPosts, currentPostPage])
 
-  useEffect(() => {
-    setPostPage(1)
-  }, [postSortOrder, normalizedPostTitleQuery])
-
-  useEffect(() => {
-    setPostPage((prev) => Math.min(prev, postTotalPages))
-  }, [postTotalPages])
-
   return (
     <main className="container-page py-8">
       <div className="surface card-pad card-hover-border-only">
@@ -575,7 +567,10 @@ export default function BoardDetailClient({
               <input
                 className="input w-full sm:w-auto sm:min-w-[220px]"
                 value={postTitleQuery}
-                onChange={(e) => setPostTitleQuery(e.target.value)}
+                onChange={(e) => {
+                  setPostTitleQuery(e.target.value)
+                  setPostPage(1)
+                }}
                 placeholder="제목 검색"
                 aria-label="게시판 글 제목 검색"
               />
@@ -583,7 +578,10 @@ export default function BoardDetailClient({
                 <button
                   type="button"
                   className="btn btn-ghost"
-                  onClick={() => setPostTitleQuery('')}
+                  onClick={() => {
+                    setPostTitleQuery('')
+                    setPostPage(1)
+                  }}
                 >
                   초기화
                 </button>
@@ -594,9 +592,10 @@ export default function BoardDetailClient({
               <select
                 className="select w-auto"
                 value={postSortOrder}
-                onChange={(e) =>
+                onChange={(e) => {
                   setPostSortOrder(e.target.value as 'desc' | 'asc')
-                }
+                  setPostPage(1)
+                }}
               >
                 <option value="desc">최신순</option>
                 <option value="asc">오래된순</option>

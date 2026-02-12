@@ -461,6 +461,84 @@
   .loading-dots > span:nth-child(3) {
     animation-delay: 0.3s;
   }
+
+  .route-enter {
+    animation: leesh-route-enter 220ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+
+  .stagger-in > * {
+    opacity: 0;
+    transform: translateY(10px);
+    animation: leesh-stagger-enter 320ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+
+  .stagger-in > *:nth-child(1) {
+    animation-delay: 30ms;
+  }
+  .stagger-in > *:nth-child(2) {
+    animation-delay: 60ms;
+  }
+  .stagger-in > *:nth-child(3) {
+    animation-delay: 90ms;
+  }
+  .stagger-in > *:nth-child(4) {
+    animation-delay: 120ms;
+  }
+  .stagger-in > *:nth-child(5) {
+    animation-delay: 150ms;
+  }
+  .stagger-in > *:nth-child(6) {
+    animation-delay: 180ms;
+  }
+  .stagger-in > *:nth-child(7) {
+    animation-delay: 210ms;
+  }
+  .stagger-in > *:nth-child(8) {
+    animation-delay: 240ms;
+  }
+  .stagger-in > *:nth-child(9) {
+    animation-delay: 270ms;
+  }
+  .stagger-in > *:nth-child(10) {
+    animation-delay: 300ms;
+  }
+
+  .modal-enter {
+    animation: leesh-modal-enter 170ms cubic-bezier(0.2, 0.75, 0.2, 1) both;
+  }
+
+  .skeleton {
+    position: relative;
+    overflow: hidden;
+    border-radius: inherit;
+    background: color-mix(in srgb, var(--fg), transparent 92%);
+  }
+
+  .skeleton::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      100deg,
+      transparent 10%,
+      rgba(255, 255, 255, 0.42) 40%,
+      transparent 70%
+    );
+    transform: translateX(-100%);
+    animation: leesh-shimmer 1.35s ease-in-out infinite;
+  }
+
+  .toast-enter {
+    animation: leesh-toast-in 220ms cubic-bezier(0.2, 0.75, 0.2, 1) both;
+  }
+
+  .toast-exit {
+    animation: leesh-toast-out 180ms ease-in both;
+  }
+
+  .calendar-bar-enter {
+    animation: leesh-calendar-bar-enter 120ms ease-out both;
+  }
 }
 
 @keyframes leesh-orbit-spin {
@@ -479,6 +557,76 @@
 
   40% {
     transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+@keyframes leesh-route-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes leesh-stagger-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes leesh-modal-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes leesh-shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes leesh-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes leesh-toast-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+}
+
+@keyframes leesh-calendar-bar-enter {
+  from {
+    opacity: 0;
+  }
+  to {
     opacity: 1;
   }
 }
@@ -567,5 +715,22 @@
   .select,
   .textarea {
     font-size: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-enter,
+  .modal-enter,
+  .toast-enter,
+  .toast-exit,
+  .calendar-bar-enter,
+  .stagger-in > * {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .skeleton::after {
+    animation: none !important;
   }
 }

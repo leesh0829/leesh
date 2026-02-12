@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
@@ -34,7 +34,7 @@ export default function HelpDetailClient({ postId }: { postId: string }) {
 
   const canSend = useMemo(() => !!draft.trim(), [draft])
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setErr(null)
 
     const r1 = await fetch(`/api/help/posts/${postId}`, { cache: 'no-store' })
@@ -46,7 +46,7 @@ export default function HelpDetailClient({ postId }: { postId: string }) {
     else setErr((await r1.json().catch(() => null))?.message ?? '불러오기 실패')
 
     if (r2.ok) setAnswers(await r2.json())
-  }
+  }, [postId])
 
   useEffect(() => {
     const t = window.setTimeout(() => {
@@ -56,7 +56,7 @@ export default function HelpDetailClient({ postId }: { postId: string }) {
     return () => {
       window.clearTimeout(t)
     }
-  }, [postId])
+  }, [load])
 
   const sendAnswer = async () => {
     setSaving(true)
@@ -114,7 +114,7 @@ export default function HelpDetailClient({ postId }: { postId: string }) {
         </code>
       )
     },
-    img: ({ src, ...props }) => {
+    img: ({ src, alt, ...props }) => {
       const safeSrc = typeof src === 'string' ? src.trim() : ''
       if (!safeSrc) return null
       return (
@@ -122,6 +122,7 @@ export default function HelpDetailClient({ postId }: { postId: string }) {
         <img
           {...props}
           src={safeSrc}
+          alt={typeof alt === 'string' ? alt : ''}
           style={{ maxWidth: '100%', height: 'auto', borderRadius: 12 }}
         />
       )

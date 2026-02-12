@@ -166,7 +166,7 @@ export default function HelpClient() {
               : '등록된 요청이 없습니다.'}
           </div>
         ) : (
-          <div className="grid gap-2">
+          <div className="stagger-in grid gap-2">
             {filteredPosts.map((p) => {
               const by =
                 p.author?.name ??
@@ -179,7 +179,9 @@ export default function HelpClient() {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="font-semibold wrap-break-word">{p.title}</div>
+                      <div className="font-semibold wrap-break-word">
+                        {p.title}
+                      </div>
                       <div className="mt-1">
                         <span className="badge">
                           {p.hasOperatorAnswer ? '답변완료' : '답변대기'}

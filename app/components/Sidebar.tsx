@@ -182,7 +182,7 @@ export default function Sidebar({
             aria-label="업데이트 내역 닫기"
             onClick={() => setShowUpdates(false)}
           />
-          <div className="surface card-pad relative z-[71] w-full max-w-md">
+          <div className="surface card-pad modal-enter relative z-[71] w-full max-w-md">
             <div className="flex items-center justify-between gap-2">
               <div className="text-base font-semibold">업데이트 내역</div>
               <button

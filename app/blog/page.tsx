@@ -150,13 +150,11 @@ export default async function BlogListPage(props: {
           </div>
         </div>
 
-        <div className="mt-6 grid gap-3">
+        <div className="stagger-in mt-6 grid gap-3">
           {posts.length === 0 ? (
             <div className="card card-pad">
               <div className="text-sm" style={{ color: 'var(--muted)' }}>
-                {titleQuery
-                  ? `검색 결과 없음: "${titleQuery}"`
-                  : '글 없음'}
+                {titleQuery ? `검색 결과 없음: "${titleQuery}"` : '글 없음'}
               </div>
             </div>
           ) : (
@@ -199,7 +197,8 @@ export default async function BlogListPage(props: {
               href={pageHref(page - 1)}
               aria-disabled={page <= 1}
               className={
-                'btn btn-outline ' + (page <= 1 ? 'pointer-events-none opacity-50' : '')
+                'btn btn-outline ' +
+                (page <= 1 ? 'pointer-events-none opacity-50' : '')
               }
             >
               이전

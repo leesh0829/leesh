@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { toHumanHttpError } from '@/app/lib/httpErrorText'
+import { useToast } from '@/app/components/ToastProvider'
 
 type CalItem = {
   kind: 'POST' | 'BOARD'
@@ -200,8 +201,10 @@ function normalizeSpanEnd(it: CalItem, start: Date) {
 }
 
 export default function CalendarClient() {
+  const toast = useToast()
   const [cursor, setCursor] = useState(() => new Date())
   const [items, setItems] = useState<CalItem[]>([])
+  const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
   const [boardFilter, setBoardFilter] = useState<string>('ALL')
   const [statusFilter, setStatusFilter] = useState<'ALL' | CalItem['status']>(
@@ -310,18 +313,31 @@ export default function CalendarClient() {
     })
   }, [items, boardFilter, statusFilter, visibleOwnerIds])
 
+  const barAnimSeed = useMemo(() => {
+    const ownerKey = Object.entries(visibleOwners)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([k, v]) => `${k}:${v ? 1 : 0}`)
+      .join('|')
+    return `${ym}|${boardFilter}|${statusFilter}|${ownerKey}`
+  }, [ym, boardFilter, statusFilter, visibleOwners])
+
   const load = useCallback(async () => {
+    setLoading(true)
     setErr(null)
     const res = await fetch(`/api/calendar?month=${ym}`)
     if (res.ok) {
       setItems(await res.json())
+      setLoading(false)
       return
     }
     const payload = await readJsonSafely(res)
     const msg = extractApiMessage(payload) ?? '캘린더 불러오기 실패'
     const human = toHumanHttpError(res.status, msg)
-    setErr(human ?? `${res.status} · ${msg}`)
-  }, [ym])
+    const message = human ?? `${res.status} · ${msg}`
+    setErr(message)
+    toast.error(message)
+    setLoading(false)
+  }, [ym, toast])
 
   const loadShares = useCallback(async () => {
     setShareLoading(true)
@@ -330,7 +346,9 @@ export default function CalendarClient() {
       const payload = await readJsonSafely(res)
       const msg = extractApiMessage(payload) ?? '공유 정보 불러오기 실패'
       const human = toHumanHttpError(res.status, msg)
-      setErr(human ?? `${res.status} · ${msg}`)
+      const message = human ?? `${res.status} · ${msg}`
+      setErr(message)
+      toast.error(message)
       setShareLoading(false)
       return
     }
@@ -348,12 +366,14 @@ export default function CalendarClient() {
       (payload.incoming ?? []).filter((row) => row.scope === 'CALENDAR')
     )
     setShareLoading(false)
-  }, [])
+  }, [toast])
 
   const sendShareRequest = async () => {
     const targetEmail = shareEmail.trim()
     if (!targetEmail) {
-      setErr('공유 요청 이메일을 입력해 주세요.')
+      const message = '공유 요청 이메일을 입력해 주세요.'
+      setErr(message)
+      toast.error(message)
       return
     }
     setErr(null)
@@ -368,13 +388,16 @@ export default function CalendarClient() {
       const payload = await readJsonSafely(res)
       const msg = extractApiMessage(payload) ?? '공유 요청 실패'
       const human = toHumanHttpError(res.status, msg)
-      setErr(human ?? `${res.status} · ${msg}`)
+      const message = human ?? `${res.status} · ${msg}`
+      setErr(message)
+      toast.error(message)
       setShareBusyId(null)
       return
     }
 
     setShareEmail('')
     setShareBusyId(null)
+    toast.success('캘린더 공유 요청을 보냈습니다.')
     await Promise.all([loadShares(), load()])
   }
 
@@ -396,12 +419,19 @@ export default function CalendarClient() {
         extractApiMessage(payload) ??
         (action === 'ACCEPT' ? '승인 실패' : '거절 실패')
       const human = toHumanHttpError(res.status, msg)
-      setErr(human ?? `${res.status} · ${msg}`)
+      const message = human ?? `${res.status} · ${msg}`
+      setErr(message)
+      toast.error(message)
       setShareBusyId(null)
       return
     }
 
     setShareBusyId(null)
+    toast.success(
+      action === 'ACCEPT'
+        ? '공유 요청을 승인했습니다.'
+        : '공유 요청을 거절했습니다.'
+    )
     await Promise.all([loadShares(), load()])
   }
 
@@ -416,12 +446,15 @@ export default function CalendarClient() {
       const payload = await readJsonSafely(res)
       const msg = extractApiMessage(payload) ?? '공유 해제 실패'
       const human = toHumanHttpError(res.status, msg)
-      setErr(human ?? `${res.status} · ${msg}`)
+      const message = human ?? `${res.status} · ${msg}`
+      setErr(message)
+      toast.error(message)
       setShareBusyId(null)
       return
     }
 
     setShareBusyId(null)
+    toast.success('공유 연결을 해제했습니다.')
     await Promise.all([loadShares(), load()])
   }
 
@@ -460,7 +493,9 @@ export default function CalendarClient() {
   const saveEdit = async () => {
     if (!editing) return
     if (!editing.canEdit) {
-      setErr('공유받은 일정은 수정할 수 없습니다.')
+      const message = '공유받은 일정은 수정할 수 없습니다.'
+      setErr(message)
+      toast.error(message)
       return
     }
     setSaving(true)
@@ -491,12 +526,15 @@ export default function CalendarClient() {
       const payload = await readJsonSafely(r)
       const msg = extractApiMessage(payload) ?? '일정 수정 저장 실패'
       const human = toHumanHttpError(r.status, msg)
-      setErr(human ?? `${r.status} · ${msg}`)
+      const message = human ?? `${r.status} · ${msg}`
+      setErr(message)
+      toast.error(message)
       setSaving(false)
       return
     }
 
     await load()
+    toast.success('일정이 저장되었습니다.')
     setSaving(false)
     closeEdit()
   }
@@ -504,7 +542,9 @@ export default function CalendarClient() {
   const deleteEdit = async () => {
     if (!editing) return
     if (!editing.canEdit) {
-      setErr('공유받은 일정은 삭제할 수 없습니다.')
+      const message = '공유받은 일정은 삭제할 수 없습니다.'
+      setErr(message)
+      toast.error(message)
       return
     }
     const ok = window.confirm('이 일정을 삭제할까요?')
@@ -524,19 +564,24 @@ export default function CalendarClient() {
       const payload = await readJsonSafely(res)
       const msg = extractApiMessage(payload) ?? '삭제 실패'
       const human = toHumanHttpError(res.status, msg)
-      setErr(human ?? `${res.status} · ${msg}`)
+      const message = human ?? `${res.status} · ${msg}`
+      setErr(message)
+      toast.error(message)
       setSaving(false)
       return
     }
 
     await load()
+    toast.success('일정이 삭제되었습니다.')
     setSaving(false)
     closeEdit()
   }
 
   const shiftItemDays = async (it: CalItem, days: number) => {
     if (!it.canEdit) {
-      setErr('공유받은 일정은 날짜 이동할 수 없습니다.')
+      const message = '공유받은 일정은 날짜 이동할 수 없습니다.'
+      setErr(message)
+      toast.error(message)
       return
     }
     setErr(null)
@@ -545,7 +590,9 @@ export default function CalendarClient() {
     const endAt = shiftIsoByDays(it.endAt ?? null, days)
 
     if (!startAt) {
-      setErr('400 Bad Request · startAt이 없는 일정은 이동할 수 없음')
+      const message = '400 Bad Request · startAt이 없는 일정은 이동할 수 없음'
+      setErr(message)
+      toast.error(message)
       return
     }
 
@@ -564,11 +611,18 @@ export default function CalendarClient() {
       const payload = await readJsonSafely(res)
       const msg = extractApiMessage(payload) ?? '날짜 이동 실패'
       const human = toHumanHttpError(res.status, msg)
-      setErr(human ?? `${res.status} · ${msg}`)
+      const message = human ?? `${res.status} · ${msg}`
+      setErr(message)
+      toast.error(message)
       return
     }
 
     await load()
+    toast.success(
+      days > 0
+        ? '일정을 하루 뒤로 이동했습니다.'
+        : '일정을 하루 앞으로 이동했습니다.'
+    )
   }
 
   useEffect(() => {
@@ -802,402 +856,430 @@ export default function CalendarClient() {
 
           {err && <p style={{ color: 'crimson', marginTop: 10 }}>{err}</p>}
 
-          <div style={{ marginTop: 16 }}>
-            {/* 요일 헤더 */}
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(7, 1fr)',
-                gap: 8,
-                marginBottom: 8,
-              }}
-            >
-              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((w) => (
-                <div key={w} style={{ fontWeight: 700, opacity: 0.7 }}>
-                  {w}
+          {loading ? (
+            <div className="mt-4 grid gap-3">
+              <div className="grid grid-cols-7 gap-2">
+                {Array.from({ length: 7 }).map((_, i) => (
+                  <div
+                    key={`weekday-skel-${i}`}
+                    className="h-5 skeleton rounded-md"
+                  />
+                ))}
+              </div>
+              {Array.from({ length: 5 }).map((_, w) => (
+                <div key={`week-skel-${w}`} className="grid grid-cols-7 gap-2">
+                  {Array.from({ length: 7 }).map((__, d) => (
+                    <div
+                      key={`cell-skel-${w}-${d}`}
+                      className="h-28 rounded-lg border border-[var(--border)] skeleton"
+                    />
+                  ))}
                 </div>
               ))}
             </div>
+          ) : (
+            <div style={{ marginTop: 16 }}>
+              {/* 요일 헤더 */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(7, 1fr)',
+                  gap: 8,
+                  marginBottom: 8,
+                }}
+              >
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((w) => (
+                  <div key={w} style={{ fontWeight: 700, opacity: 0.7 }}>
+                    {w}
+                  </div>
+                ))}
+              </div>
 
-            {/* 주 단위 렌더: week 내부에 day grid + bar overlay */}
-            <div className="hidden sm:block">
-              <div style={{ display: 'grid', gap: 8 }}>
-                {weeks.map((wk, wIdx) => {
-                  const rowStartIdx = wIdx * 7
-                  const visibleBars = wk.bars.filter(
-                    (b) => b.lane < MAX_VISIBLE_BARS
-                  )
-                  const visibleLaneIds = Array.from(
-                    new Set(visibleBars.map((b) => b.lane))
-                  ).sort((a, b) => a - b)
-                  const laneIndexById = new Map<number, number>(
-                    visibleLaneIds.map((laneId, idx) => [laneId, idx])
-                  )
-                  const visibleLanes = visibleLaneIds.length
-                  const laneStep = 16
-                  const barHeight = 15
-                  const barAreaHeight =
-                    visibleLanes > 0
-                      ? (visibleLanes - 1) * laneStep + barHeight
-                      : 0
-                  // 날짜 숫자 / +n more 헤더 영역과 막대 영역을 분리
-                  const overlayTop = 32
-                  const cellPaddingTop = overlayTop + barAreaHeight + 6
-                  const minCellHeight = Math.max(84, cellPaddingTop + 18)
+              {/* 주 단위 렌더: week 내부에 day grid + bar overlay */}
+              <div className="hidden sm:block">
+                <div style={{ display: 'grid', gap: 8 }}>
+                  {weeks.map((wk, wIdx) => {
+                    const rowStartIdx = wIdx * 7
+                    const visibleBars = wk.bars.filter(
+                      (b) => b.lane < MAX_VISIBLE_BARS
+                    )
+                    const visibleLaneIds = Array.from(
+                      new Set(visibleBars.map((b) => b.lane))
+                    ).sort((a, b) => a - b)
+                    const laneIndexById = new Map<number, number>(
+                      visibleLaneIds.map((laneId, idx) => [laneId, idx])
+                    )
+                    const visibleLanes = visibleLaneIds.length
+                    const laneStep = 16
+                    const barHeight = 15
+                    const barAreaHeight =
+                      visibleLanes > 0
+                        ? (visibleLanes - 1) * laneStep + barHeight
+                        : 0
+                    // 날짜 숫자 / +n more 헤더 영역과 막대 영역을 분리
+                    const overlayTop = 32
+                    const cellPaddingTop = overlayTop + barAreaHeight + 6
+                    const minCellHeight = Math.max(84, cellPaddingTop + 18)
 
-                  return (
-                    <div
-                      key={dayKey(wk.weekStart)}
-                      style={{
-                        position: 'relative',
-                        overflow: 'hidden',
-                      }}
-                    >
-                      {/* bar overlay */}
+                    return (
                       <div
+                        key={dayKey(wk.weekStart)}
                         style={{
-                          position: 'absolute',
-                          inset: 0,
-                          display: 'grid',
-                          gridTemplateColumns: 'repeat(7, 1fr)',
-                          gap: 8,
-                          alignItems: 'start',
-                          paddingTop: overlayTop,
-                          zIndex: 5,
-                          pointerEvents: 'none',
+                          position: 'relative',
+                          overflow: 'hidden',
                         }}
                       >
-                        {visibleBars.map((b) => {
-                          const colFrom = b.colStart + 1
-                          const colTo = b.colEnd + 2
-                          const lane = laneIndexById.get(b.lane) ?? 0
-                          const top = lane * laneStep
-                          const ownerColor =
-                            ownerColorMap[b.it.ownerId] ??
-                            (b.it.shared
-                              ? getOwnerColor(b.it.ownerId)
-                              : '#ffffff')
-                          const barTextColor = '#111827'
+                        {/* bar overlay */}
+                        <div
+                          style={{
+                            position: 'absolute',
+                            inset: 0,
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(7, 1fr)',
+                            gap: 8,
+                            alignItems: 'start',
+                            paddingTop: overlayTop,
+                            zIndex: 5,
+                            pointerEvents: 'none',
+                          }}
+                        >
+                          {visibleBars.map((b) => {
+                            const colFrom = b.colStart + 1
+                            const colTo = b.colEnd + 2
+                            const lane = laneIndexById.get(b.lane) ?? 0
+                            const top = lane * laneStep
+                            const ownerColor =
+                              ownerColorMap[b.it.ownerId] ??
+                              (b.it.shared
+                                ? getOwnerColor(b.it.ownerId)
+                                : '#ffffff')
+                            const barTextColor = '#111827'
 
-                          return (
-                            <div
-                              key={`${b.it.id}:${b.lane}:${b.colStart}:${b.colEnd}`}
-                              style={{
-                                gridColumn: `${colFrom} / ${colTo}`,
-                                gridRow: 1,
-                                transform: `translateY(${top}px)`,
-                                height: barHeight,
-                                border:
-                                  ownerColor === '#ffffff'
-                                    ? '1px solid var(--border)'
-                                    : `1px solid color-mix(in srgb, ${ownerColor} 68%, var(--border))`,
-                                background: ownerColor,
-                                color: barTextColor,
-                                borderRadius: 999,
-                                padding: '1px 7px',
-                                overflow: 'hidden',
-                                whiteSpace: 'nowrap',
-                                textOverflow: 'ellipsis',
-                                fontSize: 11,
-                                fontWeight: 700,
-                                pointerEvents: 'auto',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 6,
-                              }}
-                              onClick={() => openEdit(b.it)}
-                              title={b.it.displayTitle || b.it.title}
-                            >
+                            return (
                               <div
+                                key={`${barAnimSeed}:${b.it.id}:${b.lane}:${b.colStart}:${b.colEnd}`}
+                                className="calendar-bar-enter"
                                 style={{
-                                  flex: 1,
-                                  minWidth: 0,
+                                  gridColumn: `${colFrom} / ${colTo}`,
+                                  gridRow: 1,
+                                  transform: `translateY(${top}px)`,
+                                  height: barHeight,
+                                  border:
+                                    ownerColor === '#ffffff'
+                                      ? '1px solid var(--border)'
+                                      : `1px solid color-mix(in srgb, ${ownerColor} 68%, var(--border))`,
+                                  background: ownerColor,
+                                  color: barTextColor,
+                                  borderRadius: 999,
+                                  padding: '1px 7px',
+                                  overflow: 'hidden',
+                                  whiteSpace: 'nowrap',
+                                  textOverflow: 'ellipsis',
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                  pointerEvents: 'auto',
+                                  cursor: 'pointer',
                                   display: 'flex',
                                   alignItems: 'center',
-                                  gap: 5,
+                                  gap: 6,
                                 }}
+                                onClick={() => openEdit(b.it)}
+                                title={b.it.displayTitle || b.it.title}
                               >
-                                <span
-                                  style={{
-                                    width: 6,
-                                    height: 6,
-                                    borderRadius: 999,
-                                    background: getBoardColor(b.it.boardId),
-                                    flexShrink: 0,
-                                  }}
-                                />
-                                {!b.isStart ? (
-                                  <span style={{ opacity: 0.6 }}>…</span>
-                                ) : null}
-
-                                <span
+                                <div
                                   style={{
                                     flex: 1,
                                     minWidth: 0,
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    whiteSpace: 'nowrap',
-                                  }}
-                                >
-                                  {b.it.displayTitle || b.it.title}
-                                </span>
-
-                                {!b.isEnd ? (
-                                  <span style={{ opacity: 0.6 }}>…</span>
-                                ) : null}
-                              </div>
-
-                              {/* shift buttons: bar 클릭과 분리 */}
-                              {b.it.canEdit ? (
-                                <div
-                                  style={{
                                     display: 'flex',
-                                    gap: 6,
-                                    flexShrink: 0,
+                                    alignItems: 'center',
+                                    gap: 5,
                                   }}
                                 >
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      shiftItemDays(b.it, -1)
-                                    }}
+                                  <span
                                     style={{
-                                      border: 'none',
-                                      background: 'transparent',
-                                      color: barTextColor,
-                                      padding: 0,
-                                      width: 14,
-                                      height: 14,
-                                      lineHeight: '14px',
-                                      fontSize: 9,
+                                      width: 6,
+                                      height: 6,
+                                      borderRadius: 999,
+                                      background: getBoardColor(b.it.boardId),
                                       flexShrink: 0,
-                                      cursor: 'pointer',
                                     }}
-                                    title="하루 전으로"
-                                  >
-                                    ◀
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      shiftItemDays(b.it, 1)
-                                    }}
+                                  />
+                                  {!b.isStart ? (
+                                    <span style={{ opacity: 0.6 }}>…</span>
+                                  ) : null}
+
+                                  <span
                                     style={{
-                                      border: 'none',
-                                      background: 'transparent',
-                                      color: barTextColor,
-                                      padding: 0,
-                                      width: 14,
-                                      height: 14,
-                                      lineHeight: '14px',
-                                      fontSize: 9,
-                                      flexShrink: 0,
-                                      cursor: 'pointer',
+                                      flex: 1,
+                                      minWidth: 0,
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                      whiteSpace: 'nowrap',
                                     }}
-                                    title="하루 후로"
                                   >
-                                    ▶
-                                  </button>
+                                    {b.it.displayTitle || b.it.title}
+                                  </span>
+
+                                  {!b.isEnd ? (
+                                    <span style={{ opacity: 0.6 }}>…</span>
+                                  ) : null}
                                 </div>
-                              ) : (
-                                <span style={{ fontSize: 11, opacity: 0.7 }}>
-                                  공유
-                                </span>
-                              )}
-                            </div>
-                          )
-                        })}
-                      </div>
 
-                      {/* day cells */}
-                      <div
-                        style={{
-                          display: 'grid',
-                          gridTemplateColumns: 'repeat(7, 1fr)',
-                          gap: 8,
-                        }}
-                      >
-                        {Array.from({ length: 7 }).map((_, dIdx) => {
-                          const idx = rowStartIdx + dIdx
-                          const dayNum = idx - startDay + 1
-                          const inMonth = dayNum >= 1 && dayNum <= totalDays
+                                {/* shift buttons: bar 클릭과 분리 */}
+                                {b.it.canEdit ? (
+                                  <div
+                                    style={{
+                                      display: 'flex',
+                                      gap: 6,
+                                      flexShrink: 0,
+                                    }}
+                                  >
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        shiftItemDays(b.it, -1)
+                                      }}
+                                      style={{
+                                        border: 'none',
+                                        background: 'transparent',
+                                        color: barTextColor,
+                                        padding: 0,
+                                        width: 14,
+                                        height: 14,
+                                        lineHeight: '14px',
+                                        fontSize: 9,
+                                        flexShrink: 0,
+                                        cursor: 'pointer',
+                                      }}
+                                      title="하루 전으로"
+                                    >
+                                      ◀
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        shiftItemDays(b.it, 1)
+                                      }}
+                                      style={{
+                                        border: 'none',
+                                        background: 'transparent',
+                                        color: barTextColor,
+                                        padding: 0,
+                                        width: 14,
+                                        height: 14,
+                                        lineHeight: '14px',
+                                        fontSize: 9,
+                                        flexShrink: 0,
+                                        cursor: 'pointer',
+                                      }}
+                                      title="하루 후로"
+                                    >
+                                      ▶
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <span style={{ fontSize: 11, opacity: 0.7 }}>
+                                    공유
+                                  </span>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
 
-                          const d = new Date(
-                            cursor.getFullYear(),
-                            cursor.getMonth(),
-                            dayNum
-                          )
-                          const key = dayKey(d)
-                          const isToday = inMonth && key === todayKey
-                          const col = dIdx
-                          const barHit = wk.bars.filter(
-                            (b) => b.colStart <= col && col <= b.colEnd
-                          )
+                        {/* day cells */}
+                        <div
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(7, 1fr)',
+                            gap: 8,
+                          }}
+                        >
+                          {Array.from({ length: 7 }).map((_, dIdx) => {
+                            const idx = rowStartIdx + dIdx
+                            const dayNum = idx - startDay + 1
+                            const inMonth = dayNum >= 1 && dayNum <= totalDays
 
-                          const uniq = new Map<string, CalItem>()
-                          for (const b of barHit) {
-                            uniq.set(`${b.it.kind}:${b.it.id}`, b.it)
-                          }
-                          const dayItems = Array.from(uniq.values()).sort(
-                            (a, b) =>
-                              (a.displayTitle || a.title).localeCompare(
-                                b.displayTitle || b.title
-                              )
-                          )
+                            const d = new Date(
+                              cursor.getFullYear(),
+                              cursor.getMonth(),
+                              dayNum
+                            )
+                            const key = dayKey(d)
+                            const isToday = inMonth && key === todayKey
+                            const col = dIdx
+                            const barHit = wk.bars.filter(
+                              (b) => b.colStart <= col && col <= b.colEnd
+                            )
 
-                          const hiddenUniq = new Set<string>()
-                          for (const b of barHit) {
-                            if (b.lane >= MAX_VISIBLE_BARS) {
-                              hiddenUniq.add(`${b.it.kind}:${b.it.id}`)
+                            const uniq = new Map<string, CalItem>()
+                            for (const b of barHit) {
+                              uniq.set(`${b.it.kind}:${b.it.id}`, b.it)
                             }
-                          }
-                          const hiddenCount = hiddenUniq.size
+                            const dayItems = Array.from(uniq.values()).sort(
+                              (a, b) =>
+                                (a.displayTitle || a.title).localeCompare(
+                                  b.displayTitle || b.title
+                                )
+                            )
 
-                          return (
-                            <div
-                              key={key}
-                              style={{
-                                border: '1px solid var(--border)',
-                                background: 'transparent',
-                                borderRadius: 8,
-                                position: 'relative',
-                                minHeight: minCellHeight,
-                                padding: 8,
-                                opacity: inMonth ? 1 : 0.35,
-                                paddingTop: cellPaddingTop,
-                              }}
-                            >
+                            const hiddenUniq = new Set<string>()
+                            for (const b of barHit) {
+                              if (b.lane >= MAX_VISIBLE_BARS) {
+                                hiddenUniq.add(`${b.it.kind}:${b.it.id}`)
+                              }
+                            }
+                            const hiddenCount = hiddenUniq.size
+
+                            return (
                               <div
+                                key={key}
                                 style={{
-                                  fontWeight: isToday ? 1000 : 700,
-                                  color: isToday
-                                    ? 'var(--accent)'
-                                    : 'var(--fg)',
-                                  position: 'absolute',
-                                  top: 6,
-                                  left: 8,
-                                  zIndex: 8,
+                                  border: '1px solid var(--border)',
+                                  background: 'transparent',
+                                  borderRadius: 8,
+                                  position: 'relative',
+                                  minHeight: minCellHeight,
+                                  padding: 8,
+                                  opacity: inMonth ? 1 : 0.35,
+                                  paddingTop: cellPaddingTop,
                                 }}
                               >
-                                {inMonth ? dayNum : ''}
-                              </div>
-                              {inMonth && hiddenCount > 0 && (
-                                <button
-                                  type="button"
-                                  onClick={() => openMore(key, dayItems)}
+                                <div
                                   style={{
+                                    fontWeight: isToday ? 1000 : 700,
+                                    color: isToday
+                                      ? 'var(--accent)'
+                                      : 'var(--fg)',
                                     position: 'absolute',
                                     top: 6,
-                                    right: 8,
-                                    border: '1px solid var(--border)',
-                                    background: 'var(--card)',
-                                    color: 'var(--fg)',
-                                    borderRadius: 10,
-                                    padding: '2px 8px',
-                                    fontSize: 12,
-                                    cursor: 'pointer',
+                                    left: 8,
                                     zIndex: 8,
                                   }}
-                                  title="해당 날짜 전체 일정 보기"
                                 >
-                                  +{hiddenCount} more
-                                </button>
-                              )}
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-            <div className="sm:hidden surface card-pad">
-              <div className="flex items-center justify-between">
-                <div className="text-sm font-semibold">이번 달 일정</div>
-                <div className="badge">{ym}</div>
-              </div>
-
-              <div className="mt-3 grid gap-2">
-                {Array.from({ length: totalDays }).map((_, i) => {
-                  const dayNum = i + 1
-                  const d = new Date(
-                    cursor.getFullYear(),
-                    cursor.getMonth(),
-                    dayNum
-                  )
-                  const key = dayKey(d)
-
-                  const dayItems = filteredItems.filter((it) => {
-                    if (!it.startAt) return false
-                    const s = startOfDayLocal(new Date(it.startAt))
-                    if (Number.isNaN(s.getTime())) return false
-                    const e = normalizeSpanEnd(it, s)
-                    const t = startOfDayLocal(d).getTime()
-                    return s.getTime() <= t && t <= e.getTime()
-                  })
-
-                  const visible = dayItems.slice(0, 5)
-                  const hidden = Math.max(0, dayItems.length - visible.length)
-
-                  return (
-                    <div key={key} className="surface card-pad">
-                      <div className="flex items-center justify-between">
-                        <div className="text-sm font-semibold">{dayNum}일</div>
-                        {hidden > 0 ? (
-                          <button
-                            type="button"
-                            className="btn btn-outline"
-                            onClick={() => openMore(key, dayItems)}
-                          >
-                            +{hidden} more
-                          </button>
-                        ) : null}
-                      </div>
-
-                      {dayItems.length === 0 ? (
-                        <div className="mt-2 text-sm opacity-70">일정 없음</div>
-                      ) : (
-                        <div className="mt-2 grid gap-2">
-                          {visible.map((it) => (
-                            <button
-                              key={`${it.kind}:${it.id}`}
-                              type="button"
-                              className="surface card-pad text-left"
-                              onClick={() => openEdit(it)}
-                              style={
-                                it.shared
-                                  ? {
-                                      background: `color-mix(in srgb, ${
-                                        ownerColorMap[it.ownerId] ??
-                                        getOwnerColor(it.ownerId)
-                                      } 44%, var(--card))`,
-                                      color: '#111827',
-                                    }
-                                  : undefined
-                              }
-                              title={it.displayTitle || it.title}
-                            >
-                              <div className="font-semibold truncate">
-                                {it.displayTitle || it.title}
+                                  {inMonth ? dayNum : ''}
+                                </div>
+                                {inMonth && hiddenCount > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => openMore(key, dayItems)}
+                                    style={{
+                                      position: 'absolute',
+                                      top: 6,
+                                      right: 8,
+                                      border: '1px solid var(--border)',
+                                      background: 'var(--card)',
+                                      color: 'var(--fg)',
+                                      borderRadius: 10,
+                                      padding: '2px 8px',
+                                      fontSize: 12,
+                                      cursor: 'pointer',
+                                      zIndex: 8,
+                                    }}
+                                    title="해당 날짜 전체 일정 보기"
+                                  >
+                                    +{hiddenCount} more
+                                  </button>
+                                )}
                               </div>
-                              <div className="mt-1 text-xs opacity-70 truncate">
-                                {it.shared ? `공유:${it.ownerLabel} · ` : ''}
-                                {it.boardName} · {it.status}
-                              </div>
-                            </button>
-                          ))}
+                            )
+                          })}
                         </div>
-                      )}
-                    </div>
-                  )
-                })}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+              <div className="sm:hidden surface card-pad">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-semibold">이번 달 일정</div>
+                  <div className="badge">{ym}</div>
+                </div>
+
+                <div className="mt-3 grid gap-2">
+                  {Array.from({ length: totalDays }).map((_, i) => {
+                    const dayNum = i + 1
+                    const d = new Date(
+                      cursor.getFullYear(),
+                      cursor.getMonth(),
+                      dayNum
+                    )
+                    const key = dayKey(d)
+
+                    const dayItems = filteredItems.filter((it) => {
+                      if (!it.startAt) return false
+                      const s = startOfDayLocal(new Date(it.startAt))
+                      if (Number.isNaN(s.getTime())) return false
+                      const e = normalizeSpanEnd(it, s)
+                      const t = startOfDayLocal(d).getTime()
+                      return s.getTime() <= t && t <= e.getTime()
+                    })
+
+                    const visible = dayItems.slice(0, 5)
+                    const hidden = Math.max(0, dayItems.length - visible.length)
+
+                    return (
+                      <div key={key} className="surface card-pad">
+                        <div className="flex items-center justify-between">
+                          <div className="text-sm font-semibold">
+                            {dayNum}일
+                          </div>
+                          {hidden > 0 ? (
+                            <button
+                              type="button"
+                              className="btn btn-outline"
+                              onClick={() => openMore(key, dayItems)}
+                            >
+                              +{hidden} more
+                            </button>
+                          ) : null}
+                        </div>
+
+                        {dayItems.length === 0 ? (
+                          <div className="mt-2 text-sm opacity-70">
+                            일정 없음
+                          </div>
+                        ) : (
+                          <div className="mt-2 grid gap-2">
+                            {visible.map((it) => (
+                              <button
+                                key={`${it.kind}:${it.id}`}
+                                type="button"
+                                className="surface card-pad text-left"
+                                onClick={() => openEdit(it)}
+                                style={
+                                  it.shared
+                                    ? {
+                                        background: `color-mix(in srgb, ${
+                                          ownerColorMap[it.ownerId] ??
+                                          getOwnerColor(it.ownerId)
+                                        } 44%, var(--card))`,
+                                        color: '#111827',
+                                      }
+                                    : undefined
+                                }
+                                title={it.displayTitle || it.title}
+                              >
+                                <div className="font-semibold truncate">
+                                  {it.displayTitle || it.title}
+                                </div>
+                                <div className="mt-1 text-xs opacity-70 truncate">
+                                  {it.shared ? `공유:${it.ownerLabel} · ` : ''}
+                                  {it.boardName} · {it.status}
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
 
         <aside className="surface card-pad card-hover-border-only xl:sticky xl:top-6">
@@ -1232,40 +1314,61 @@ export default function CalendarClient() {
 
           <section className="mt-5 grid gap-2">
             <div className="text-sm font-semibold">계정 리스트</div>
-            {shareAccounts.map((account) => (
-              <label
-                key={account.id}
-                className="card card-hover-border-only flex items-center gap-2 px-3 py-2 text-sm"
-              >
-                <input
-                  type="checkbox"
-                  checked={visibleOwners[account.id] !== false}
-                  onChange={(e) =>
-                    setVisibleOwners((prev) => ({
-                      ...prev,
-                      [account.id]: e.target.checked,
-                    }))
-                  }
-                  style={{ accentColor: account.color }}
-                />
-                <span
-                  className="h-3 w-3 rounded-sm border"
-                  style={{
-                    background: account.color,
-                    borderColor: 'color-mix(in srgb, var(--border) 70%, white)',
-                  }}
-                />
-                <span className="truncate">{account.label}</span>
-                {account.isSelf ? (
-                  <span className="badge ml-auto">나</span>
-                ) : null}
-              </label>
-            ))}
+            {shareLoading ? (
+              <div className="grid gap-2">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div
+                    key={`share-account-skel-${i}`}
+                    className="h-10 rounded-lg skeleton"
+                  />
+                ))}
+              </div>
+            ) : (
+              shareAccounts.map((account) => (
+                <label
+                  key={account.id}
+                  className="card card-hover-border-only flex items-center gap-2 px-3 py-2 text-sm"
+                >
+                  <input
+                    type="checkbox"
+                    checked={visibleOwners[account.id] !== false}
+                    onChange={(e) =>
+                      setVisibleOwners((prev) => ({
+                        ...prev,
+                        [account.id]: e.target.checked,
+                      }))
+                    }
+                    style={{ accentColor: account.color }}
+                  />
+                  <span
+                    className="h-3 w-3 rounded-sm border"
+                    style={{
+                      background: account.color,
+                      borderColor:
+                        'color-mix(in srgb, var(--border) 70%, white)',
+                    }}
+                  />
+                  <span className="truncate">{account.label}</span>
+                  {account.isSelf ? (
+                    <span className="badge ml-auto">나</span>
+                  ) : null}
+                </label>
+              ))
+            )}
           </section>
 
           <section className="mt-5 grid gap-2">
             <div className="text-sm font-semibold">요청한 계정</div>
-            {outgoingShares.length === 0 ? (
+            {shareLoading ? (
+              <div className="grid gap-2">
+                {Array.from({ length: 2 }).map((_, i) => (
+                  <div
+                    key={`outgoing-skel-${i}`}
+                    className="h-20 rounded-lg skeleton"
+                  />
+                ))}
+              </div>
+            ) : outgoingShares.length === 0 ? (
               <div className="text-sm opacity-70">
                 보낸 캘린더 공유 요청이 없습니다.
               </div>
@@ -1296,7 +1399,16 @@ export default function CalendarClient() {
 
           <section className="mt-5 grid gap-2">
             <div className="text-sm font-semibold">요청 받은 계정</div>
-            {incomingShares.length === 0 ? (
+            {shareLoading ? (
+              <div className="grid gap-2">
+                {Array.from({ length: 2 }).map((_, i) => (
+                  <div
+                    key={`incoming-skel-${i}`}
+                    className="h-20 rounded-lg skeleton"
+                  />
+                ))}
+              </div>
+            ) : incomingShares.length === 0 ? (
               <div className="text-sm opacity-70">
                 대기 중인 캘린더 공유 요청이 없습니다.
               </div>

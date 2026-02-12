@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 
 type Board = {
@@ -65,20 +65,15 @@ export default function BoardsClient({
     return copied
   }, [filteredBoards, sortOrder])
 
-  const totalPages = Math.max(1, Math.ceil(sortedBoards.length / BOARD_PAGE_SIZE))
+  const totalPages = Math.max(
+    1,
+    Math.ceil(sortedBoards.length / BOARD_PAGE_SIZE)
+  )
   const currentPage = Math.min(page, totalPages)
   const pagedBoards = useMemo(() => {
     const start = (currentPage - 1) * BOARD_PAGE_SIZE
     return sortedBoards.slice(start, start + BOARD_PAGE_SIZE)
   }, [sortedBoards, currentPage])
-
-  useEffect(() => {
-    setPage(1)
-  }, [sortOrder, normalizedBoardTitleQuery])
-
-  useEffect(() => {
-    setPage((prev) => Math.min(prev, totalPages))
-  }, [totalPages])
 
   const reload = async () => {
     const res = await fetch('/api/boards')
@@ -147,18 +142,24 @@ export default function BoardsClient({
             <input
               className="input w-full sm:w-auto sm:min-w-[220px]"
               value={boardTitleQuery}
-              onChange={(e) => setBoardTitleQuery(e.target.value)}
+              onChange={(e) => {
+                setBoardTitleQuery(e.target.value)
+                setPage(1)
+              }}
               placeholder="제목 검색"
               aria-label="게시판 보드 제목 검색"
             />
             {boardTitleQuery ? (
-              <button
-                type="button"
-                className="btn btn-ghost"
-                onClick={() => setBoardTitleQuery('')}
-              >
-                초기화
-              </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => {
+                    setBoardTitleQuery('')
+                    setPage(1)
+                  }}
+                >
+                  초기화
+                </button>
             ) : null}
             <span className="text-sm" style={{ color: 'var(--muted)' }}>
               정렬
@@ -166,7 +167,10 @@ export default function BoardsClient({
             <select
               className="select w-auto"
               value={sortOrder}
-              onChange={(e) => setSortOrder(e.target.value as 'desc' | 'asc')}
+              onChange={(e) => {
+                setSortOrder(e.target.value as 'desc' | 'asc')
+                setPage(1)
+              }}
             >
               <option value="desc">최신순</option>
               <option value="asc">오래된순</option>
@@ -271,7 +275,7 @@ export default function BoardsClient({
           </section>
         ) : null}
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+        <div className="stagger-in mt-6 grid gap-3 sm:grid-cols-2">
           {pagedBoards.length === 0 ? (
             <div className="card card-pad sm:col-span-2">
               <div className="text-sm" style={{ color: 'var(--muted)' }}>

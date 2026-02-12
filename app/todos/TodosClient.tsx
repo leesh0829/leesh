@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { DragEvent } from 'react'
 import { toHumanHttpError } from '@/app/lib/httpErrorText'
+import { useToast } from '@/app/components/ToastProvider'
 
 type ScheduleStatus = 'TODO' | 'DOING' | 'DONE'
 
@@ -386,9 +387,7 @@ function BoardColumn({
     <div
       className={
         'card card-pad card-hover-border-only transition ' +
-        (isDragOver
-          ? 'ring-2 ring-[var(--accent)] bg-[color:var(--ring)]'
-          : '')
+        (isDragOver ? 'ring-2 ring-[var(--accent)] bg-[color:var(--ring)]' : '')
       }
       onDragOver={(event) => {
         if (!dndEnabled || !draggingBoardId) return
@@ -412,7 +411,11 @@ function BoardColumn({
           <BoardItem
             key={`${b.id}:${b.singleSchedule ? 1 : 0}:${b.scheduleStartAt ?? ''}:${b.scheduleEndAt ?? ''}:${b.scheduleAllDay ? 1 : 0}`}
             board={b}
-            ownerColor={b.shared ? ownerColors[b.ownerId] ?? getPastelColor(b.ownerId) : null}
+            ownerColor={
+              b.shared
+                ? (ownerColors[b.ownerId] ?? getPastelColor(b.ownerId))
+                : null
+            }
             onMove={onMove}
             onDelete={onDelete}
             onToggleSingle={onToggleSingle}
@@ -429,7 +432,9 @@ function BoardColumn({
 }
 
 export default function TodosClient() {
+  const toast = useToast()
   const [boards, setBoards] = useState<BoardCard[]>([])
+  const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
 
   const [name, setName] = useState('')
@@ -455,16 +460,21 @@ export default function TodosClient() {
   )
 
   const load = useCallback(async () => {
+    setLoading(true)
     const r = await fetch('/api/todos/boards', { cache: 'no-store' })
     if (!r.ok) {
       const msg = await readApiErrorMessage(r)
-      setErr(`${r.status} ${r.statusText} · ${msg ?? 'load failed'}`)
+      const message = `${r.status} ${r.statusText} · ${msg ?? 'load failed'}`
+      setErr(message)
+      toast.error(message)
+      setLoading(false)
       return
     }
     const data = (await r.json()) as BoardCard[]
     setBoards(data)
     setErr(null)
-  }, [])
+    setLoading(false)
+  }, [toast])
 
   const loadShares = useCallback(async () => {
     setShareLoading(true)
@@ -473,7 +483,9 @@ export default function TodosClient() {
       const payload = await readJsonSafely(res)
       const msg = extractApiMessage(payload) ?? '공유 정보 불러오기 실패'
       const human = toHumanHttpError(res.status, msg)
-      setErr(human ?? `${res.status} · ${msg}`)
+      const message = human ?? `${res.status} · ${msg}`
+      setErr(message)
+      toast.error(message)
       setShareLoading(false)
       return
     }
@@ -491,7 +503,7 @@ export default function TodosClient() {
       (payload.incoming ?? []).filter((row) => row.scope === 'TODO')
     )
     setShareLoading(false)
-  }, [])
+  }, [toast])
 
   useEffect(() => {
     const t = window.setTimeout(() => {
@@ -532,7 +544,9 @@ export default function TodosClient() {
   const sendShareRequest = async () => {
     const targetEmail = shareEmail.trim()
     if (!targetEmail) {
-      setErr('공유 요청 이메일을 입력해 주세요.')
+      const message = '공유 요청 이메일을 입력해 주세요.'
+      setErr(message)
+      toast.error(message)
       return
     }
     setErr(null)
@@ -547,13 +561,16 @@ export default function TodosClient() {
       const payload = await readJsonSafely(res)
       const msg = extractApiMessage(payload) ?? '공유 요청 실패'
       const human = toHumanHttpError(res.status, msg)
-      setErr(human ?? `${res.status} · ${msg}`)
+      const message = human ?? `${res.status} · ${msg}`
+      setErr(message)
+      toast.error(message)
       setShareBusyId(null)
       return
     }
 
     setShareEmail('')
     setShareBusyId(null)
+    toast.success('TODO 공유 요청을 보냈습니다.')
     await Promise.all([loadShares(), load()])
   }
 
@@ -575,12 +592,19 @@ export default function TodosClient() {
         extractApiMessage(payload) ??
         (action === 'ACCEPT' ? '승인 실패' : '거절 실패')
       const human = toHumanHttpError(res.status, msg)
-      setErr(human ?? `${res.status} · ${msg}`)
+      const message = human ?? `${res.status} · ${msg}`
+      setErr(message)
+      toast.error(message)
       setShareBusyId(null)
       return
     }
 
     setShareBusyId(null)
+    toast.success(
+      action === 'ACCEPT'
+        ? '공유 요청을 승인했습니다.'
+        : '공유 요청을 거절했습니다.'
+    )
     await Promise.all([loadShares(), load()])
   }
 
@@ -595,12 +619,15 @@ export default function TodosClient() {
       const payload = await readJsonSafely(res)
       const msg = extractApiMessage(payload) ?? '공유 해제 실패'
       const human = toHumanHttpError(res.status, msg)
-      setErr(human ?? `${res.status} · ${msg}`)
+      const message = human ?? `${res.status} · ${msg}`
+      setErr(message)
+      toast.error(message)
       setShareBusyId(null)
       return
     }
 
     setShareBusyId(null)
+    toast.success('공유 연결을 해제했습니다.')
     await Promise.all([loadShares(), load()])
   }
 
@@ -626,7 +653,9 @@ export default function TodosClient() {
 
     if (!r.ok) {
       const msg = await readApiErrorMessage(r)
-      setErr(`${r.status} ${r.statusText} · ${msg ?? 'create failed'}`)
+      const message = `${r.status} ${r.statusText} · ${msg ?? 'create failed'}`
+      setErr(message)
+      toast.error(message)
       return
     }
 
@@ -637,6 +666,7 @@ export default function TodosClient() {
     setScheduleStartLocal('')
     setScheduleEndLocal('')
     await load()
+    toast.success('TODO 보드를 생성했습니다.')
   }
 
   const move = async (id: string, next: ScheduleStatus) => {
@@ -648,7 +678,9 @@ export default function TodosClient() {
 
     if (!r.ok) {
       const msg = await readApiErrorMessage(r)
-      setErr(`${r.status} ${r.statusText} · ${msg ?? 'move failed'}`)
+      const message = `${r.status} ${r.statusText} · ${msg ?? 'move failed'}`
+      setErr(message)
+      toast.error(message)
       return
     }
     await load()
@@ -670,20 +702,17 @@ export default function TodosClient() {
     [dndEnabled]
   )
 
-  const handleDropToStatus = useCallback(
-    async (next: ScheduleStatus) => {
-      if (!dndEnabled || !draggingBoardId) return
-      const source = boards.find((b) => b.id === draggingBoardId)
-      if (!source || !source.canEdit || source.scheduleStatus === next) {
-        clearDragState()
-        return
-      }
-
-      await move(draggingBoardId, next)
+  const handleDropToStatus = async (next: ScheduleStatus) => {
+    if (!dndEnabled || !draggingBoardId) return
+    const source = boards.find((b) => b.id === draggingBoardId)
+    if (!source || !source.canEdit || source.scheduleStatus === next) {
       clearDragState()
-    },
-    [boards, clearDragState, dndEnabled, draggingBoardId]
-  )
+      return
+    }
+
+    await move(draggingBoardId, next)
+    clearDragState()
+  }
 
   const del = async (id: string) => {
     const ok = window.confirm('보드를 삭제할까요?')
@@ -693,10 +722,13 @@ export default function TodosClient() {
 
     if (!r.ok) {
       const msg = await readApiErrorMessage(r)
-      setErr(`${r.status} ${r.statusText} · ${msg ?? 'delete failed'}`)
+      const message = `${r.status} ${r.statusText} · ${msg ?? 'delete failed'}`
+      setErr(message)
+      toast.error(message)
       return
     }
     await load()
+    toast.success('보드를 삭제했습니다.')
   }
 
   const toggleSingle = async (id: string, next: boolean) => {
@@ -717,10 +749,15 @@ export default function TodosClient() {
 
     if (!r.ok) {
       const msg = await readApiErrorMessage(r)
-      setErr(`${r.status} ${r.statusText} · ${msg ?? 'update failed'}`)
+      const message = `${r.status} ${r.statusText} · ${msg ?? 'update failed'}`
+      setErr(message)
+      toast.error(message)
       return
     }
     await load()
+    toast.success(
+      next ? '단일 일정 모드를 켰습니다.' : '단일 일정 모드를 껐습니다.'
+    )
   }
 
   const saveSchedule = async (
@@ -741,10 +778,13 @@ export default function TodosClient() {
 
     if (!r.ok) {
       const msg = await readApiErrorMessage(r)
-      setErr(`${r.status} ${r.statusText} · ${msg ?? 'save failed'}`)
+      const message = `${r.status} ${r.statusText} · ${msg ?? 'save failed'}`
+      setErr(message)
+      toast.error(message)
       return
     }
     await load()
+    toast.success('일정을 저장했습니다.')
   }
 
   const normalizedBoards = useMemo(() => boards ?? [], [boards])
@@ -929,59 +969,77 @@ export default function TodosClient() {
             </form>
           </div>
 
-          <div className="mt-6 grid gap-4 lg:grid-cols-3">
-            <BoardColumn
-              status="TODO"
-              title="TODO"
-              list={todos}
-              onMove={move}
-              onDelete={del}
-              onToggleSingle={toggleSingle}
-              onSaveSchedule={saveSchedule}
-              dndEnabled={dndEnabled}
-              draggingBoardId={draggingBoardId}
-              isDragOver={dragOverStatus === 'TODO'}
-              onDragOverStatus={setDragOverStatus}
-              onDropStatus={handleDropToStatus}
-              onDragEndAll={clearDragState}
-              onDragStart={handleDragStart}
-              ownerColors={ownerColorMap}
-            />
-            <BoardColumn
-              status="DOING"
-              title="DOING"
-              list={doing}
-              onMove={move}
-              onDelete={del}
-              onToggleSingle={toggleSingle}
-              onSaveSchedule={saveSchedule}
-              dndEnabled={dndEnabled}
-              draggingBoardId={draggingBoardId}
-              isDragOver={dragOverStatus === 'DOING'}
-              onDragOverStatus={setDragOverStatus}
-              onDropStatus={handleDropToStatus}
-              onDragEndAll={clearDragState}
-              onDragStart={handleDragStart}
-              ownerColors={ownerColorMap}
-            />
-            <BoardColumn
-              status="DONE"
-              title="DONE"
-              list={done}
-              onMove={move}
-              onDelete={del}
-              onToggleSingle={toggleSingle}
-              onSaveSchedule={saveSchedule}
-              dndEnabled={dndEnabled}
-              draggingBoardId={draggingBoardId}
-              isDragOver={dragOverStatus === 'DONE'}
-              onDragOverStatus={setDragOverStatus}
-              onDropStatus={handleDropToStatus}
-              onDragEndAll={clearDragState}
-              onDragStart={handleDragStart}
-              ownerColors={ownerColorMap}
-            />
-          </div>
+          {loading ? (
+            <div className="mt-6 grid gap-4 lg:grid-cols-3">
+              {Array.from({ length: 3 }).map((_, cIdx) => (
+                <div key={`todo-col-skel-${cIdx}`} className="card card-pad">
+                  <div className="h-5 w-24 rounded-md skeleton" />
+                  <div className="mt-4 grid gap-3">
+                    {Array.from({ length: 3 }).map((__, i) => (
+                      <div
+                        key={`todo-card-skel-${cIdx}-${i}`}
+                        className="h-28 rounded-lg skeleton"
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-6 grid gap-4 lg:grid-cols-3">
+              <BoardColumn
+                status="TODO"
+                title="TODO"
+                list={todos}
+                onMove={move}
+                onDelete={del}
+                onToggleSingle={toggleSingle}
+                onSaveSchedule={saveSchedule}
+                dndEnabled={dndEnabled}
+                draggingBoardId={draggingBoardId}
+                isDragOver={dragOverStatus === 'TODO'}
+                onDragOverStatus={setDragOverStatus}
+                onDropStatus={handleDropToStatus}
+                onDragEndAll={clearDragState}
+                onDragStart={handleDragStart}
+                ownerColors={ownerColorMap}
+              />
+              <BoardColumn
+                status="DOING"
+                title="DOING"
+                list={doing}
+                onMove={move}
+                onDelete={del}
+                onToggleSingle={toggleSingle}
+                onSaveSchedule={saveSchedule}
+                dndEnabled={dndEnabled}
+                draggingBoardId={draggingBoardId}
+                isDragOver={dragOverStatus === 'DOING'}
+                onDragOverStatus={setDragOverStatus}
+                onDropStatus={handleDropToStatus}
+                onDragEndAll={clearDragState}
+                onDragStart={handleDragStart}
+                ownerColors={ownerColorMap}
+              />
+              <BoardColumn
+                status="DONE"
+                title="DONE"
+                list={done}
+                onMove={move}
+                onDelete={del}
+                onToggleSingle={toggleSingle}
+                onSaveSchedule={saveSchedule}
+                dndEnabled={dndEnabled}
+                draggingBoardId={draggingBoardId}
+                isDragOver={dragOverStatus === 'DONE'}
+                onDragOverStatus={setDragOverStatus}
+                onDropStatus={handleDropToStatus}
+                onDragEndAll={clearDragState}
+                onDragStart={handleDragStart}
+                ownerColors={ownerColorMap}
+              />
+            </div>
+          )}
         </div>
 
         <aside className="surface card-pad card-hover-border-only xl:sticky xl:top-6">
@@ -1030,7 +1088,9 @@ export default function TodosClient() {
                       [account.id]: e.target.checked,
                     }))
                   }
-                  style={{ accentColor: account.isSelf ? '#ffffff' : account.color }}
+                  style={{
+                    accentColor: account.isSelf ? '#ffffff' : account.color,
+                  }}
                 />
                 <span
                   className="h-3 w-3 rounded-sm border"
@@ -1040,7 +1100,9 @@ export default function TodosClient() {
                   }}
                 />
                 <span className="truncate">{account.label}</span>
-                {account.isSelf ? <span className="badge ml-auto">나</span> : null}
+                {account.isSelf ? (
+                  <span className="badge ml-auto">나</span>
+                ) : null}
               </label>
             ))}
           </section>

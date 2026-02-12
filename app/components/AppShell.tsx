@@ -71,7 +71,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <Link href="/" className="text-sm font-semibold">
               Leesh
             </Link>
-            <div className="ml-auto">
+            <div className="ml-auto flex items-center gap-2">
               <ThemeToggle />
             </div>
           </div>
@@ -110,7 +110,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   : 'container-page') + ' py-6 flex-1'
               }
             >
-              {children}
+              <div key={pathname} className="route-enter">
+                {children}
+              </div>
             </div>
             <Footer />
           </div>

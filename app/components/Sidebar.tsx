@@ -182,7 +182,7 @@ export default function Sidebar({
             aria-label="업데이트 내역 닫기"
             onClick={() => setShowUpdates(false)}
           />
-          <div className="surface card-pad relative z-[71] w-full max-w-md">
+          <div className="surface card-pad modal-enter relative z-[71] w-full max-w-md">
             <div className="flex items-center justify-between gap-2">
               <div className="text-base font-semibold">업데이트 내역</div>
               <button
@@ -194,8 +194,9 @@ export default function Sidebar({
               </button>
             </div>
             <ul>
-              <li className="mt-3 text-sm">마크다운 스타일 수정</li>
-              <li className="mt-3 text-sm">글 목록 검색 기능 추가</li>
+              <li className="mt-3 text-sm">강조 버튼 UI 변경</li>
+              <li className="mt-3 text-sm">애니메이션 추가</li>
+              <li className="mt-3 text-sm">캘린더 당일 강조 UI 변경</li>
               <li className="mt-3 text-sm">그 외 버그 수정</li>
             </ul>
           </div>
@@ -215,16 +216,23 @@ export default function Sidebar({
       <aside
         className={
           // mobile: overlay
-          'fixed z-50 h-dvh w-[82vw] max-w-64 border-r bg-(--card) p-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] transition-transform ' +
+          'fixed z-50 h-dvh w-[82vw] max-w-64 border-r bg-(--card) p-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] transition-transform duration-300 ease-in-out motion-reduce:transition-none ' +
           (open ? 'translate-x-0' : '-translate-x-full') +
           // desktop: sticky sidebar (independent scroll)
-          ' lg:sticky lg:top-0 lg:translate-x-0 lg:h-dvh lg:overflow-y-auto ' +
+          ' lg:sticky lg:top-0 lg:translate-x-0 lg:h-dvh lg:overflow-y-auto lg:transition-[width,padding,border-color,transform] lg:duration-300 lg:ease-in-out lg:will-change-[width] ' +
           (desktopOpen
             ? ' lg:w-64 lg:p-4'
             : ' lg:w-0 lg:p-0 lg:overflow-hidden lg:border-r-0')
         }
       >
-        <div className="flex h-full min-h-0 flex-col">
+        <div
+          className={
+            'flex h-full min-h-0 flex-col transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none ' +
+            (desktopOpen
+              ? 'lg:translate-x-0 lg:opacity-100'
+              : 'lg:-translate-x-2 lg:opacity-0 lg:pointer-events-none')
+          }
+        >
           <div className="mb-4 flex items-center justify-between">
             <Link href="/" onClick={onClose} className="text-base font-bold">
               Leesh

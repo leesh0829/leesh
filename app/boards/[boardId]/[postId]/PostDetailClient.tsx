@@ -11,6 +11,7 @@ import rehypeHighlight from 'rehype-highlight'
 import { useSession } from 'next-auth/react'
 import { displayUserLabel } from '@/app/lib/userLabel'
 import MarkdownEditor from '@/app/components/MarkdownEditor'
+import { useToast } from '@/app/components/ToastProvider'
 
 type Post = {
   id: string
@@ -86,6 +87,7 @@ export default function PostDetailClient({
   boardId: string
   post: Post
 }) {
+  const toast = useToast()
   const router = useRouter()
   const { data: session } = useSession()
   const myEmail = session?.user?.email ?? null
@@ -120,7 +122,9 @@ export default function PostDetailClient({
       const payload = await readJsonSafely(res)
       const msg = extractApiMessage(payload) ?? '댓글 수정 실패'
       const human = toHumanHttpError(res.status, msg)
-      setCommentsError(human ?? `${res.status} · ${msg}`)
+      const message = human ?? `${res.status} · ${msg}`
+      setCommentsError(message)
+      toast.error(message)
       setCommentSaving(false)
       return
     }
@@ -129,6 +133,7 @@ export default function PostDetailClient({
     setEditingCommentText('')
     setCommentSaving(false)
     await loadComments()
+    toast.success('댓글을 수정했습니다.')
   }
 
   const deleteComment = async (id: string) => {
@@ -145,11 +150,14 @@ export default function PostDetailClient({
       const payload = await readJsonSafely(res)
       const msg = extractApiMessage(payload) ?? '댓글 삭제 실패'
       const human = toHumanHttpError(res.status, msg)
-      setCommentsError(human ?? `${res.status} · ${msg}`)
+      const message = human ?? `${res.status} · ${msg}`
+      setCommentsError(message)
+      toast.error(message)
       return
     }
 
     await loadComments()
+    toast.success('댓글을 삭제했습니다.')
   }
 
   const [postState, setPostState] = useState<Post>(post)
@@ -167,6 +175,7 @@ export default function PostDetailClient({
   const [unlocking, setUnlocking] = useState(false)
 
   const [comments, setComments] = useState<Comment[]>([])
+  const [commentsLoading, setCommentsLoading] = useState(true)
   const [newComment, setNewComment] = useState('')
   const [commentsError, setCommentsError] = useState<string | null>(null)
 
@@ -209,23 +218,29 @@ export default function PostDetailClient({
   }, [postState.id, postState.startAt, postState.endAt, postState.allDay])
 
   const loadComments = async () => {
+    setCommentsLoading(true)
     setCommentsError(null)
     const res = await fetch(
       `/api/boards/${boardId}/posts/${postState.id}/comments`
     )
     if (res.ok) {
       setComments(await res.json())
+      setCommentsLoading(false)
       return
     }
     const payload = await readJsonSafely(res)
     const msg = extractApiMessage(payload) ?? '댓글 처리 실패'
     const human = toHumanHttpError(res.status, msg)
-    setCommentsError(human ?? `${res.status} · ${msg}`)
+    const message = human ?? `${res.status} · ${msg}`
+    setCommentsError(message)
+    toast.error(message)
+    setCommentsLoading(false)
   }
 
   useEffect(() => {
     let alive = true
     ;(async () => {
+      setCommentsLoading(true)
       setCommentsError(null)
       const res = await fetch(
         `/api/boards/${boardId}/posts/${postState.id}/comments`
@@ -233,18 +248,22 @@ export default function PostDetailClient({
       if (!alive) return
       if (res.ok) {
         setComments(await res.json())
+        setCommentsLoading(false)
         return
       }
       const payload = await readJsonSafely(res)
       const msg = extractApiMessage(payload) ?? '댓글 처리 실패'
       const human = toHumanHttpError(res.status, msg)
-      setCommentsError(human ?? `${res.status} · ${msg}`)
+      const message = human ?? `${res.status} · ${msg}`
+      setCommentsError(message)
+      toast.error(message)
+      setCommentsLoading(false)
     })()
 
     return () => {
       alive = false
     }
-  }, [boardId, postState.id])
+  }, [boardId, postState.id, toast])
 
   const saveSchedule = async () => {
     setScheduleSaving(true)
@@ -376,10 +395,13 @@ export default function PostDetailClient({
 
       if (res.ok) {
         setPw('')
+        toast.success('비밀글 잠금이 해제되었습니다.')
         router.refresh()
       } else {
         const err = await res.json().catch(() => ({}))
-        alert(err.message ?? '비밀번호가 틀렸습니다.')
+        const message = err.message ?? '비밀번호가 틀렸습니다.'
+        setCommentsError(message)
+        toast.error(message)
       }
     } finally {
       setUnlocking(false)
@@ -399,13 +421,16 @@ export default function PostDetailClient({
     if (res.ok) {
       setNewComment('')
       loadComments()
+      toast.success('댓글을 등록했습니다.')
       return
     }
 
     const payload = await readJsonSafely(res)
     const msg = extractApiMessage(payload) ?? '댓글 처리 실패'
     const human = toHumanHttpError(res.status, msg)
-    setCommentsError(human ?? `${res.status} · ${msg}`)
+    const message = human ?? `${res.status} · ${msg}`
+    setCommentsError(message)
+    toast.error(message)
   }
 
   return (
@@ -666,80 +691,93 @@ export default function PostDetailClient({
           </div>
 
           <div className="mt-4 grid gap-3">
-            {comments.map((c) => {
-              const canMine = myEmail && c.author?.email === myEmail
-              const isEditing = editingCommentId === c.id
-
-              return (
-                <div key={c.id} className="card p-3">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="text-xs" style={{ color: 'var(--muted)' }}>
-                      {displayUserLabel(
-                        c.author?.name,
-                        c.author?.email,
-                        'unknown'
-                      )}{' '}
-                      · {formatKoreanDateTimeWithMs(c.createdAt)}
-                    </div>
-
-                    {canMine ? (
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          className="btn btn-ghost"
-                          onClick={() => startCommentEdit(c)}
-                        >
-                          수정
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-ghost"
-                          onClick={() => deleteComment(c.id)}
-                        >
-                          삭제
-                        </button>
-                      </div>
-                    ) : null}
+            {commentsLoading
+              ? Array.from({ length: 3 }).map((_, i) => (
+                  <div key={`post-comment-skel-${i}`} className="card p-3">
+                    <div className="h-3 w-40 rounded-md skeleton" />
+                    <div className="mt-3 h-3 w-full rounded-md skeleton" />
+                    <div className="mt-2 h-3 w-4/5 rounded-md skeleton" />
                   </div>
+                ))
+              : comments.map((c) => {
+                  const canMine = myEmail && c.author?.email === myEmail
+                  const isEditing = editingCommentId === c.id
 
-                  {isEditing ? (
-                    <div className="mt-2 grid gap-2">
-                      <textarea
-                        className="textarea"
-                        value={editingCommentText}
-                        onChange={(e) => setEditingCommentText(e.target.value)}
-                        rows={3}
-                      />
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          className="btn btn-primary"
-                          onClick={saveCommentEdit}
-                          disabled={commentSaving}
+                  return (
+                    <div key={c.id} className="card p-3">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div
+                          className="text-xs"
+                          style={{ color: 'var(--muted)' }}
                         >
-                          {commentSaving ? '저장중...' : '저장'}
-                        </button>
-                        <button
-                          type="button"
-                          className="btn"
-                          onClick={() => {
-                            setEditingCommentId(null)
-                            setEditingCommentText('')
-                          }}
-                          disabled={commentSaving}
-                        >
-                          취소
-                        </button>
+                          {displayUserLabel(
+                            c.author?.name,
+                            c.author?.email,
+                            'unknown'
+                          )}{' '}
+                          · {formatKoreanDateTimeWithMs(c.createdAt)}
+                        </div>
+
+                        {canMine ? (
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              className="btn btn-ghost"
+                              onClick={() => startCommentEdit(c)}
+                            >
+                              수정
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-ghost"
+                              onClick={() => deleteComment(c.id)}
+                            >
+                              삭제
+                            </button>
+                          </div>
+                        ) : null}
                       </div>
+
+                      {isEditing ? (
+                        <div className="mt-2 grid gap-2">
+                          <textarea
+                            className="textarea"
+                            value={editingCommentText}
+                            onChange={(e) =>
+                              setEditingCommentText(e.target.value)
+                            }
+                            rows={3}
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              className="btn btn-primary"
+                              onClick={saveCommentEdit}
+                              disabled={commentSaving}
+                            >
+                              {commentSaving ? '저장중...' : '저장'}
+                            </button>
+                            <button
+                              type="button"
+                              className="btn"
+                              onClick={() => {
+                                setEditingCommentId(null)
+                                setEditingCommentText('')
+                              }}
+                              disabled={commentSaving}
+                            >
+                              취소
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="whitespace-pre-wrap text-sm leading-6">
+                          {c.content}
+                        </div>
+                      )}
                     </div>
-                  ) : (
-                    <div className="whitespace-pre-wrap text-sm leading-6">
-                      {c.content}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
+                  )
+                })}
           </div>
         </section>
       </div>

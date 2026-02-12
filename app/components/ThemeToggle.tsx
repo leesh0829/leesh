@@ -5,6 +5,20 @@ import { useEffect, useState } from 'react'
 type Theme = 'light' | 'dark'
 
 const STORAGE_KEY = 'leesh-theme'
+const COOKIE_KEY = 'leesh-theme'
+
+function readThemeCookie(): Theme | null {
+  if (typeof document === 'undefined') return null
+  const m = document.cookie.match(new RegExp(`(?:^|; )${COOKIE_KEY}=([^;]*)`))
+  if (!m) return null
+  const v = decodeURIComponent(m[1])
+  return v === 'dark' || v === 'light' ? v : null
+}
+
+function writeThemeCookie(theme: Theme) {
+  const secure = window.location.protocol === 'https:' ? '; secure' : ''
+  document.cookie = `${COOKIE_KEY}=${encodeURIComponent(theme)}; path=/; max-age=31536000; samesite=lax${secure}`
+}
 
 function applyTheme(theme: Theme) {
   document.documentElement.setAttribute('data-theme', theme)
@@ -17,12 +31,17 @@ export default function ThemeToggle() {
   useEffect(() => {
     Promise.resolve().then(() => {
       const saved = window.localStorage.getItem(STORAGE_KEY)
-      if (saved === 'dark' || saved === 'light') {
-        setTheme(saved)
-        applyTheme(saved)
-        return
-      }
-      applyTheme('light')
+      const cookieTheme = readThemeCookie()
+      const resolved: Theme =
+        saved === 'dark' || saved === 'light'
+          ? saved
+          : cookieTheme === 'dark' || cookieTheme === 'light'
+            ? cookieTheme
+            : 'light'
+      setTheme(resolved)
+      applyTheme(resolved)
+      window.localStorage.setItem(STORAGE_KEY, resolved)
+      writeThemeCookie(resolved)
     })
   }, [])
 
@@ -31,6 +50,7 @@ export default function ThemeToggle() {
     setTheme(next)
     applyTheme(next)
     window.localStorage.setItem(STORAGE_KEY, next)
+    writeThemeCookie(next)
   }
 
   return (

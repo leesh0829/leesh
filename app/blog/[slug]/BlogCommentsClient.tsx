@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { toHumanHttpError } from '@/app/lib/httpErrorText'
 import { displayUserLabel } from '@/app/lib/userLabel'
+import { useToast } from '@/app/components/ToastProvider'
 
 type CommentItem = {
   id: string
@@ -50,6 +51,7 @@ export default function BlogCommentsClient({
   boardId: string
   postId: string
 }) {
+  const toast = useToast()
   const [items, setItems] = useState<CommentItem[]>([])
   const [loading, setLoading] = useState(true)
   const [content, setContent] = useState('')
@@ -87,7 +89,9 @@ export default function BlogCommentsClient({
     if (!res.ok) {
       const payload = await readJsonSafely(res)
       const msg = extractApiMessage(payload) ?? '댓글 수정 실패'
-      setError(`${res.status} · ${msg}`)
+      const message = `${res.status} · ${msg}`
+      setError(message)
+      toast.error(message)
       setSavingEdit(false)
       return
     }
@@ -96,6 +100,7 @@ export default function BlogCommentsClient({
     setEditText('')
     setSavingEdit(false)
     await load()
+    toast.success('댓글을 수정했습니다.')
   }
 
   async function deleteComment(id: string) {
@@ -111,11 +116,14 @@ export default function BlogCommentsClient({
     if (!res.ok) {
       const payload = await readJsonSafely(res)
       const msg = extractApiMessage(payload) ?? '댓글 삭제 실패'
-      setError(`${res.status} · ${msg}`)
+      const message = `${res.status} · ${msg}`
+      setError(message)
+      toast.error(message)
       return
     }
 
     await load()
+    toast.success('댓글을 삭제했습니다.')
   }
 
   async function load() {
@@ -128,7 +136,9 @@ export default function BlogCommentsClient({
       const payload = await readJsonSafely(res)
       const msg = extractApiMessage(payload) ?? '댓글 처리 실패'
       const human = toHumanHttpError(res.status, msg)
-      setError(human ?? `${res.status} · ${msg}`)
+      const message = human ?? `${res.status} · ${msg}`
+      setError(message)
+      toast.error(message)
       setLoading(false)
       return
     }
@@ -150,12 +160,15 @@ export default function BlogCommentsClient({
 
     if (!res.ok) {
       const d = await res.json().catch(() => ({}))
-      setError(d?.message ?? '댓글 작성 실패')
+      const message = d?.message ?? '댓글 작성 실패'
+      setError(message)
+      toast.error(message)
       return
     }
 
     setContent('')
     await load()
+    toast.success('댓글을 등록했습니다.')
   }
 
   useEffect(() => {
@@ -201,8 +214,14 @@ export default function BlogCommentsClient({
 
       <div className="mt-4 grid gap-3">
         {loading ? (
-          <div className="text-sm" style={{ color: 'var(--muted)' }}>
-            불러오는 중...
+          <div className="grid gap-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={`comment-skel-${i}`} className="card p-3">
+                <div className="h-3 w-40 rounded-md skeleton" />
+                <div className="mt-3 h-3 w-full rounded-md skeleton" />
+                <div className="mt-2 h-3 w-4/5 rounded-md skeleton" />
+              </div>
+            ))}
           </div>
         ) : items.length === 0 ? (
           <div className="text-sm" style={{ color: 'var(--muted)' }}>

@@ -1075,10 +1075,10 @@ export default function TodosClient() {
           <section className="mt-5 grid gap-2">
             <div className="text-sm font-semibold">계정 리스트</div>
             {shareAccounts.map((account) => (
-                <label
-                  key={account.id}
-                  className="card card-hover-border-only flex min-w-0 items-center gap-2 px-3 py-2 text-sm"
-                >
+              <label
+                key={account.id}
+                className="card card-hover-border-only flex min-w-0 items-center gap-2 px-3 py-2 text-sm"
+              >
                 <input
                   type="checkbox"
                   checked={visibleOwners[account.id] !== false}

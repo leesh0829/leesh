@@ -194,9 +194,18 @@ export default function Sidebar({
               </button>
             </div>
             <ul>
+              <li className="mt-3 text-sm">업데이트 내역 기능 추가</li>
+              <li className="mt-3 text-sm">블로그 트리 추가</li>
+              <li className="mt-3 text-sm">TODO 마우스 연동 추가</li>
+              <li className="mt-3 text-sm">글 목록 검색 기능 추가</li>
+              <li className="mt-3 text-sm">반응형 UI 추가</li>
+              <li className="mt-3 text-sm">일부 버튼 UI 기호로 변경</li>
+              <li className="mt-3 text-sm">캘린더 / TODO UI 변경</li>
               <li className="mt-3 text-sm">강조 버튼 UI 변경</li>
+              <li className="mt-3 text-sm">고객 센터 답변 여부 배지 추가</li>
               <li className="mt-3 text-sm">애니메이션 추가</li>
-              <li className="mt-3 text-sm">캘린더 당일 강조 UI 변경</li>
+              <li className="mt-3 text-sm">마크다운 스타일 수정</li>
+              <li className="mt-3 text-sm">웹 아이콘 추가</li>
               <li className="mt-3 text-sm">그 외 버그 수정</li>
             </ul>
           </div>

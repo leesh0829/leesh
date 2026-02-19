@@ -184,7 +184,7 @@ function BoardItem({
       onDragEnd={onDragEnd}
       title={dndEnabled && board.canEdit ? '드래그해서 상태 이동' : undefined}
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <div className="font-semibold truncate">{board.name}</div>
@@ -202,7 +202,7 @@ function BoardItem({
           ) : null}
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
           <Link href={`/todos/${board.id}`} className="btn btn-outline">
             상세
           </Link>
@@ -250,7 +250,7 @@ function BoardItem({
           DONE
         </button>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="flex w-full items-center gap-2 sm:ml-auto sm:w-auto">
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
@@ -970,7 +970,7 @@ export default function TodosClient() {
           </div>
 
           {loading ? (
-            <div className="mt-6 grid gap-4 lg:grid-cols-3">
+            <div className="mt-6 grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
               {Array.from({ length: 3 }).map((_, cIdx) => (
                 <div key={`todo-col-skel-${cIdx}`} className="card card-pad">
                   <div className="h-5 w-24 rounded-md skeleton" />
@@ -986,7 +986,7 @@ export default function TodosClient() {
               ))}
             </div>
           ) : (
-            <div className="mt-6 grid gap-4 lg:grid-cols-3">
+            <div className="mt-6 grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
               <BoardColumn
                 status="TODO"
                 title="TODO"
@@ -1052,7 +1052,7 @@ export default function TodosClient() {
               onChange={(e) => setShareEmail(e.target.value)}
               placeholder="상대 계정 이메일 또는 ID"
             />
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 type="button"
                 className="btn btn-primary"
@@ -1077,7 +1077,7 @@ export default function TodosClient() {
             {shareAccounts.map((account) => (
               <label
                 key={account.id}
-                className="card card-hover-border-only flex items-center gap-2 px-3 py-2 text-sm"
+                className="card card-hover-border-only flex min-w-0 items-center gap-2 px-3 py-2 text-sm"
               >
                 <input
                   type="checkbox"
@@ -1099,7 +1099,7 @@ export default function TodosClient() {
                     borderColor: 'color-mix(in srgb, var(--border) 70%, white)',
                   }}
                 />
-                <span className="truncate">{account.label}</span>
+                <span className="min-w-0 flex-1 truncate">{account.label}</span>
                 {account.isSelf ? (
                   <span className="badge ml-auto">나</span>
                 ) : null}
@@ -1152,7 +1152,7 @@ export default function TodosClient() {
                     상태: {row.status} · 요청일:{' '}
                     {new Date(row.createdAt).toLocaleString()}
                   </div>
-                  <div className="mt-2 flex gap-2">
+                  <div className="mt-2 flex flex-wrap gap-2">
                     <button
                       type="button"
                       className="btn btn-primary"

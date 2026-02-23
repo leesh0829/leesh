@@ -710,6 +710,15 @@
     opacity: 0 !important;
     transform: none !important;
   }
+
+  /* /leesh: 카드 전체 하이라이트 대신 테두리만 반응 */
+  .leesh-page .card::after,
+  .leesh-page .surface::after,
+  .leesh-page .card:hover::after,
+  .leesh-page .surface:hover::after {
+    opacity: 0 !important;
+    transform: none !important;
+  }
 }
 
 @media (max-width: 640px) {

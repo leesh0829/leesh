@@ -172,14 +172,97 @@ export default function LeeshClient() {
     setSaving(false)
   }
 
+  const strengths = [
+    '실행 가능한 서비스를 끝까지 완성하는 제품 개발자',
+    '문제 정의부터 운영까지 책임지는 오너십',
+    '빠른 실험과 안정적인 개선 사이 균형을 추구',
+  ]
+
+  const techStacks = [
+    'Next.js / React',
+    'TypeScript / Node.js',
+    'PostgreSQL / Prisma',
+    '서비스 기획 / 운영 자동화',
+  ]
+
+  const highlights = [
+    {
+      title: 'Full-Stack Product Development',
+      description:
+        '기획, 설계, 개발, 배포까지 전 과정을 직접 리드하며 사용자 가치 중심으로 개선합니다.',
+    },
+    {
+      title: 'Community-Oriented Thinking',
+      description:
+        'Our Colony 문서 방향처럼 협업과 커뮤니티의 지속 가능성을 고려해 기능을 설계합니다.',
+    },
+    {
+      title: 'Documentation & Communication',
+      description:
+        '기능만 만드는 것이 아니라 문서화와 전달 가능한 결과물로 팀 생산성을 높입니다.',
+    },
+  ]
+
   return (
     <main className="container-page py-6 space-y-4">
       <section className="surface card-pad">
+        <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr] lg:items-start">
+          <div>
+            <p className="text-xs uppercase tracking-[0.18em] opacity-60">
+              Portfolio
+            </p>
+            <h1 className="mt-2 text-3xl font-semibold sm:text-4xl">이승희</h1>
+            <p className="mt-3 text-base leading-7 opacity-90 sm:text-lg">
+              안녕하세요. 사용자 문제를 제품으로 빠르게 풀어내는 개발자입니다.
+              서비스의 맥락을 이해하고, 작은 기능도 실제 사용 경험 관점에서
+              설계합니다.
+            </p>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              {techStacks.map((stack) => (
+                <span key={stack} className="badge">
+                  {stack}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-black/10 bg-black/[0.03] p-4">
+            <h2 className="text-sm font-semibold opacity-80">About me</h2>
+            <ul className="mt-3 grid gap-2 text-sm leading-6 opacity-90">
+              {strengths.map((item) => (
+                <li key={item} className="flex gap-2">
+                  <span aria-hidden>•</span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section className="surface card-pad">
+        <h2 className="text-xl font-semibold">핵심 역량</h2>
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          {highlights.map((item) => (
+            <article
+              key={item.title}
+              className="rounded-2xl border border-black/10 bg-black/[0.03] p-4"
+            >
+              <h3 className="text-sm font-semibold">{item.title}</h3>
+              <p className="mt-2 text-sm leading-6 opacity-80">{item.description}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="surface card-pad">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
-            <h1 className="text-2xl font-semibold">Leesh</h1>
+            <h2 className="text-2xl font-semibold">기록 / 블로그</h2>
             <p className="mt-1 text-sm opacity-70">
-              포트폴리오 자기소개서(마크다운). 비밀번호로 접근 후 편집 가능.
+              기존 글 기능은 이 섹션에서 유지됩니다. 비밀번호로 접근 후 편집할
+              수 있습니다.
             </p>
 
             <div className="mt-2 flex flex-wrap items-center gap-2 text-xs opacity-80">

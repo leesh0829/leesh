@@ -198,6 +198,7 @@ export default function Sidebar({
               <li className="mt-3 text-sm">블로그 트리 추가</li>
               <li className="mt-3 text-sm">TODO 마우스 연동 추가</li>
               <li className="mt-3 text-sm">글 목록 검색 기능 추가</li>
+              <li className="mt-3 text-sm">포트폴리오 페이지 추가 및 수정</li>
               <li className="mt-3 text-sm">반응형 UI 추가</li>
               <li className="mt-3 text-sm">일부 버튼 UI 기호로 변경</li>
               <li className="mt-3 text-sm">캘린더 / TODO UI 변경</li>

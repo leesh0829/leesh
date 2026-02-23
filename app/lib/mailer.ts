@@ -2,9 +2,10 @@ type SendMailArgs = {
   to: string;
   subject: string;
   text: string;
+  replyTo?: string;
 };
 
-export async function sendMail({ to, subject, text }: SendMailArgs) {
+export async function sendMail({ to, subject, text, replyTo }: SendMailArgs) {
   // SMTP 설정이 없으면 개발 편의상 콘솔로만 출력
   const host = process.env.SMTP_HOST;
   const user = process.env.SMTP_USER;
@@ -19,6 +20,7 @@ export async function sendMail({ to, subject, text }: SendMailArgs) {
     console.log("[EMAIL:FALLBACK]");
     console.log("to:", to);
     console.log("subject:", subject);
+    if (replyTo) console.log("replyTo:", replyTo);
     console.log(text);
     return;
   }
@@ -36,6 +38,7 @@ export async function sendMail({ to, subject, text }: SendMailArgs) {
   await transporter.sendMail({
     from,
     to,
+    replyTo,
     subject,
     text,
   });

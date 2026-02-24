@@ -2,8 +2,40 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/options";
+import { z } from "zod";
+import { badRequestFromZod, parseJsonWithSchema } from "@/app/lib/validation";
 
 export const runtime = "nodejs";
+const todoStatusSchema = z.enum(["TODO", "DOING", "DONE"]);
+const todoPatchSchema = z
+  .object({
+    status: todoStatusSchema.optional(),
+    title: z.string().transform((v) => v.trim()).optional(),
+    allDay: z.boolean().optional(),
+    startAt: z
+      .union([z.string(), z.null()])
+      .optional()
+      .refine(
+        (value) =>
+          value === undefined ||
+          value === null ||
+          value === "" ||
+          !Number.isNaN(new Date(value).getTime()),
+        { message: "invalid date" },
+      ),
+    endAt: z
+      .union([z.string(), z.null()])
+      .optional()
+      .refine(
+        (value) =>
+          value === undefined ||
+          value === null ||
+          value === "" ||
+          !Number.isNaN(new Date(value).getTime()),
+        { message: "invalid date" },
+      ),
+  })
+  .strict();
 
 async function getUserId() {
   const session = await getServerSession(authOptions);
@@ -23,17 +55,26 @@ export async function PATCH(
   const userId = await getUserId();
   if (!userId) return NextResponse.json({ message: "unauthorized" }, { status: 401 });
 
-  const body = await req.json().catch(() => null);
-  const status = body?.status as "TODO" | "DOING" | "DONE" | undefined;
-  const title = typeof body?.title === "string" ? body.title.trim() : undefined;
-  const allDay = typeof body?.allDay === "boolean" ? body.allDay : undefined;
+  const parsed = await parseJsonWithSchema(req, todoPatchSchema);
+  if (!parsed.success) {
+    return badRequestFromZod(parsed.error, "invalid body");
+  }
 
-  const startAtRaw = body?.startAt as string | null | undefined;
-  const endAtRaw = body?.endAt as string | null | undefined;
+  const status = parsed.data.status;
+  const title = parsed.data.title;
+  const allDay = parsed.data.allDay;
   const startAt =
-    typeof startAtRaw === "string" && startAtRaw ? new Date(startAtRaw) : startAtRaw === null ? null : undefined;
+    parsed.data.startAt === undefined
+      ? undefined
+      : parsed.data.startAt === null || parsed.data.startAt === ""
+        ? null
+        : new Date(parsed.data.startAt);
   const endAt =
-    typeof endAtRaw === "string" && endAtRaw ? new Date(endAtRaw) : endAtRaw === null ? null : undefined;
+    parsed.data.endAt === undefined
+      ? undefined
+      : parsed.data.endAt === null || parsed.data.endAt === ""
+        ? null
+        : new Date(parsed.data.endAt);
 
   if (!status && title === undefined && allDay === undefined && startAt === undefined && endAt === undefined) {
     return NextResponse.json({ message: "nothing to update" }, { status: 400 });

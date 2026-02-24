@@ -5,14 +5,25 @@ import { sendMail } from "@/app/lib/mailer";
 import { resolveAppUrl } from "@/app/lib/appUrl";
 import { hashVerificationToken } from "@/app/lib/verificationToken";
 import { getClientIp, takeRateLimit } from "@/app/lib/rateLimit";
+import { z } from "zod";
+import { badRequestFromZod, parseJsonWithSchema } from "@/app/lib/validation";
 
 const RESEND_LIMIT = 5;
 const RESEND_WINDOW_MS = 10 * 60 * 1000;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const resendBodySchema = z
+  .object({
+    email: z.string().trim().min(1, "email required"),
+  })
+  .strict();
 
 export async function POST(req: Request) {
-  const body = await req.json().catch(() => null);
-  const email = (body?.email as string | undefined)?.trim();
+  const parsed = await parseJsonWithSchema(req, resendBodySchema);
+  if (!parsed.success) {
+    return badRequestFromZod(parsed.error, "invalid body");
+  }
+
+  const email = parsed.data.email;
 
   if (!email) return NextResponse.json({ message: "email required" }, { status: 400 });
   if (!EMAIL_REGEX.test(email)) {

@@ -138,6 +138,36 @@ export default function LeeshClient() {
     })
   }, [])
 
+  useEffect(() => {
+    const targets = Array.from(
+      document.querySelectorAll<HTMLElement>('.leesh-page .scroll-reveal')
+    )
+    if (targets.length === 0) return
+
+    targets.forEach((el, index) => {
+      el.classList.add(`reveal-delay-${(index % 3) + 1}`)
+    })
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      targets.forEach((el) => el.classList.add('is-visible'))
+      return
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          const el = entry.target as HTMLElement
+          if (entry.isIntersecting) el.classList.add('is-visible')
+          else el.classList.remove('is-visible')
+        })
+      },
+      { threshold: 0.12, rootMargin: '0px 0px -10% 0px' }
+    )
+
+    targets.forEach((el) => observer.observe(el))
+    return () => observer.disconnect()
+  }, [])
+
   const doUnlock = async () => {
     if (!pw) return
     setUnlocking(true)
@@ -270,6 +300,7 @@ export default function LeeshClient() {
         'React / Next.js 기반 프론트엔드 개발',
         'MySQL / MSSQL 데이터베이스 설계 및 운영',
         '서비스 배포 및 운영/유지보수 경험 (실사용 환경)',
+        '현장 장애 대응 및 안정화 경험',
       ],
     },
     {
@@ -281,6 +312,23 @@ export default function LeeshClient() {
         'RedisDB 활용 실시간 데이터 처리',
         'WM_COPYDATA 기반 프로세스 간 통신 구현',
         '실제 현장 운영 및 유지보수 경험',
+        '설비 → 서버 → 클라이언트로 이어지는 데이터 흐름 구조 이해 및 개선 경험',
+      ],
+    },
+  ]
+
+  const careers = [
+    {
+      title: 'IoT Engineer | Junior Web Engineer',
+      company: '스타트업 A (산업 설비 데이터 솔루션 기업)',
+      period: '2025 - Present',
+      items: [
+        '4개 공장 설비 데이터를 통합 관리하는 웹 시스템 운영',
+        'Spring 기반 웹 기능 개선 및 서비스 안정화 작업',
+        '실시간 설비 데이터 수집 및 원격 설비 제어 기능 구현',
+        '산업 장비 -> 서버 -> 웹 클라이언트 간 데이터 흐름 설계 및 개선',
+        '현장 이슈 대응 및 서비스 안정성 개선 작업 수행',
+        '운영 중 발생한 데이터 통신 오류 개선을 통해 안정성 향상',
       ],
     },
   ]
@@ -294,6 +342,7 @@ export default function LeeshClient() {
         'IPC (WM_COPYDATA) 구현',
         '프로세스 감지 기능 구현',
         'IPC 통신 안정성 개선을 통한 데이터 전달 누락 최소화',
+        'WPF UI와 백그라운드 프로세스 간 데이터 흐름 설계',
       ],
       githubUrl: 'https://github.com/leesh0829/FocusBuddy',
     },
@@ -303,7 +352,9 @@ export default function LeeshClient() {
       points: [
         '직접 설계 및 구현',
         '사용자 흐름 중심 UI/기능 개선',
-        '상태 기반 UI 구조 설계로 컴포넌트 재사용성 개선',
+        '상태 기반 UI 구조 설계로 컴포넌트 재사용성 개선 및 향상',
+        '반응형 레이아웃 및 접근성 고려',
+        '배포 및 도메인 연결 경험',
       ],
       githubUrl: 'https://github.com/leesh0829/leesh',
     },
@@ -348,7 +399,7 @@ export default function LeeshClient() {
 
   return (
     <main className="container-page py-6 space-y-4 leesh-page">
-      <section className="surface card-pad">
+      <section className="surface card-pad scroll-reveal">
         <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr] lg:items-start">
           <div>
             <p className="text-xs uppercase tracking-[0.18em] opacity-60">
@@ -397,7 +448,7 @@ export default function LeeshClient() {
         </div>
       </section>
 
-      <section className="surface card-pad">
+      <section className="surface card-pad scroll-reveal">
         <h2 className="text-xl font-semibold">핵심 역량</h2>
         <div className="mt-4 grid gap-3 md:grid-cols-3">
           {highlights.map((item) => (
@@ -414,7 +465,7 @@ export default function LeeshClient() {
         </div>
       </section>
 
-      <section className="surface card-pad">
+      <section className="surface card-pad scroll-reveal">
         <h2 className="text-2xl font-semibold">Experience</h2>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           {experiences.map((item) => (
@@ -438,7 +489,28 @@ export default function LeeshClient() {
         </div>
       </section>
 
-      <section className="surface card-pad">
+      <section className="surface card-pad scroll-reveal">
+        <h2 className="text-2xl font-semibold">Career</h2>
+        <div className="mt-4 grid gap-3">
+          {careers.map((career) => (
+            <article
+              key={`${career.company}-${career.period}`}
+              className="rounded-2xl border border-black/10 bg-black/[0.03] p-4"
+            >
+              <h3 className="text-base font-semibold">{career.title}</h3>
+              <p className="mt-1 text-sm opacity-80">{career.company}</p>
+              <p className="mt-1 text-xs opacity-65">{career.period}</p>
+              <ul className="mt-3 list-disc space-y-1 pl-5 text-sm leading-6 opacity-90">
+                {career.items.map((point) => (
+                  <li key={point}>{point}</li>
+                ))}
+              </ul>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="surface card-pad scroll-reveal">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-2xl font-semibold">Projects</h2>
         </div>
@@ -502,7 +574,7 @@ export default function LeeshClient() {
         </div>
       </section>
 
-      <section className="surface card-pad">
+      <section className="surface card-pad scroll-reveal">
         <h2 className="text-2xl font-semibold">Tech Stack</h2>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           {detailedTechStacks.map((item) => (
@@ -517,22 +589,21 @@ export default function LeeshClient() {
         </div>
       </section>
 
-      <section className="surface card-pad">
+      <section className="surface card-pad scroll-reveal">
         <h2 className="text-xl font-semibold">Direction</h2>
         <p className="mt-2 text-sm leading-7 opacity-85 sm:text-base">
-          현재는 웹 개발에 가장 큰 관심을 두고 있으며, 데이터 처리와 시스템
-          구조 이해를 기반으로 확장 가능한 웹 서비스를 만들고자 합니다.
+          현재는 웹 개발에 가장 큰 관심을 두고 있으며, 데이터 처리와 시스템 구조
+          이해를 기반으로 확장 가능한 웹 서비스를 만들고자 합니다.
         </p>
       </section>
 
-      <section className="surface card-pad">
+      <section className="surface card-pad scroll-reveal">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-2xl font-semibold">Contact Me</h2>
           <span className="badge">문의 폼</span>
         </div>
         <p className="mt-1 text-sm opacity-70">
-          협업, 프로젝트, 채용 관련 문의를 남겨주세요. 메시지는 메일로
-          전달됩니다.
+          협업, 프로젝트, 채용 관련 문의를 남겨주세요.
         </p>
 
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
@@ -610,7 +681,7 @@ export default function LeeshClient() {
       </section>
 
       {!unlocked ? (
-        <section className="surface card-pad">
+        <section className="surface card-pad scroll-reveal">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <h2 className="text-2xl font-semibold">기록 / 블로그</h2>
@@ -657,7 +728,7 @@ export default function LeeshClient() {
           </div>
         </section>
       ) : (
-        <section className="card card-pad">
+        <section className="card card-pad scroll-reveal">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <p className="mt-1 text-sm opacity-70">추가로 하고픈 말</p>

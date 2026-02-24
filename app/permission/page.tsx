@@ -26,9 +26,7 @@ export default async function PermissionPage() {
       <div>
         <div className="text-xs opacity-60">Admin</div>
         <h1 className="text-2xl font-semibold">/permission</h1>
-        <p className="mt-1 text-sm opacity-70">
-          메뉴별 권한(로그인 필요/최소 Role/사이드바 표시)을 관리합니다.
-        </p>
+        <p className="mt-1 text-sm opacity-70">메뉴/사용자별 권한을 관리.</p>
       </div>
 
       <div className="surface card-pad card-hover-border-only">

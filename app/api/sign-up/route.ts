@@ -6,10 +6,19 @@ import { sendMail } from '@/app/lib/mailer'
 import { resolveAppUrl } from '@/app/lib/appUrl'
 import { hashVerificationToken } from '@/app/lib/verificationToken'
 import { getClientIp, takeRateLimit } from '@/app/lib/rateLimit'
+import { z } from 'zod'
+import { badRequestFromZod, parseJsonWithSchema } from '@/app/lib/validation'
 
 const SIGN_UP_LIMIT = 8
 const SIGN_UP_WINDOW_MS = 10 * 60 * 1000
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const signUpBodySchema = z
+  .object({
+    email: z.string().trim().min(1, 'email/password required'),
+    password: z.string().min(1, 'email/password required'),
+    name: z.union([z.string(), z.null()]).optional(),
+  })
+  .strict()
 
 export async function POST(req: Request) {
   try {
@@ -29,18 +38,15 @@ export async function POST(req: Request) {
       )
     }
 
-    const { email, password, name } = await req.json()
-
-    const cleanEmail = String(email || '').trim()
-    const cleanPassword = String(password || '')
-    const cleanName = name ? String(name).trim() : null
-
-    if (!cleanEmail || !cleanPassword) {
-      return NextResponse.json(
-        { message: 'email/password required' },
-        { status: 400 }
-      )
+    const parsed = await parseJsonWithSchema(req, signUpBodySchema)
+    if (!parsed.success) {
+      return badRequestFromZod(parsed.error, 'invalid body')
     }
+
+    const cleanEmail = parsed.data.email
+    const cleanPassword = parsed.data.password
+    const cleanName =
+      typeof parsed.data.name === 'string' ? parsed.data.name.trim() || null : null
 
     if (!EMAIL_REGEX.test(cleanEmail)) {
       return NextResponse.json(

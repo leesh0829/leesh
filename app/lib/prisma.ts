@@ -19,9 +19,11 @@ const pool =
   });
 
 pool.on("connect", (client) => {
-  void client.query(`SET TIME ZONE '${DB_TIMEZONE}'`).catch((err) => {
-    console.error("Failed to set DB timezone:", err);
-  });
+  void client
+    .query("SELECT set_config('TimeZone', $1, false)", [DB_TIMEZONE])
+    .catch((err) => {
+      console.error("Failed to set DB timezone:", err);
+    });
 });
 
 const adapter = new PrismaPg(pool);

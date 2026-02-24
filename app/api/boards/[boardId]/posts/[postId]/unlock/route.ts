@@ -2,13 +2,20 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
+import { z } from "zod";
 import {
   UNLOCK_COOKIE_NAME,
   readUnlockedPostIds,
   buildUnlockedCookieValue,
 } from "@/app/lib/unlockCookie";
+import { badRequestFromZod, parseJsonWithSchema } from "@/app/lib/validation";
 
 export const runtime = "nodejs";
+const unlockPostSchema = z
+  .object({
+    password: z.string().trim().min(1, "password required"),
+  })
+  .strict();
 
 export async function POST(
   req: Request,
@@ -16,11 +23,11 @@ export async function POST(
 ) {
   const { boardId, postId } = await params;
 
-  const body = await req.json().catch(() => null);
-  const password = (body?.password as string | undefined)?.trim() ?? "";
-  if (!password) {
-    return NextResponse.json({ message: "password required" }, { status: 400 });
+  const parsed = await parseJsonWithSchema(req, unlockPostSchema);
+  if (!parsed.success) {
+    return badRequestFromZod(parsed.error, "invalid body");
   }
+  const password = parsed.data.password;
 
   // 글 존재 확인
   const post = await prisma.post.findFirst({

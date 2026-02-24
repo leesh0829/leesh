@@ -3,8 +3,20 @@ import { prisma } from '@/app/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import bcrypt from 'bcryptjs'
+import { z } from 'zod'
+import { badRequestFromZod, parseJsonWithSchema } from '@/app/lib/validation'
 
 export const runtime = 'nodejs'
+const updateBlogPostSchema = z
+  .object({
+    title: z.string().trim().min(1, 'invalid body'),
+    contentMd: z.string(),
+    publish: z.boolean().optional().default(false),
+    regenerateSlug: z.boolean().optional().default(false),
+    isSecret: z.boolean().optional(),
+    secretPassword: z.union([z.string(), z.null()]).optional(),
+  })
+  .strict()
 
 function slugify(input: string): string {
   return input
@@ -38,28 +50,31 @@ export async function PUT(
   if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
-  const body = await req.json().catch(() => null)
-  const title = body?.title as string | undefined
-  const contentMd = body?.contentMd as string | undefined
-  const publish = Boolean(body?.publish)
-  const regenerateSlug = Boolean(body?.regenerateSlug)
-  const isSecret = body?.isSecret as boolean | undefined
-  const secretPassword = (body?.secretPassword ?? null) as string | null
+  const parsed = await parseJsonWithSchema(req, updateBlogPostSchema)
+  if (!parsed.success) {
+    return badRequestFromZod(parsed.error, 'invalid body')
+  }
+
+  const title = parsed.data.title
+  const contentMd = parsed.data.contentMd
+  const publish = parsed.data.publish
+  const regenerateSlug = parsed.data.regenerateSlug
+  const isSecret = parsed.data.isSecret
+  const secretPassword =
+    typeof parsed.data.secretPassword === 'string'
+      ? parsed.data.secretPassword.trim()
+      : null
 
   if (
     isSecret === true &&
     secretPassword != null &&
-    secretPassword.trim().length > 0 &&
-    secretPassword.trim().length < 4
+    secretPassword.length > 0 &&
+    secretPassword.length < 4
   ) {
     return NextResponse.json(
       { message: '비밀글 비밀번호는 4자 이상 필요' },
       { status: 400 }
     )
-  }
-
-  if (!title || contentMd == null) {
-    return NextResponse.json({ message: 'invalid body' }, { status: 400 })
   }
 
   // 작성자 + BLOG 타입 보드 글만 수정 가능
@@ -99,9 +114,9 @@ export async function PUT(
     if (!isSecret) {
       // 비밀글 해제하면 해시 제거
       data.secretPasswordHash = null
-    } else if (secretPassword && secretPassword.trim().length >= 4) {
+    } else if (secretPassword && secretPassword.length >= 4) {
       // 비밀글 유지 + 비번 입력한 경우만 갱신
-      data.secretPasswordHash = await bcrypt.hash(secretPassword.trim(), 10)
+      data.secretPasswordHash = await bcrypt.hash(secretPassword, 10)
     }
   }
 

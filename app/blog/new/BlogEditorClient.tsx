@@ -95,12 +95,9 @@ export default function BlogEditorClient({ boardId }: { boardId: string }) {
           rows={18}
           previewEmptyText="미리보기할 본문이 없습니다."
         />
-        <div className="text-xs" style={{ color: 'var(--muted)' }}>
-          Enter=줄바꿈, 이미지: ![](url)
-        </div>
       </div>
 
-      <div className="card card-pad">
+      <div className="card card-pad card-hover-border-only">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <label className="flex items-center gap-2 text-sm">
             <input

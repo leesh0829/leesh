@@ -12,8 +12,7 @@ export default function HomePage() {
               </Link>
             </h1>
             <p className="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
-              Next.js(App Router) + TypeScript + PostgreSQL(Prisma)로 만드는
-              개인 사이트. 포트폴리오 / 블로그 / 게시판 / TODO / 캘린더까지 한
+              포트폴리오 / 블로그 / 게시판 / TODO / 캘린더까지 일정 관리를 한
               번에.
             </p>
           </div>
@@ -29,15 +28,7 @@ export default function HomePage() {
         </div>
 
         <div className="mt-5 flex flex-wrap gap-2">
-          {[
-            'Next.js 16',
-            'React 19',
-            'TypeScript',
-            'Prisma',
-            'PostgreSQL',
-            'NextAuth',
-            'Tailwind',
-          ].map((t) => (
+          {['블로그', '게시판', 'TODO', '캘린더'].map((t) => (
             <span
               key={t}
               className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300"
@@ -63,7 +54,7 @@ export default function HomePage() {
         />
         <Card
           title="TODO"
-          desc="TODO / DOING / DONE 관리"
+          desc="TODO / DOING / DONE 할 일 관리"
           href="/todos"
           actions={[{ label: 'TODO 가기', href: '/todos' }]}
         />

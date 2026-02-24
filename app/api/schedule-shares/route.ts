@@ -139,20 +139,41 @@ export async function POST(req: Request) {
       targetEmail?: string
       scope?: 'CALENDAR' | 'TODO'
     } | null
-    const targetEmail = body?.targetEmail?.trim()
-    if (!targetEmail) return jsonError(400, 'targetEmail is required')
+    const targetIdentity = body?.targetEmail?.trim()
+    if (!targetIdentity) return jsonError(400, 'targetEmail is required')
     const scope = parseScheduleShareScope(body?.scope)
     if (!scope) return jsonError(400, 'scope must be CALENDAR or TODO')
 
-    if (me.email && me.email.toLowerCase() === targetEmail.toLowerCase()) {
+    const meMatchesIdentityByEmail =
+      !!me.email && me.email.toLowerCase() === targetIdentity.toLowerCase()
+    const meMatchesIdentityByName =
+      !!me.name && me.name.toLowerCase() === targetIdentity.toLowerCase()
+    if (meMatchesIdentityByEmail || meMatchesIdentityByName) {
       return jsonError(400, '자기 자신에게는 요청할 수 없습니다.')
     }
 
-    const target = await prisma.user.findFirst({
-      where: { email: { equals: targetEmail, mode: 'insensitive' } },
+    const targetCandidates = await prisma.user.findMany({
+      where: {
+        OR: [
+          { email: { equals: targetIdentity, mode: 'insensitive' } },
+          { name: { equals: targetIdentity, mode: 'insensitive' } },
+        ],
+      },
       select: { id: true, name: true, email: true },
+      take: 2,
     })
-    if (!target) return jsonError(404, '해당 이메일의 계정을 찾을 수 없습니다.')
+
+    if (targetCandidates.length === 0) {
+      return jsonError(404, '해당 이메일 또는 아이디의 계정을 찾을 수 없습니다.')
+    }
+    if (targetCandidates.length > 1) {
+      return jsonError(
+        409,
+        '동일한 아이디가 중복되어 있습니다. 이메일로 요청해 주세요.'
+      )
+    }
+
+    const target = targetCandidates[0]
 
     const existing = await prisma.scheduleShare.findUnique({
       where: {

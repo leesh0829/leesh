@@ -27,7 +27,7 @@ type OutgoingShareRow = {
 type IncomingShareRow = {
   id: string
   scope: 'CALENDAR' | 'TODO'
-  status: 'PENDING' | 'ACCEPTED'
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED'
   createdAt: Date
   updatedAt: Date
   respondedAt: Date | null

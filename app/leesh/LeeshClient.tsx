@@ -138,6 +138,36 @@ export default function LeeshClient() {
     })
   }, [])
 
+  useEffect(() => {
+    const targets = Array.from(
+      document.querySelectorAll<HTMLElement>('.leesh-page .scroll-reveal')
+    )
+    if (targets.length === 0) return
+
+    targets.forEach((el, index) => {
+      el.classList.add(`reveal-delay-${(index % 3) + 1}`)
+    })
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      targets.forEach((el) => el.classList.add('is-visible'))
+      return
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          const el = entry.target as HTMLElement
+          if (entry.isIntersecting) el.classList.add('is-visible')
+          else el.classList.remove('is-visible')
+        })
+      },
+      { threshold: 0.12, rootMargin: '0px 0px -10% 0px' }
+    )
+
+    targets.forEach((el) => observer.observe(el))
+    return () => observer.disconnect()
+  }, [])
+
   const doUnlock = async () => {
     if (!pw) return
     setUnlocking(true)
@@ -291,7 +321,7 @@ export default function LeeshClient() {
     {
       title: 'IoT Engineer | Junior Web Engineer',
       company: '스타트업 A (산업 설비 데이터 솔루션 기업)',
-      period: '2025.03 - Present',
+      period: '2025 - Present',
       items: [
         '4개 공장 설비 데이터를 통합 관리하는 웹 시스템 운영',
         '실시간 설비 데이터 수집 및 제어 기능 구현',
@@ -368,7 +398,7 @@ export default function LeeshClient() {
 
   return (
     <main className="container-page py-6 space-y-4 leesh-page">
-      <section className="surface card-pad">
+      <section className="surface card-pad scroll-reveal">
         <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr] lg:items-start">
           <div>
             <p className="text-xs uppercase tracking-[0.18em] opacity-60">
@@ -417,7 +447,7 @@ export default function LeeshClient() {
         </div>
       </section>
 
-      <section className="surface card-pad">
+      <section className="surface card-pad scroll-reveal">
         <h2 className="text-xl font-semibold">핵심 역량</h2>
         <div className="mt-4 grid gap-3 md:grid-cols-3">
           {highlights.map((item) => (
@@ -434,7 +464,7 @@ export default function LeeshClient() {
         </div>
       </section>
 
-      <section className="surface card-pad">
+      <section className="surface card-pad scroll-reveal">
         <h2 className="text-2xl font-semibold">Experience</h2>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           {experiences.map((item) => (
@@ -458,7 +488,7 @@ export default function LeeshClient() {
         </div>
       </section>
 
-      <section className="surface card-pad">
+      <section className="surface card-pad scroll-reveal">
         <h2 className="text-2xl font-semibold">Career</h2>
         <div className="mt-4 grid gap-3">
           {careers.map((career) => (
@@ -479,7 +509,7 @@ export default function LeeshClient() {
         </div>
       </section>
 
-      <section className="surface card-pad">
+      <section className="surface card-pad scroll-reveal">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-2xl font-semibold">Projects</h2>
         </div>
@@ -543,7 +573,7 @@ export default function LeeshClient() {
         </div>
       </section>
 
-      <section className="surface card-pad">
+      <section className="surface card-pad scroll-reveal">
         <h2 className="text-2xl font-semibold">Tech Stack</h2>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           {detailedTechStacks.map((item) => (
@@ -558,7 +588,7 @@ export default function LeeshClient() {
         </div>
       </section>
 
-      <section className="surface card-pad">
+      <section className="surface card-pad scroll-reveal">
         <h2 className="text-xl font-semibold">Direction</h2>
         <p className="mt-2 text-sm leading-7 opacity-85 sm:text-base">
           현재는 웹 개발에 가장 큰 관심을 두고 있으며, 데이터 처리와 시스템 구조
@@ -566,7 +596,7 @@ export default function LeeshClient() {
         </p>
       </section>
 
-      <section className="surface card-pad">
+      <section className="surface card-pad scroll-reveal">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-2xl font-semibold">Contact Me</h2>
           <span className="badge">문의 폼</span>
@@ -651,7 +681,7 @@ export default function LeeshClient() {
       </section>
 
       {!unlocked ? (
-        <section className="surface card-pad">
+        <section className="surface card-pad scroll-reveal">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <h2 className="text-2xl font-semibold">기록 / 블로그</h2>
@@ -698,7 +728,7 @@ export default function LeeshClient() {
           </div>
         </section>
       ) : (
-        <section className="card card-pad">
+        <section className="card card-pad scroll-reveal">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <p className="mt-1 text-sm opacity-70">추가로 하고픈 말</p>

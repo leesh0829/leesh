@@ -82,9 +82,7 @@ export default function HelpClient() {
         <div>
           <div className="text-xs opacity-60">Help</div>
           <h1 className="text-2xl font-semibold">고객센터 / 개발·버그 요청</h1>
-          <p className="mt-1 text-sm opacity-70">
-            /boards와 분리된 전용 게시판입니다.
-          </p>
+          <p className="mt-1 text-sm opacity-70">운영진에게 말하고 싶은 것.</p>
         </div>
 
         <div className="flex w-full gap-2 sm:w-auto">

@@ -603,8 +603,7 @@ export default function LeeshClient() {
           <span className="badge">문의 폼</span>
         </div>
         <p className="mt-1 text-sm opacity-70">
-          협업, 프로젝트, 채용 관련 문의를 남겨주세요. 메시지는 메일로
-          전달됩니다.
+          협업, 프로젝트, 채용 관련 문의를 남겨주세요.
         </p>
 
         <div className="mt-4 grid gap-2 sm:grid-cols-2">

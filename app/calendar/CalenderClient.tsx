@@ -785,7 +785,7 @@ export default function CalendarClient() {
             <div className="text-xs opacity-60">Calendar</div>
             <h1 className="text-2xl font-semibold">달력 일정 관리</h1>
             <p className="mt-1 text-sm opacity-70">
-              달력으로 일정을 관리 및 확인합니다.
+              달력으로 일정을 관리 및 확인.
             </p>
           </div>
 
@@ -810,7 +810,11 @@ export default function CalendarClient() {
                 >
                   ▶
                 </button>
-                <button type="button" className="btn btn-primary" onClick={load}>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={load}
+                >
                   일정 새로고침
                 </button>
               </div>
@@ -1347,7 +1351,9 @@ export default function CalendarClient() {
                         'color-mix(in srgb, var(--border) 70%, white)',
                     }}
                   />
-                  <span className="min-w-0 flex-1 truncate">{account.label}</span>
+                  <span className="min-w-0 flex-1 truncate">
+                    {account.label}
+                  </span>
                   {account.isSelf ? (
                     <span className="badge ml-auto">나</span>
                   ) : null}

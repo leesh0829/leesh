@@ -860,7 +860,7 @@ export default function TodosClient() {
             <div>
               <h1 className="text-2xl font-bold">/todos</h1>
               <p className="mt-1 text-sm" style={{ color: 'var(--muted)' }}>
-                보드 기반 TODO 관리 (공유받은 보드는 읽기 전용)
+                보드 기반 TODO 할 일 관리
               </p>
             </div>
             <div className="flex items-center gap-2">

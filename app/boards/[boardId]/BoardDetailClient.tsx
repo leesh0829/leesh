@@ -393,7 +393,7 @@ export default function BoardDetailClient({
                   </>
                 ) : (
                   <span className="text-xs" style={{ color: 'var(--muted)' }}>
-                    OFF면 기존처럼 post 일정 여러개 생성 가능
+                    게시판이 하나의 일정으로.
                   </span>
                 )}
               </div>
@@ -633,7 +633,9 @@ export default function BoardDetailClient({
                           <span className="badge">SECRET</span>
                         ) : null}
                       </div>
-                      <div className="mt-2 font-semibold truncate">{p.title}</div>
+                      <div className="mt-2 font-semibold truncate">
+                        {p.title}
+                      </div>
                     </div>
                     <span className="badge">열기</span>
                   </div>

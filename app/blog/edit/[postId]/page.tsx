@@ -17,7 +17,7 @@ export default async function BlogEditPage({
   if (!session?.user?.email) {
     return (
       <main className="space-y-3">
-        <div className="surface card-pad">
+        <div className="surface card-pad card-hover-border-only">
           <div className="text-sm font-semibold">로그인이 필요합니다.</div>
           <div className="mt-2">
             <Link className="btn btn-outline" href="/login">
@@ -36,7 +36,7 @@ export default async function BlogEditPage({
   if (!user) {
     return (
       <main className="space-y-3">
-        <div className="surface card-pad">
+        <div className="surface card-pad card-hover-border-only">
           <div className="text-sm font-semibold">사용자 없음</div>
         </div>
       </main>
@@ -58,7 +58,7 @@ export default async function BlogEditPage({
   if (!post) {
     return (
       <main className="space-y-3">
-        <div className="surface card-pad">
+        <div className="surface card-pad card-hover-border-only">
           <div className="text-sm font-semibold">
             수정할 글이 없거나 권한 없음
           </div>
@@ -85,7 +85,7 @@ export default async function BlogEditPage({
         </Link>
       </div>
 
-      <div className="surface card-pad">
+      <div className="surface card-pad card-hover-border-only">
         <BlogEditClient post={post} />
       </div>
     </main>

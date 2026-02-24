@@ -11,7 +11,7 @@ export default async function BlogNewPage() {
   if (!session?.user?.email) {
     return (
       <main className="space-y-3">
-        <div className="surface card-pad">
+        <div className="surface card-pad card-hover-border-only">
           <div className="text-sm font-semibold">로그인이 필요합니다.</div>
           <div className="mt-2">
             <Link className="btn btn-outline" href="/login">
@@ -30,7 +30,7 @@ export default async function BlogNewPage() {
   if (!user) {
     return (
       <main className="space-y-3">
-        <div className="surface card-pad">
+        <div className="surface card-pad card-hover-border-only">
           <div className="text-sm font-semibold">사용자 없음</div>
         </div>
       </main>
@@ -62,7 +62,7 @@ export default async function BlogNewPage() {
         </Link>
       </div>
 
-      <div className="surface card-pad">
+      <div className="surface card-pad card-hover-border-only">
         <BlogEditorClient boardId={blogBoard.id} />
       </div>
     </main>

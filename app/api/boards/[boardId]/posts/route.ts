@@ -3,8 +3,44 @@ import { prisma } from '@/app/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import bcrypt from 'bcrypt'
+import { z } from 'zod'
+import { badRequestFromZod, parseJsonWithSchema } from '@/app/lib/validation'
 
 export const runtime = 'nodejs'
+const postStatusSchema = z.enum(['TODO', 'DOING', 'DONE'])
+const dateInputSchema = z
+  .union([z.string(), z.null()])
+  .optional()
+  .refine(
+    (value) =>
+      value === undefined ||
+      value === null ||
+      value === '' ||
+      !Number.isNaN(new Date(value).getTime()),
+    { message: 'invalid date' }
+  )
+const createBoardPostSchema = z
+  .object({
+    title: z.string().trim().min(1, 'title required'),
+    contentMd: z.string().optional().default(''),
+    status: postStatusSchema.optional().default('TODO'),
+    priority: z.coerce.number().optional().default(0),
+    startAt: dateInputSchema,
+    endAt: dateInputSchema,
+    allDay: z.boolean().optional().default(false),
+    isSecret: z.boolean().optional().default(false),
+    secretPassword: z.string().optional().default(''),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    if (value.isSecret && !value.secretPassword.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'secretPassword required',
+        path: ['secretPassword'],
+      })
+    }
+  })
 
 type Ctx = { params: Promise<{ boardId: string }> }
 
@@ -16,6 +52,11 @@ function slugify(input: string): string {
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '')
+}
+
+function toNullableDate(raw: string | null | undefined): Date | null {
+  if (!raw) return null
+  return new Date(raw)
 }
 
 export async function GET(_req: Request, ctx: Ctx) {
@@ -89,24 +130,18 @@ export async function POST(req: Request, ctx: Ctx) {
     )
   }
 
-  const body = await req.json()
-  const title = (body.title ?? '').trim()
-  const contentMd = (body.contentMd ?? '').toString()
+  const parsed = await parseJsonWithSchema(req, createBoardPostSchema)
+  if (!parsed.success) {
+    return badRequestFromZod(parsed.error, 'invalid body')
+  }
 
-  if (!title)
-    return NextResponse.json({ message: 'title required' }, { status: 400 })
-
-  const isSecret = !!body.isSecret
-  const secretPassword = (body.secretPassword ?? '').toString()
+  const title = parsed.data.title
+  const contentMd = parsed.data.contentMd
+  const isSecret = parsed.data.isSecret
+  const secretPassword = parsed.data.secretPassword.trim()
 
   let secretPasswordHash: string | null = null
   if (isSecret) {
-    if (!secretPassword) {
-      return NextResponse.json(
-        { message: 'secretPassword required' },
-        { status: 400 }
-      )
-    }
     secretPasswordHash = await bcrypt.hash(secretPassword, 10)
   }
 
@@ -128,11 +163,11 @@ export async function POST(req: Request, ctx: Ctx) {
       authorId: user.id,
       title,
       contentMd,
-      status: body.status ?? 'TODO',
-      priority: Number(body.priority ?? 0) || 0,
-      startAt: body.startAt ? new Date(body.startAt) : null,
-      endAt: body.endAt ? new Date(body.endAt) : null,
-      allDay: !!body.allDay,
+      status: parsed.data.status,
+      priority: Number(parsed.data.priority) || 0,
+      startAt: toNullableDate(parsed.data.startAt),
+      endAt: toNullableDate(parsed.data.endAt),
+      allDay: parsed.data.allDay,
       isSecret,
       secretPasswordHash,
       slug,

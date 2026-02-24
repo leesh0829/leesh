@@ -3,8 +3,32 @@ import { prisma } from '@/app/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import { toISOStringSafe } from '@/app/lib/date'
+import { z } from 'zod'
+import { badRequestFromZod, parseJsonWithSchema } from '@/app/lib/validation'
 
 export const runtime = 'nodejs'
+const postStatusSchema = z.enum(['TODO', 'DOING', 'DONE'])
+const patchDateInputSchema = z
+  .union([z.string(), z.null()])
+  .optional()
+  .refine(
+    (value) =>
+      value === undefined ||
+      value === null ||
+      value === '' ||
+      !Number.isNaN(new Date(value).getTime()),
+    { message: 'invalid date' }
+  )
+const patchPostSchema = z
+  .object({
+    title: z.string().transform((v) => v.trim()).optional(),
+    contentMd: z.string().optional(),
+    status: postStatusSchema.optional(),
+    allDay: z.boolean().optional(),
+    startAt: patchDateInputSchema,
+    endAt: patchDateInputSchema,
+  })
+  .strict()
 
 export async function GET(
   _req: Request,
@@ -100,36 +124,40 @@ export async function PATCH(
   if (postForAuth.authorId !== user.id)
     return NextResponse.json({ message: 'forbidden' }, { status: 403 })
 
-  const body: unknown = await req.json().catch(() => null)
-  if (!body || typeof body !== 'object') {
-    return NextResponse.json({ message: 'invalid body' }, { status: 400 })
+  const parsed = await parseJsonWithSchema(req, patchPostSchema)
+  if (!parsed.success) {
+    return badRequestFromZod(parsed.error, 'invalid body')
   }
-  const b = body as Record<string, unknown>
 
-  const title = typeof b.title === 'string' ? b.title.trim() : undefined
-  const status =
-    b.status === 'TODO' || b.status === 'DOING' || b.status === 'DONE'
-      ? b.status
-      : undefined
-
-  // 핵심: contentMd 업데이트 추가
-  const contentMd = typeof b.contentMd === 'string' ? b.contentMd : undefined
-
-  const allDay = typeof b.allDay === 'boolean' ? b.allDay : undefined
+  const title = parsed.data.title
+  const status = parsed.data.status
+  const contentMd = parsed.data.contentMd
+  const allDay = parsed.data.allDay
 
   const startAt =
-    typeof b.startAt === 'string' && b.startAt
-      ? new Date(b.startAt)
-      : b.startAt === null
+    parsed.data.startAt === undefined
+      ? undefined
+      : parsed.data.startAt === null || parsed.data.startAt === ''
         ? null
-        : undefined
+        : new Date(parsed.data.startAt)
 
   const endAt =
-    typeof b.endAt === 'string' && b.endAt
-      ? new Date(b.endAt)
-      : b.endAt === null
+    parsed.data.endAt === undefined
+      ? undefined
+      : parsed.data.endAt === null || parsed.data.endAt === ''
         ? null
-        : undefined
+        : new Date(parsed.data.endAt)
+
+  if (
+    title === undefined &&
+    contentMd === undefined &&
+    status === undefined &&
+    allDay === undefined &&
+    startAt === undefined &&
+    endAt === undefined
+  ) {
+    return NextResponse.json({ message: 'nothing to update' }, { status: 400 })
+  }
 
   const updated = await prisma.post.update({
     where: { id: postForAuth.id },

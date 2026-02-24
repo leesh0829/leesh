@@ -1,19 +1,30 @@
 import { NextResponse } from 'next/server'
 import { sendMail } from '@/app/lib/mailer'
 import { getClientIp, takeRateLimit } from '@/app/lib/rateLimit'
+import { z } from 'zod'
+import { badRequestFromZod, parseJsonWithSchema } from '@/app/lib/validation'
 
 export const runtime = 'nodejs'
 
 const CONTACT_LIMIT = 6
 const CONTACT_WINDOW_MS = 10 * 60 * 1000
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
-function getTrimmed(body: unknown, key: string): string {
-  if (!body || typeof body !== 'object') return ''
-  const value = (body as Record<string, unknown>)[key]
-  if (typeof value !== 'string') return ''
-  return value.trim()
-}
+const contactBodySchema = z
+  .object({
+    name: z.string().trim().max(60, '이름은 60자 이내로 입력해 주세요.').optional(),
+    email: z.string().trim().min(1, '이메일과 메시지는 필수입니다.'),
+    subject: z
+      .string()
+      .trim()
+      .max(120, '제목은 120자 이내로 입력해 주세요.')
+      .optional(),
+    message: z
+      .string()
+      .trim()
+      .min(10, '메시지는 10자 이상 2000자 이하로 입력해 주세요.')
+      .max(2000, '메시지는 10자 이상 2000자 이하로 입력해 주세요.'),
+  })
+  .strict()
 
 function sanitizeHeaderText(value: string): string {
   return value.replace(/[\r\n]+/g, ' ').trim()
@@ -55,43 +66,19 @@ export async function POST(req: Request) {
       )
     }
 
-    const body = await req.json().catch(() => null)
-    const name = getTrimmed(body, 'name')
-    const email = getTrimmed(body, 'email')
-    const subject = getTrimmed(body, 'subject')
-    const message = getTrimmed(body, 'message')
-
-    if (!email || !message) {
-      return NextResponse.json(
-        { message: '이메일과 메시지는 필수입니다.' },
-        { status: 400 }
-      )
+    const parsed = await parseJsonWithSchema(req, contactBodySchema)
+    if (!parsed.success) {
+      return badRequestFromZod(parsed.error, 'invalid body')
     }
+
+    const name = parsed.data.name ?? ''
+    const email = parsed.data.email
+    const subject = parsed.data.subject ?? ''
+    const message = parsed.data.message
 
     if (!EMAIL_REGEX.test(email)) {
       return NextResponse.json(
         { message: '올바른 이메일 형식이 아닙니다.' },
-        { status: 400 }
-      )
-    }
-
-    if (name.length > 60) {
-      return NextResponse.json(
-        { message: '이름은 60자 이내로 입력해 주세요.' },
-        { status: 400 }
-      )
-    }
-
-    if (subject.length > 120) {
-      return NextResponse.json(
-        { message: '제목은 120자 이내로 입력해 주세요.' },
-        { status: 400 }
-      )
-    }
-
-    if (message.length < 10 || message.length > 2000) {
-      return NextResponse.json(
-        { message: '메시지는 10자 이상 2000자 이하로 입력해 주세요.' },
         { status: 400 }
       )
     }

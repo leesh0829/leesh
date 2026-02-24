@@ -3,8 +3,35 @@ import { prisma } from '@/app/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import bcrypt from 'bcryptjs'
+import { z } from 'zod'
+import { badRequestFromZod, parseJsonWithSchema } from '@/app/lib/validation'
 
 export const runtime = 'nodejs'
+const createBlogPostSchema = z
+  .object({
+    boardId: z.string().min(1, 'invalid body'),
+    title: z.string().trim().min(1, 'invalid body'),
+    contentMd: z.string(),
+    publish: z.boolean().optional().default(false),
+    isSecret: z.boolean().optional().default(false),
+    secretPassword: z.union([z.string(), z.null()]).optional(),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    if (value.isSecret) {
+      const password =
+        typeof value.secretPassword === 'string'
+          ? value.secretPassword.trim()
+          : ''
+      if (password.length < 4) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: '비밀글 비밀번호는 4자 이상 필요',
+          path: ['secretPassword'],
+        })
+      }
+    }
+  })
 
 function slugify(input: string): string {
   return input
@@ -29,28 +56,23 @@ export async function POST(req: Request) {
   if (!user)
     return NextResponse.json({ message: 'user not found' }, { status: 404 })
 
-  const body = await req.json().catch(() => null)
-  const boardId = body?.boardId as string | undefined
-  const title = body?.title as string | undefined
-  const contentMd = body?.contentMd as string | undefined
-  const publish = Boolean(body?.publish)
-  const isSecret = Boolean(body?.isSecret)
-  const secretPassword = (body?.secretPassword ?? null) as string | null
-
-  if (isSecret && (!secretPassword || secretPassword.trim().length < 4)) {
-    return NextResponse.json(
-      { message: '비밀글 비밀번호는 4자 이상 필요' },
-      { status: 400 }
-    )
+  const parsed = await parseJsonWithSchema(req, createBlogPostSchema)
+  if (!parsed.success) {
+    return badRequestFromZod(parsed.error, 'invalid body')
   }
+  const boardId = parsed.data.boardId
+  const title = parsed.data.title
+  const contentMd = parsed.data.contentMd
+  const publish = parsed.data.publish
+  const isSecret = parsed.data.isSecret
+  const secretPassword =
+    typeof parsed.data.secretPassword === 'string'
+      ? parsed.data.secretPassword.trim()
+      : null
 
   const secretPasswordHash = isSecret
     ? await bcrypt.hash(secretPassword!.trim(), 10)
     : null
-
-  if (!boardId || !title || contentMd == null) {
-    return NextResponse.json({ message: 'invalid body' }, { status: 400 })
-  }
 
   // 보드 소유/타입 확인
   const board = await prisma.board.findFirst({

@@ -1,16 +1,23 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
+import { badRequestFromZod, parseJsonWithSchema } from "@/app/lib/validation";
 
 export const runtime = "nodejs";
 
 const PASSWORD = process.env.LEESH_PASSWORD;
 const COOKIE_NAME = "leesh_unlocked";
+const unlockBodySchema = z
+  .object({
+    password: z.string().min(1, "비밀번호가 틀렸습니다."),
+  })
+  .strict();
 
 export async function POST(req: Request) {
-  const body: unknown = await req.json().catch(() => null);
-  const pw =
-    body && typeof body === "object"
-      ? (body as Record<string, unknown>)["password"]
-      : null;
+  const parsed = await parseJsonWithSchema(req, unlockBodySchema);
+  if (!parsed.success) {
+    return badRequestFromZod(parsed.error, "invalid body");
+  }
+  const pw = parsed.data.password;
 
   if (!PASSWORD) {
     return NextResponse.json(
@@ -19,7 +26,7 @@ export async function POST(req: Request) {
     );
   }
 
-  if (typeof pw !== "string" || pw !== PASSWORD) {
+  if (pw !== PASSWORD) {
     return NextResponse.json(
       { message: "비밀번호가 틀렸습니다." },
       { status: 401 },

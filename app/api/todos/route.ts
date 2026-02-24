@@ -3,8 +3,38 @@ import { prisma } from "@/app/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/options";
 import { toISOStringSafe } from "@/app/lib/date";
+import { z } from "zod";
+import { badRequestFromZod, parseJsonWithSchema } from "@/app/lib/validation";
 
 export const runtime = "nodejs";
+const todoCreateSchema = z
+  .object({
+    title: z.string().trim().min(1, "title required"),
+    startAt: z
+      .union([z.string(), z.null()])
+      .optional()
+      .refine(
+        (value) =>
+          value === undefined ||
+          value === null ||
+          value === "" ||
+          !Number.isNaN(new Date(value).getTime()),
+        { message: "invalid date" },
+      ),
+    endAt: z
+      .union([z.string(), z.null()])
+      .optional()
+      .refine(
+        (value) =>
+          value === undefined ||
+          value === null ||
+          value === "" ||
+          !Number.isNaN(new Date(value).getTime()),
+        { message: "invalid date" },
+      ),
+    allDay: z.boolean().optional().default(true),
+  })
+  .strict();
 
 type TodoItemRow = {
   id: string;
@@ -66,15 +96,21 @@ export async function POST(req: Request) {
   const user = await getUser();
   if (!user) return NextResponse.json({ message: "unauthorized" }, { status: 401 });
 
-  const body = await req.json().catch(() => null);
-  const title = (body?.title as string | undefined)?.trim();
-  if (!title) return NextResponse.json({ message: "title required" }, { status: 400 });
+  const parsed = await parseJsonWithSchema(req, todoCreateSchema);
+  if (!parsed.success) {
+    return badRequestFromZod(parsed.error, "invalid body");
+  }
 
-  const startAtRaw = body?.startAt as string | null | undefined;
-  const endAtRaw = body?.endAt as string | null | undefined;
-  const allDay = typeof body?.allDay === "boolean" ? body.allDay : true;
-  const startAt = typeof startAtRaw === "string" && startAtRaw ? new Date(startAtRaw) : startAtRaw === null ? null : null;
-  const endAt = typeof endAtRaw === "string" && endAtRaw ? new Date(endAtRaw) : endAtRaw === null ? null : null;
+  const title = parsed.data.title;
+  const allDay = parsed.data.allDay;
+  const startAt =
+    typeof parsed.data.startAt === "string" && parsed.data.startAt
+      ? new Date(parsed.data.startAt)
+      : null;
+  const endAt =
+    typeof parsed.data.endAt === "string" && parsed.data.endAt
+      ? new Date(parsed.data.endAt)
+      : null;
 
   const board = await getOrCreateTodoBoard(user.id);
 

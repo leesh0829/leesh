@@ -46,10 +46,11 @@ type OutgoingShare = {
 type IncomingShare = {
   id: string
   scope: 'CALENDAR' | 'TODO'
-  status: 'PENDING'
+  status: 'PENDING' | 'ACCEPTED'
   requester: SharePeer
   createdAt: string
   updatedAt: string
+  respondedAt: string | null
 }
 
 type ShareAccount = {
@@ -1287,6 +1288,10 @@ export default function CalendarClient() {
 
         <aside className="surface card-pad card-hover-border-only xl:sticky xl:top-6">
           <div className="text-base font-extrabold">캘린더 공유 계정 관리</div>
+          <p className="mt-2 text-xs opacity-70 leading-5">
+            공유 요청을 보낸 계정은, 상대가 승인하면 상대의 캘린더를 볼 수
+            있습니다.
+          </p>
 
           <div className="mt-4 grid gap-2">
             <input
@@ -1364,6 +1369,10 @@ export default function CalendarClient() {
 
           <section className="mt-5 grid gap-2">
             <div className="text-sm font-semibold">요청한 계정</div>
+            <p className="mt-2 text-xs opacity-70 leading-5">
+              당신이 공유를 요청한 계정입니다. 상대가 승인 시, 상대의 일정을
+              확인 할 수 있습니다.
+            </p>
             {shareLoading ? (
               <div className="grid gap-2">
                 {Array.from({ length: 2 }).map((_, i) => (
@@ -1404,6 +1413,10 @@ export default function CalendarClient() {
 
           <section className="mt-5 grid gap-2">
             <div className="text-sm font-semibold">요청 받은 계정</div>
+            <p className="mt-2 text-xs opacity-70 leading-5">
+              공유 요청을 받은 게정입니다. 승인 시, 상대가 당신의 일정을 확인 할
+              수 있습니다.
+            </p>
             {shareLoading ? (
               <div className="grid gap-2">
                 {Array.from({ length: 2 }).map((_, i) => (
@@ -1415,7 +1428,7 @@ export default function CalendarClient() {
               </div>
             ) : incomingShares.length === 0 ? (
               <div className="text-sm opacity-70">
-                대기 중인 캘린더 공유 요청이 없습니다.
+                받은 캘린더 공유 요청이 없습니다.
               </div>
             ) : (
               incomingShares.map((row) => (
@@ -1424,25 +1437,41 @@ export default function CalendarClient() {
                   <div className="mt-1 text-xs opacity-70">
                     상태: {row.status} · 요청일:{' '}
                     {new Date(row.createdAt).toLocaleString()}
+                    {row.respondedAt
+                      ? ` · 처리일: ${new Date(row.respondedAt).toLocaleString()}`
+                      : ''}
                   </div>
-                  <div className="mt-2 flex gap-2">
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      onClick={() => respondShareRequest(row.id, 'ACCEPT')}
-                      disabled={shareBusyId === row.id}
-                    >
-                      승인
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-outline"
-                      onClick={() => respondShareRequest(row.id, 'REJECT')}
-                      disabled={shareBusyId === row.id}
-                    >
-                      거절
-                    </button>
-                  </div>
+                  {row.status === 'PENDING' ? (
+                    <div className="mt-2 flex gap-2">
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={() => respondShareRequest(row.id, 'ACCEPT')}
+                        disabled={shareBusyId === row.id}
+                      >
+                        승인
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-outline"
+                        onClick={() => respondShareRequest(row.id, 'REJECT')}
+                        disabled={shareBusyId === row.id}
+                      >
+                        거절
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="mt-2">
+                      <button
+                        type="button"
+                        className="btn btn-outline"
+                        onClick={() => removeShare(row.id)}
+                        disabled={shareBusyId === row.id}
+                      >
+                        공유 해제
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))
             )}

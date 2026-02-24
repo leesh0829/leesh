@@ -27,9 +27,10 @@ type OutgoingShareRow = {
 type IncomingShareRow = {
   id: string
   scope: 'CALENDAR' | 'TODO'
-  status: 'PENDING' | 'ACCEPTED' | 'REJECTED'
+  status: 'PENDING' | 'ACCEPTED'
   createdAt: Date
   updatedAt: Date
+  respondedAt: Date | null
   requester: { id: string; name: string | null; email: string | null }
 }
 
@@ -65,14 +66,18 @@ export async function GET() {
           },
         }),
         prisma.scheduleShare.findMany({
-          where: { ownerId: me.id, status: 'PENDING' },
-          orderBy: { createdAt: 'desc' },
+          where: {
+            ownerId: me.id,
+            status: { in: ['PENDING', 'ACCEPTED'] },
+          },
+          orderBy: [{ status: 'asc' }, { updatedAt: 'desc' }],
           select: {
             id: true,
             scope: true,
             status: true,
             createdAt: true,
             updatedAt: true,
+            respondedAt: true,
             requester: {
               select: { id: true, name: true, email: true },
             },
@@ -107,6 +112,7 @@ export async function GET() {
         status: row.status,
         createdAt: toISOStringSafe(row.createdAt),
         updatedAt: toISOStringSafe(row.updatedAt),
+        respondedAt: row.respondedAt ? toISOStringSafe(row.respondedAt) : null,
         requester: {
           id: row.requester.id,
           name: row.requester.name,

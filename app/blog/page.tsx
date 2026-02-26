@@ -22,7 +22,6 @@ function parsePage(v: string | undefined): number {
 
 type BlogPostRow = {
   id: string
-  slug: string | null
   title: string
   createdAt: Date
   author: { name: string | null; email: string | null }
@@ -57,7 +56,6 @@ export default async function BlogListPage(props: {
     take: BLOG_PAGE_SIZE,
     select: {
       id: true,
-      slug: true,
       title: true,
       createdAt: true,
       author: { select: { name: true, email: true } },
@@ -67,7 +65,6 @@ export default async function BlogListPage(props: {
   const posts = postsRaw.map((p: BlogPostRow) => ({
     ...p,
     createdAt: toISOStringSafe(p.createdAt),
-    slug: p.slug ?? p.id,
   }))
 
   const toHref = (next: { page?: number; sort?: SortOrder; q?: string }) => {
@@ -166,7 +163,7 @@ export default async function BlogListPage(props: {
             posts.map((p) => (
               <Link
                 key={p.id}
-                href={`/blog/${encodeURIComponent(p.slug)}`}
+                href={`/blog/${encodeURIComponent(p.id)}`}
                 className="card card-pad block no-underline hover:no-underline"
               >
                 <div className="flex items-start justify-between gap-3">

@@ -9,7 +9,6 @@ export const runtime = 'nodejs'
 
 type RecentBlogRow = {
   id: string
-  slug: string | null
   title: string
   createdAt: Date
   author: { name: string | null; email: string | null }
@@ -48,7 +47,6 @@ export default async function DashboardPage() {
     take: 6,
     select: {
       id: true,
-      slug: true,
       title: true,
       createdAt: true,
       author: { select: { name: true, email: true } },
@@ -58,7 +56,6 @@ export default async function DashboardPage() {
   const recentBlog = recentBlogRaw.map((p: RecentBlogRow) => ({
     ...p,
     createdAt: toISOStringSafe(p.createdAt),
-    key: p.slug ?? p.id,
     authorName: displayUserLabel(p.author?.name, p.author?.email, 'unknown'),
   }))
 
@@ -87,7 +84,7 @@ export default async function DashboardPage() {
     const postKey = c.post.slug ?? c.post.id
     const href =
       c.post.board.type === 'BLOG'
-        ? `/blog/${encodeURIComponent(postKey)}`
+        ? `/blog/${encodeURIComponent(c.post.id)}`
         : `/boards/${c.post.boardId}/${encodeURIComponent(postKey)}`
 
     return {
@@ -182,7 +179,7 @@ export default async function DashboardPage() {
                 <li key={p.id} className="py-2">
                   <div className="flex min-w-0 flex-col gap-1">
                     <Link
-                      href={`/blog/${encodeURIComponent(p.key)}`}
+                      href={`/blog/${encodeURIComponent(p.id)}`}
                       className="truncate font-semibold"
                     >
                       {p.title}

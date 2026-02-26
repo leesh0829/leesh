@@ -479,7 +479,7 @@ export default function CalendarClient() {
     const key = encodeURIComponent(it.slug ?? it.id)
     switch (it.boardType) {
       case 'BLOG':
-        return `/blog/${key}`
+        return `/blog/${encodeURIComponent(it.id)}`
       case 'TODO':
         return `/todos`
       case 'CALENDAR':

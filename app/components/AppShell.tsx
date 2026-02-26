@@ -112,6 +112,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             >
               ☰
             </button>
+            {isBlogDetail ? (
+              <Link href="/blog" className="btn btn-outline">
+                ← 목록
+              </Link>
+            ) : null}
             <Link href="/" className="text-sm font-semibold">
               Leesh
             </Link>
@@ -133,17 +138,25 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         {/* Scroll container */}
         <div className="min-w-0 flex-1 overflow-y-auto pb-[calc(72px+env(safe-area-inset-bottom))] lg:pb-0">
           <div className="min-h-full flex flex-col">
-            {/* desktop sidebar hidden 상태일 때만 상단 열기 버튼 */}
-            {!desktopOpen ? (
+            {/* desktop 상단 컨트롤: 사이드바 열기 + 블로그 목록 복귀 */}
+            {!desktopOpen || isBlogDetail ? (
               <div className="hidden lg:flex lg:items-center lg:gap-2 lg:px-4 lg:py-3">
-                <button
-                  type="button"
-                  onClick={() => setDesktopOpen(true)}
-                  className="btn btn-outline"
-                >
-                  ☰
-                </button>
-                <div className="text-xs opacity-60"></div>
+                {!desktopOpen ? (
+                  <button
+                    type="button"
+                    onClick={() => setDesktopOpen(true)}
+                    className="btn btn-outline"
+                    aria-label="사이드바 열기"
+                    title="사이드바 열기"
+                  >
+                    ☰
+                  </button>
+                ) : null}
+                {isBlogDetail ? (
+                  <Link href="/blog" className="btn btn-outline">
+                    ← 목록으로
+                  </Link>
+                ) : null}
               </div>
             ) : null}
 

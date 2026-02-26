@@ -39,8 +39,7 @@ export default function BlogEditClient({ post }: { post: EditPost }) {
       return
     }
 
-    const slug = data?.slug ?? post.id
-    window.location.href = `/blog/${encodeURIComponent(slug)}`
+    window.location.href = `/blog/${encodeURIComponent(post.id)}`
   }
 
   async function del() {

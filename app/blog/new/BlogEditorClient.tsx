@@ -61,8 +61,13 @@ export default function BlogEditorClient({ boardId }: { boardId: string }) {
       return
     }
 
-    const slug = data.slug ?? data.id
-    window.location.href = `/blog/${encodeURIComponent(slug)}`
+    const postId = typeof data?.id === 'string' ? data.id : null
+    if (!postId) {
+      setMsg('저장 응답이 올바르지 않습니다. 다시 시도해주세요.')
+      return
+    }
+
+    window.location.href = `/blog/${encodeURIComponent(postId)}`
   }
 
   return (

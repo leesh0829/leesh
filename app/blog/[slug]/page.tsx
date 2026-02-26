@@ -79,24 +79,38 @@ export default async function BlogDetailPage({
 }) {
   const { slug } = await params
 
-  const post = await prisma.post.findFirst({
+  const select = {
+    id: true,
+    slug: true,
+    boardId: true,
+    title: true,
+    contentMd: true,
+    createdAt: true,
+    authorId: true,
+    isSecret: true,
+    board: { select: { ownerId: true } },
+  } as const
+
+  const byId = await prisma.post.findFirst({
     where: {
-      OR: [{ slug }, { id: slug }],
+      id: slug,
       board: { type: 'BLOG' },
       status: 'DONE',
     },
-    select: {
-      id: true,
-      slug: true,
-      boardId: true,
-      title: true,
-      contentMd: true,
-      createdAt: true,
-      authorId: true,
-      isSecret: true,
-      board: { select: { ownerId: true } },
-    },
+    select,
   })
+
+  const post =
+    byId ??
+    (await prisma.post.findFirst({
+      where: {
+        slug,
+        board: { type: 'BLOG' },
+        status: 'DONE',
+      },
+      orderBy: { createdAt: 'desc' },
+      select,
+    }))
 
   if (!post) {
     return (

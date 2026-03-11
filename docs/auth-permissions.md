@@ -92,7 +92,9 @@
 
 ### `/leesh` 페이지 잠금
 
+- 본문 조회는 공개
 - `LEESH_PASSWORD` 일치 시 `leesh_unlocked` 쿠키 설정
+- unlock 상태에서 하단 본문 편집 가능
 
 ## 8. 운영시 권장 SQL
 

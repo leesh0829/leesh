@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/options";
 
 export const runtime = "nodejs";
 
@@ -74,15 +72,13 @@ async function getOrCreatePortfolioPost(ownerId: string) {
 export async function GET(req: Request) {
   const cookie = req.headers.get("cookie") ?? "";
   const unlocked = cookie.includes(`${COOKIE_NAME}=1`);
-  if (!unlocked) {
-    return NextResponse.json({ message: "unauthorized" }, { status: 401 });
-  }
 
   const ownerId = await getOwnerUserId();
   if (!ownerId) {
     return NextResponse.json(
       {
-        canEdit: false,
+        unlocked,
+        canEdit: unlocked,
         contentMd: "# Leesh\n\n(아직 작성된 문서가 없습니다.)\n",
       },
       { status: 200 },
@@ -91,41 +87,26 @@ export async function GET(req: Request) {
 
   const { post } = await getOrCreatePortfolioPost(ownerId);
 
-  const session = await getServerSession(authOptions);
-  const me = session?.user?.email
-    ? await prisma.user.findUnique({
-        where: { email: session.user.email },
-        select: { id: true },
-      })
-    : null;
-
-  const canEdit = !!me?.id && me.id === ownerId;
-
   return NextResponse.json({
     id: post.id,
     title: post.title,
     contentMd: post.contentMd,
     updatedAt: post.updatedAt,
-    canEdit,
+    unlocked,
+    canEdit: unlocked,
   });
 }
 
 export async function PATCH(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.email) {
+  const cookie = req.headers.get("cookie") ?? "";
+  const unlocked = cookie.includes(`${COOKIE_NAME}=1`);
+  if (!unlocked) {
     return NextResponse.json({ message: "unauthorized" }, { status: 401 });
   }
 
-  const me = await prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
-  });
-  if (!me)
-    return NextResponse.json({ message: "unauthorized" }, { status: 401 });
-
   const ownerId = await getOwnerUserId();
-  if (!ownerId || me.id !== ownerId) {
-    return NextResponse.json({ message: "forbidden" }, { status: 403 });
+  if (!ownerId) {
+    return NextResponse.json({ message: "owner not found" }, { status: 404 });
   }
 
   const body: unknown = await req.json().catch(() => null);

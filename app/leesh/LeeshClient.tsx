@@ -27,9 +27,10 @@ async function readJsonSafely(res: Response): Promise<unknown> {
 }
 
 type LeeshDoc = {
-  id: string
-  title: string
+  id?: string
+  title?: string
   contentMd: string
+  unlocked: boolean
   canEdit: boolean
 }
 
@@ -45,6 +46,8 @@ export default function LeeshClient() {
   const [pw, setPw] = useState('')
   const [unlocking, setUnlocking] = useState(false)
   const [unlocked, setUnlocked] = useState(false)
+  const [showUnlockModal, setShowUnlockModal] = useState(false)
+  const [unlockErr, setUnlockErr] = useState<string | null>(null)
 
   const [doc, setDoc] = useState<LeeshDoc | null>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -121,7 +124,8 @@ export default function LeeshClient() {
       const data = (await res.json()) as LeeshDoc
       setDoc(data)
       setDraft(data.contentMd ?? '')
-      setUnlocked(true)
+      setUnlocked(Boolean(data.unlocked))
+      if (!data.canEdit) setEditing(false)
       return
     }
 
@@ -137,6 +141,12 @@ export default function LeeshClient() {
       load()
     })
   }, [])
+
+  useEffect(() => {
+    if (showUnlockModal) return
+    setPw('')
+    setUnlockErr(null)
+  }, [showUnlockModal])
 
   useEffect(() => {
     const targets = Array.from(
@@ -171,7 +181,7 @@ export default function LeeshClient() {
   const doUnlock = async () => {
     if (!pw) return
     setUnlocking(true)
-    setErr(null)
+    setUnlockErr(null)
 
     const res = await fetch('/api/leesh/unlock', {
       method: 'POST',
@@ -182,13 +192,14 @@ export default function LeeshClient() {
     if (!res.ok) {
       const payload = await readJsonSafely(res)
       const msg = extractApiMessage(payload) ?? '비밀번호가 틀렸습니다.'
-      setErr(msg)
+      setUnlockErr(msg)
       setUnlocking(false)
       return
     }
 
     setPw('')
     setUnlocking(false)
+    setShowUnlockModal(false)
     await load()
   }
 
@@ -680,122 +691,136 @@ export default function LeeshClient() {
         ) : null}
       </section>
 
-      {!unlocked ? (
-        <section className="surface card-pad scroll-reveal">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0">
-              <h2 className="text-2xl font-semibold">기록 / 블로그</h2>
-              <p className="mt-1 text-sm opacity-70">
-                기존 글 기능은 이 섹션에서 유지됩니다. 비밀번호로 접근 후 편집할
-                수 있습니다.
-              </p>
+      <section className="card card-pad scroll-reveal">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <p className="mt-1 text-sm opacity-70">추가로 하고픈 말</p>
 
-              {err ? <p className="mt-3 text-sm text-red-600">{err}</p> : null}
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <button type="button" className="btn btn-outline" onClick={load}>
-                새로고침
-              </button>
-            </div>
+            {err ? <p className="mt-3 text-sm text-red-600">{err}</p> : null}
           </div>
 
-          <div className="mt-4 text-sm opacity-70">비밀번호를 입력하세요.</div>
-
-          <div className="mt-3 grid gap-2 sm:max-w-md">
-            <input
-              className="input"
-              type="password"
-              value={pw}
-              onChange={(e) => setPw(e.target.value)}
-              placeholder="비밀번호"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') void doUnlock()
-              }}
-            />
-
-            <button
-              className="btn btn-primary"
-              onClick={doUnlock}
-              disabled={unlocking || !pw}
-            >
-              {unlocking ? '확인중...' : '입장'}
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" className="btn btn-outline" onClick={load}>
+              새로고침
             </button>
 
-            <div className="text-xs opacity-60">
-              엔터로도 입장 가능하게 해놨음.
-            </div>
-          </div>
-        </section>
-      ) : (
-        <section className="card card-pad scroll-reveal">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0">
-              <p className="mt-1 text-sm opacity-70">추가로 하고픈 말</p>
-
-              {err ? <p className="mt-3 text-sm text-red-600">{err}</p> : null}
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <button type="button" className="btn btn-outline" onClick={load}>
-                새로고침
+            {!unlocked ? (
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={() => setShowUnlockModal(true)}
+              >
+                로그인
               </button>
+            ) : null}
 
-              {unlocked && doc?.canEdit ? (
+            {doc?.canEdit ? (
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={() => setEditing((v) => !v)}
+              >
+                {editing ? '편집 닫기' : '편집'}
+              </button>
+            ) : null}
+
+            {doc?.canEdit && editing ? (
+              <>
+                <ImageUploadButton
+                  onUploaded={(url) => {
+                    setDraft((prev) => `${prev}\n\n![](${url})\n`)
+                  }}
+                />
                 <button
                   type="button"
-                  className="btn btn-outline"
-                  onClick={() => setEditing((v) => !v)}
+                  className="btn btn-primary"
+                  onClick={save}
+                  disabled={saving}
                 >
-                  {editing ? '편집 닫기' : '편집'}
+                  {saving ? '저장중...' : '저장'}
                 </button>
-              ) : null}
+              </>
+            ) : null}
+          </div>
+        </div>
 
-              {unlocked && doc?.canEdit && editing ? (
-                <>
-                  <ImageUploadButton
-                    onUploaded={(url) => {
-                      setDraft((prev) => `${prev}\n\n![](${url})\n`)
-                    }}
-                  />
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    onClick={save}
-                    disabled={saving}
-                  >
-                    {saving ? '저장중...' : '저장'}
-                  </button>
-                </>
-              ) : null}
+        {editing ? (
+          <div className="mt-4 grid gap-3">
+            <MarkdownEditor
+              value={draft}
+              onChange={setDraft}
+              rows={18}
+              previewEmptyText="미리보기할 내용이 없습니다."
+            />
+            <div className="text-xs opacity-60">
+              이미지 업로드 버튼 누르면 마크다운으로 자동 삽입됨.
             </div>
           </div>
+        ) : (
+          <article className="markdown-body mt-4">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm, remarkBreaks]}
+              rehypePlugins={[rehypeHighlight]}
+              components={mdComponents}
+            >
+              {doc?.contentMd ?? ''}
+            </ReactMarkdown>
+          </article>
+        )}
+      </section>
 
-          {editing ? (
-            <div className="mt-4 grid gap-3">
-              <MarkdownEditor
-                value={draft}
-                onChange={setDraft}
-                rows={18}
-                previewEmptyText="미리보기할 내용이 없습니다."
-              />
-              <div className="text-xs opacity-60">
-                이미지 업로드 버튼 누르면 마크다운으로 자동 삽입됨.
+      {showUnlockModal ? (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/45"
+            aria-label="로그인 팝업 닫기"
+            onClick={() => setShowUnlockModal(false)}
+          />
+          <div className="surface card-pad modal-enter relative z-[71] w-full max-w-md">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <h2 className="text-lg font-semibold">로그인</h2>
+                <p className="mt-1 text-sm opacity-70">비밀번호를 입력하세요.</p>
               </div>
-            </div>
-          ) : (
-            <article className="markdown-body mt-4">
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm, remarkBreaks]}
-                rehypePlugins={[rehypeHighlight]}
-                components={mdComponents}
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={() => setShowUnlockModal(false)}
               >
-                {doc?.contentMd ?? ''}
-              </ReactMarkdown>
-            </article>
-          )}
-        </section>
-      )}
+                X
+              </button>
+            </div>
+
+            <div className="mt-4 grid gap-2">
+              <input
+                className="input"
+                type="password"
+                value={pw}
+                autoFocus
+                onChange={(e) => setPw(e.target.value)}
+                placeholder="비밀번호"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void doUnlock()
+                }}
+              />
+
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={doUnlock}
+                disabled={unlocking || !pw}
+              >
+                {unlocking ? '확인중...' : '입장'}
+              </button>
+            </div>
+
+            {unlockErr ? (
+              <p className="mt-3 text-sm text-red-600">{unlockErr}</p>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
     </main>
   )
 }

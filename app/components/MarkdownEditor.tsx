@@ -5,8 +5,12 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
 import rehypeHighlight from 'rehype-highlight'
+import rehypeRaw from 'rehype-raw'
+import rehypeSanitize from 'rehype-sanitize'
+import { sanitizedMarkdownSchema } from '@/app/lib/markdown'
 
 type Tab = 'write' | 'preview'
+type MarkdownHtmlMode = 'off' | 'safe' | 'raw'
 
 type MarkdownEditorProps = {
   value: string
@@ -16,6 +20,7 @@ type MarkdownEditorProps = {
   disabled?: boolean
   className?: string
   previewEmptyText?: string
+  htmlMode?: MarkdownHtmlMode
 }
 
 const markdownComponents: Parameters<typeof ReactMarkdown>[0]['components'] = {
@@ -68,8 +73,17 @@ export default function MarkdownEditor({
   disabled = false,
   className,
   previewEmptyText = '미리보기할 내용이 없습니다.',
+  htmlMode = 'off',
 }: MarkdownEditorProps) {
   const [tab, setTab] = useState<Tab>('write')
+  const rehypePlugins: NonNullable<
+    Parameters<typeof ReactMarkdown>[0]['rehypePlugins']
+  > =
+    htmlMode === 'raw'
+      ? [rehypeRaw, rehypeHighlight]
+      : htmlMode === 'safe'
+        ? [rehypeRaw, [rehypeSanitize, sanitizedMarkdownSchema], rehypeHighlight]
+        : [rehypeHighlight]
 
   return (
     <div className={className}>
@@ -115,7 +129,7 @@ export default function MarkdownEditor({
             <div className="markdown-body text-sm leading-7">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm, remarkBreaks]}
-                rehypePlugins={[rehypeHighlight]}
+                rehypePlugins={rehypePlugins}
                 components={markdownComponents}
               >
                 {value.trim() ? value : previewEmptyText}

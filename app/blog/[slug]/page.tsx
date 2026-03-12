@@ -5,6 +5,7 @@ import { toISOStringSafe } from '@/app/lib/date'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
+import rehypeRaw from 'rehype-raw'
 import BlogCommentsClient from './BlogCommentsClient'
 import BlogActionsClient from './BlogActionsClient'
 import BlogSecretGateClient from './BlogSecretGateClient'
@@ -194,7 +195,7 @@ export default async function BlogDetailPage({
                   <div className="markdown-body">
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
-                      rehypePlugins={[rehypeHighlight]}
+                      rehypePlugins={[rehypeRaw, rehypeHighlight]}
                       components={{
                         h1: headingComponent('h1'),
                         h2: headingComponent('h2'),

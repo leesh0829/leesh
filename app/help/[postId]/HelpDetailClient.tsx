@@ -5,8 +5,11 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
 import rehypeHighlight from 'rehype-highlight'
+import rehypeRaw from 'rehype-raw'
+import rehypeSanitize from 'rehype-sanitize'
 import Link from 'next/link'
 import { displayUserLabel } from '@/app/lib/userLabel'
+import { sanitizedMarkdownSchema } from '@/app/lib/markdown'
 
 type HelpPost = {
   id: string
@@ -186,7 +189,11 @@ export default function HelpDetailClient({ postId }: { postId: string }) {
         <div className="markdown-body">
           <ReactMarkdown
             remarkPlugins={[remarkGfm, remarkBreaks]}
-            rehypePlugins={[rehypeHighlight]}
+            rehypePlugins={[
+              rehypeRaw,
+              [rehypeSanitize, sanitizedMarkdownSchema],
+              rehypeHighlight,
+            ]}
             components={mdComponents}
           >
             {post.contentMd}

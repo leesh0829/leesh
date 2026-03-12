@@ -49,39 +49,41 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   if (isLeeshPage) {
     return (
       <div className="min-h-dvh flex flex-col">
-        <div className="fixed left-3 top-3 z-50 sm:left-4 sm:top-4">
-          <Link
-            href="/"
-            className="btn btn-outline"
-            aria-label="메인 페이지로 이동"
-            title="메인 페이지로 이동"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              className="h-4 w-4"
-              aria-hidden="true"
+        <div className="z-50 px-3 pt-3 sm:px-0 sm:pt-0">
+          <div className="sm:fixed sm:left-4 sm:top-4">
+            <Link
+              href="/"
+              className="btn btn-outline"
+              aria-label="메인 페이지로 이동"
+              title="메인 페이지로 이동"
             >
-              <path
-                d="M3.5 10.5L12 3.5L20.5 10.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <path
-                d="M6 9.5V20.5H18V9.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <path
-                d="M10 20.5V14.5H14V20.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            <span className="sr-only">메인 페이지</span>
-          </Link>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                className="h-4 w-4"
+                aria-hidden="true"
+              >
+                <path
+                  d="M3.5 10.5L12 3.5L20.5 10.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M6 9.5V20.5H18V9.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M10 20.5V14.5H14V20.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <span className="sr-only">메인 페이지</span>
+            </Link>
+          </div>
         </div>
         <div className="flex-1">{children}</div>
         <Footer />

@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
 import rehypeHighlight from 'rehype-highlight'
+import rehypeRaw from 'rehype-raw'
 import { toHumanHttpError } from '@/app/lib/httpErrorText'
 import ImageUploadButton from '@/app/components/ImageUploadButton'
 import MarkdownEditor from '@/app/components/MarkdownEditor'
@@ -163,6 +164,13 @@ export default function LeeshClient() {
       return
     }
 
+    if (typeof window.IntersectionObserver === 'undefined') {
+      targets.forEach((el) => el.classList.add('is-visible'))
+      return
+    }
+
+    const isMobileViewport = window.matchMedia('(max-width: 640px)').matches
+
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -171,7 +179,10 @@ export default function LeeshClient() {
           else el.classList.remove('is-visible')
         })
       },
-      { threshold: 0.12, rootMargin: '0px 0px -10% 0px' }
+      {
+        threshold: isMobileViewport ? 0.04 : 0.12,
+        rootMargin: isMobileViewport ? '0px 0px -4% 0px' : '0px 0px -10% 0px',
+      }
     )
 
     targets.forEach((el) => observer.observe(el))
@@ -330,12 +341,24 @@ export default function LeeshClient() {
 
   const careers = [
     {
+      title: 'Junior Web Engineer',
+      company: '스타트업 A (웹 솔루션 기업)',
+      period: '2024.09 - 2024.11 (Internship)',
+      items: [
+        '공장 설비 데이터 수집 및 관리 목적의 MES 웹 시스템을 초기 설계부터 프론트엔드·백엔드까지 직접 구현',
+        'Node.js, NestJS 기반 API 서버와 React / Next.js 기반 웹 인터페이스를 개발하여 설비 데이터 조회 및 관리 기능 구축',
+        '실시간 설비 데이터 시각화 및 관리 페이지 등 공장 운영을 위한 웹 대시보드 기능 개발',
+        '인터넷 쇼핑 사이트 판매 데이터 기반 통계 조회 웹 서비스 개발 및 데이터 시각화 기능 구현',
+        '웹 서비스 구조 설계, API 설계, 프론트엔드 상태 관리 등 전체 웹 서비스 개발 과정 경험',
+      ],
+    },
+    {
       title: 'IoT Engineer | Junior Web Engineer',
-      company: '스타트업 A (산업 설비 데이터 솔루션 기업)',
+      company: '스타트업 B (산업 설비 데이터 솔루션 기업)',
       period: '2025 - Present',
       items: [
         '4개 공장 설비 데이터를 통합 관리하는 웹 시스템 운영',
-        'Spring 기반 웹 기능 개선 및 서비스 안정화 작업',
+        'Spring / Spring Boot 기반 웹 기능 개선 및 서비스 안정화 작업',
         '실시간 설비 데이터 수집 및 원격 설비 제어 기능 구현',
         '산업 장비 -> 서버 -> 웹 클라이언트 간 데이터 흐름 설계 및 개선',
         '현장 이슈 대응 및 서비스 안정성 개선 작업 수행',
@@ -382,6 +405,28 @@ export default function LeeshClient() {
         'https://github.com/leesh0829/2024MDP_2',
         'https://github.com/leesh0829/2024MDP_3',
       ],
+    },
+    {
+      name: 'Notiva',
+      summary:
+        '회의 / 강의 등 녹음파일을 텍스트로 변환해주고 AI 요약하는 MVP 서비스',
+      points: [
+        '녹음 파일을 텍스트로 변환하는 기능과 AI 요약 기능을 구현',
+        '사용자 피드백을 반영하여 UI/UX 개선',
+        'MVP 개발을 통해 아이디어 검증 실제 사용 및 운영',
+      ],
+      githubUrl: 'https://github.com/leesh0829/Notiva',
+    },
+    {
+      name: 'Nope.exe',
+      summary:
+        'Windows용 규칙 기반 불필요한 광고 제거 목적 창 자동 닫기 유틸리티',
+      points: [
+        'WM_CLOSE 메시지 기반 창 닫기 기능 구현',
+        '사용자 정의 규칙에 따른 창 감지 및 자동 닫기 기능 구현',
+        '사용자 피드백을 반영하여 기능 개선 및 안정성 향상',
+      ],
+      githubUrl: 'https://github.com/leesh0829/Nope.exe',
     },
   ]
 
@@ -751,6 +796,7 @@ export default function LeeshClient() {
               onChange={setDraft}
               rows={18}
               previewEmptyText="미리보기할 내용이 없습니다."
+              htmlMode="raw"
             />
             <div className="text-xs opacity-60">
               이미지 업로드 버튼 누르면 마크다운으로 자동 삽입됨.
@@ -760,7 +806,7 @@ export default function LeeshClient() {
           <article className="markdown-body mt-4">
             <ReactMarkdown
               remarkPlugins={[remarkGfm, remarkBreaks]}
-              rehypePlugins={[rehypeHighlight]}
+              rehypePlugins={[rehypeRaw, rehypeHighlight]}
               components={mdComponents}
             >
               {doc?.contentMd ?? ''}
@@ -781,7 +827,9 @@ export default function LeeshClient() {
             <div className="flex items-center justify-between gap-2">
               <div>
                 <h2 className="text-lg font-semibold">로그인</h2>
-                <p className="mt-1 text-sm opacity-70">비밀번호를 입력하세요.</p>
+                <p className="mt-1 text-sm opacity-70">
+                  비밀번호를 입력하세요.
+                </p>
               </div>
               <button
                 type="button"

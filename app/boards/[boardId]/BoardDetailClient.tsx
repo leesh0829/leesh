@@ -496,6 +496,7 @@ export default function BoardDetailClient({
                     placeholder="본문 (Markdown 지원)"
                     rows={8}
                     previewEmptyText="미리보기할 본문이 없습니다."
+                    htmlMode="safe"
                   />
                 </div>
 

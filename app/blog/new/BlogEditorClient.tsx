@@ -99,6 +99,7 @@ export default function BlogEditorClient({ boardId }: { boardId: string }) {
           placeholder="본문 (마크다운 호환)"
           rows={18}
           previewEmptyText="미리보기할 본문이 없습니다."
+          htmlMode="raw"
         />
       </div>
 

@@ -8,10 +8,13 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
 import rehypeHighlight from 'rehype-highlight'
+import rehypeRaw from 'rehype-raw'
+import rehypeSanitize from 'rehype-sanitize'
 import { useSession } from 'next-auth/react'
 import { displayUserLabel } from '@/app/lib/userLabel'
 import MarkdownEditor from '@/app/components/MarkdownEditor'
 import { useToast } from '@/app/components/ToastProvider'
+import { sanitizedMarkdownSchema } from '@/app/lib/markdown'
 
 type Post = {
   id: string
@@ -593,6 +596,7 @@ export default function PostDetailClient({
                     onChange={setEditContent}
                     rows={12}
                     previewEmptyText="미리보기할 본문이 없습니다."
+                    htmlMode="safe"
                   />
                 </div>
 
@@ -626,7 +630,11 @@ export default function PostDetailClient({
                 <div className="markdown-body">
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm, remarkBreaks]}
-                    rehypePlugins={[rehypeHighlight]}
+                    rehypePlugins={[
+                      rehypeRaw,
+                      [rehypeSanitize, sanitizedMarkdownSchema],
+                      rehypeHighlight,
+                    ]}
                     components={{
                       img: ({ alt, src, ...props }) => {
                         const safeSrc =

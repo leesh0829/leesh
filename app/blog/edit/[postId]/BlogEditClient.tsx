@@ -97,6 +97,7 @@ export default function BlogEditClient({ post }: { post: EditPost }) {
           placeholder="마크다운으로 작성..."
           rows={18}
           previewEmptyText="미리보기할 본문이 없습니다."
+          htmlMode="raw"
         />
       </div>
 

@@ -118,6 +118,7 @@ export default function HelpClient() {
             placeholder="내용 (Markdown)"
             rows={8}
             previewEmptyText="미리보기할 내용이 없습니다."
+            htmlMode="safe"
           />
         </div>
 

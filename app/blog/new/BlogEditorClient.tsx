@@ -1,9 +1,17 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import ImageUploadButton from '@/app/components/ImageUploadButton'
 import MarkdownEditor from '@/app/components/MarkdownEditor'
 
+/**
+ * Renders a blog post editor UI for the given board and handles creating/saving posts.
+ *
+ * The component manages title, markdown content, secret-post state/password, client-side validation,
+ * and sending the post data to the backend. On successful save it navigates to the created post page.
+ *
+ * @param boardId - The identifier of the board where the post will be created
+ * @returns A React element containing the blog editor UI
+ */
 export default function BlogEditorClient({ boardId }: { boardId: string }) {
   const [title, setTitle] = useState('')
   const [contentMd, setContentMd] = useState('')
@@ -82,15 +90,6 @@ export default function BlogEditorClient({ boardId }: { boardId: string }) {
         />
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <ImageUploadButton
-          onUploaded={(url) => {
-            setContentMd((prev) => `${prev}\n\n![](${url})\n`)
-          }}
-        />
-        <span className="badge">이미지는 본문에 마크다운으로 삽입됩니다</span>
-      </div>
-
       <div className="grid gap-2">
         <label className="text-sm font-medium">본문 (Markdown)</label>
         <MarkdownEditor
@@ -99,6 +98,7 @@ export default function BlogEditorClient({ boardId }: { boardId: string }) {
           placeholder="본문 (마크다운 호환)"
           rows={18}
           previewEmptyText="미리보기할 본문이 없습니다."
+          htmlMode="raw"
         />
       </div>
 

@@ -8,10 +8,13 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
 import rehypeHighlight from 'rehype-highlight'
+import rehypeRaw from 'rehype-raw'
+import rehypeSanitize from 'rehype-sanitize'
 import { useSession } from 'next-auth/react'
 import { displayUserLabel } from '@/app/lib/userLabel'
 import MarkdownEditor from '@/app/components/MarkdownEditor'
 import { useToast } from '@/app/components/ToastProvider'
+import { sanitizedMarkdownSchema } from '@/app/lib/markdown'
 
 type Post = {
   id: string
@@ -78,6 +81,16 @@ async function readJsonSafely(res: Response): Promise<unknown> {
   }
 }
 
+/**
+ * Render the post detail view including content, schedule controls, and comments with editing and unlock flows.
+ *
+ * This component displays a post header (status, secret badge, title), the post body rendered from Markdown (raw HTML allowed but sanitized and syntax-highlighted), schedule controls when the user can edit, an unlock form for secret posts, and a comments section with listing, composing, editing, and deletion behaviors.
+ *
+ * @param boardName - Human-readable board name shown in the back-navigation link
+ * @param boardId - Identifier for the board used for API requests and navigation
+ * @param post - Initial post data used to populate the view and local editable state
+ * @returns The JSX for the post detail page including header, content, schedule editor (if editable), comment list and composer, and unlock form for secret posts
+ */
 export default function PostDetailClient({
   boardName,
   boardId,
@@ -593,6 +606,7 @@ export default function PostDetailClient({
                     onChange={setEditContent}
                     rows={12}
                     previewEmptyText="미리보기할 본문이 없습니다."
+                    htmlMode="safe"
                   />
                 </div>
 
@@ -626,7 +640,11 @@ export default function PostDetailClient({
                 <div className="markdown-body">
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm, remarkBreaks]}
-                    rehypePlugins={[rehypeHighlight]}
+                    rehypePlugins={[
+                      rehypeRaw,
+                      [rehypeSanitize, sanitizedMarkdownSchema],
+                      rehypeHighlight,
+                    ]}
                     components={{
                       img: ({ alt, src, ...props }) => {
                         const safeSrc =

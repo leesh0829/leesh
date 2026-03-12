@@ -5,10 +5,16 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
 import rehypeHighlight from 'rehype-highlight'
+import rehypeRaw from 'rehype-raw'
 import { toHumanHttpError } from '@/app/lib/httpErrorText'
-import ImageUploadButton from '@/app/components/ImageUploadButton'
 import MarkdownEditor from '@/app/components/MarkdownEditor'
 
+/**
+ * Extracts a trimmed message string from an API-like payload object.
+ *
+ * @param payload - The value to inspect for a `message` property.
+ * @returns The trimmed `message` string if present and non-empty, or `null` otherwise.
+ */
 function extractApiMessage(payload: unknown): string | null {
   if (!payload || typeof payload !== 'object') return null
   const record = payload as Record<string, unknown>
@@ -18,6 +24,11 @@ function extractApiMessage(payload: unknown): string | null {
   return trimmed ? trimmed : null
 }
 
+/**
+ * Parse a Response body as JSON and return null when parsing fails.
+ *
+ * @returns The parsed JSON value, or `null` if the response body cannot be parsed as JSON.
+ */
 async function readJsonSafely(res: Response): Promise<unknown> {
   try {
     return await res.json()
@@ -27,9 +38,10 @@ async function readJsonSafely(res: Response): Promise<unknown> {
 }
 
 type LeeshDoc = {
-  id: string
-  title: string
+  id?: string
+  title?: string
   contentMd: string
+  unlocked: boolean
   canEdit: boolean
 }
 
@@ -41,10 +53,19 @@ function GitHubIcon({ className = 'h-4 w-4' }: { className?: string }) {
   )
 }
 
+/**
+ * Render the main Leesh portfolio page with content viewing, editable markdown, unlock/login modal, and a contact form.
+ *
+ * The component manages loading and saving the document, edit/unlock state, contact submission, scroll-reveal animations, and renders static profile, projects, career, and tech-stack sections alongside markdown content (read-only or editable).
+ *
+ * @returns The React element for the Leesh portfolio page.
+ */
 export default function LeeshClient() {
   const [pw, setPw] = useState('')
   const [unlocking, setUnlocking] = useState(false)
   const [unlocked, setUnlocked] = useState(false)
+  const [showUnlockModal, setShowUnlockModal] = useState(false)
+  const [unlockErr, setUnlockErr] = useState<string | null>(null)
 
   const [doc, setDoc] = useState<LeeshDoc | null>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -121,7 +142,8 @@ export default function LeeshClient() {
       const data = (await res.json()) as LeeshDoc
       setDoc(data)
       setDraft(data.contentMd ?? '')
-      setUnlocked(true)
+      setUnlocked(Boolean(data.unlocked))
+      if (!data.canEdit) setEditing(false)
       return
     }
 
@@ -139,6 +161,12 @@ export default function LeeshClient() {
   }, [])
 
   useEffect(() => {
+    if (showUnlockModal) return
+    setPw('')
+    setUnlockErr(null)
+  }, [showUnlockModal])
+
+  useEffect(() => {
     const targets = Array.from(
       document.querySelectorAll<HTMLElement>('.leesh-page .scroll-reveal')
     )
@@ -153,6 +181,13 @@ export default function LeeshClient() {
       return
     }
 
+    if (typeof window.IntersectionObserver === 'undefined') {
+      targets.forEach((el) => el.classList.add('is-visible'))
+      return
+    }
+
+    const isMobileViewport = window.matchMedia('(max-width: 640px)').matches
+
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -161,7 +196,10 @@ export default function LeeshClient() {
           else el.classList.remove('is-visible')
         })
       },
-      { threshold: 0.12, rootMargin: '0px 0px -10% 0px' }
+      {
+        threshold: isMobileViewport ? 0.04 : 0.12,
+        rootMargin: isMobileViewport ? '0px 0px -4% 0px' : '0px 0px -10% 0px',
+      }
     )
 
     targets.forEach((el) => observer.observe(el))
@@ -171,7 +209,7 @@ export default function LeeshClient() {
   const doUnlock = async () => {
     if (!pw) return
     setUnlocking(true)
-    setErr(null)
+    setUnlockErr(null)
 
     const res = await fetch('/api/leesh/unlock', {
       method: 'POST',
@@ -182,13 +220,14 @@ export default function LeeshClient() {
     if (!res.ok) {
       const payload = await readJsonSafely(res)
       const msg = extractApiMessage(payload) ?? '비밀번호가 틀렸습니다.'
-      setErr(msg)
+      setUnlockErr(msg)
       setUnlocking(false)
       return
     }
 
     setPw('')
     setUnlocking(false)
+    setShowUnlockModal(false)
     await load()
   }
 
@@ -319,12 +358,24 @@ export default function LeeshClient() {
 
   const careers = [
     {
+      title: 'Junior Web Engineer',
+      company: '스타트업 A (웹 솔루션 기업)',
+      period: '2024.09 - 2024.11 (Internship)',
+      items: [
+        '공장 설비 데이터 수집 및 관리 목적의 MES 웹 시스템을 초기 설계부터 프론트엔드·백엔드까지 직접 구현',
+        'Node.js, NestJS 기반 API 서버와 React / Next.js 기반 웹 인터페이스를 개발하여 설비 데이터 조회 및 관리 기능 구축',
+        '실시간 설비 데이터 시각화 및 관리 페이지 등 공장 운영을 위한 웹 대시보드 기능 개발',
+        '인터넷 쇼핑 사이트 판매 데이터 기반 통계 조회 웹 서비스 개발 및 데이터 시각화 기능 구현',
+        '웹 서비스 구조 설계, API 설계, 프론트엔드 상태 관리 등 전체 웹 서비스 개발 과정 경험',
+      ],
+    },
+    {
       title: 'IoT Engineer | Junior Web Engineer',
-      company: '스타트업 A (산업 설비 데이터 솔루션 기업)',
+      company: '스타트업 B (산업 설비 데이터 솔루션 기업)',
       period: '2025 - Present',
       items: [
         '4개 공장 설비 데이터를 통합 관리하는 웹 시스템 운영',
-        'Spring 기반 웹 기능 개선 및 서비스 안정화 작업',
+        'Spring / Spring Boot 기반 웹 기능 개선 및 서비스 안정화 작업',
         '실시간 설비 데이터 수집 및 원격 설비 제어 기능 구현',
         '산업 장비 -> 서버 -> 웹 클라이언트 간 데이터 흐름 설계 및 개선',
         '현장 이슈 대응 및 서비스 안정성 개선 작업 수행',
@@ -371,6 +422,36 @@ export default function LeeshClient() {
         'https://github.com/leesh0829/2024MDP_2',
         'https://github.com/leesh0829/2024MDP_3',
       ],
+    },
+    {
+      name: 'Notiva',
+      summary: 'Next.js + FastAPI 기반 AI 음성 기록 및 요약 웹 서비스',
+      points: [
+        'STT → 요약 → 임베딩 인덱싱을 Celery 비동기 파이프라인으로 처리',
+        '전사 데이터 임베딩 + 벡터 검색 기반 RAG Q&A 기능 구현',
+        'PostgreSQL / pgvector 기반 전사·요약 데이터 구조 설계',
+      ],
+      githubUrl: 'https://github.com/leesh0829/Notiva',
+    },
+    {
+      name: 'Nope.exe',
+      summary: 'Win32 API 기반 윈도우 창 자동 제어 유틸리티',
+      points: [
+        'EnumWindows 등 Win32 API를 P/Invoke로 연동해 창 메타데이터 수집',
+        'JSON 규칙 엔진 기반 창 제어(닫기/숨김/프로세스 종료) 구현',
+        '쿨다운 로직 및 비동기 모니터 루프로 안정적 자동화 처리',
+      ],
+      githubUrl: 'https://github.com/leesh0829/Nope.exe',
+    },
+    {
+      name: 'tyPeng',
+      summary: '.NET 8 WPF 기반 투명 오버레이 타자 연습 애플리케이션',
+      points: [
+        'IME 우회 한글 두벌식 조합기(HangulComposer) 직접 구현',
+        '실시간 타이핑 지표(CPM/WPM/정확도) 계산 로직 설계',
+        '투명 오버레이 UI와 타이핑 엔진 구조 분리 설계',
+      ],
+      githubUrl: 'https://github.com/leesh0829/typeng',
     },
   ]
 
@@ -680,122 +761,131 @@ export default function LeeshClient() {
         ) : null}
       </section>
 
-      {!unlocked ? (
-        <section className="surface card-pad scroll-reveal">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0">
-              <h2 className="text-2xl font-semibold">기록 / 블로그</h2>
-              <p className="mt-1 text-sm opacity-70">
-                기존 글 기능은 이 섹션에서 유지됩니다. 비밀번호로 접근 후 편집할
-                수 있습니다.
-              </p>
+      <section className="card card-pad scroll-reveal">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <p className="mt-1 text-sm opacity-70">추가로 하고픈 말</p>
 
-              {err ? <p className="mt-3 text-sm text-red-600">{err}</p> : null}
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <button type="button" className="btn btn-outline" onClick={load}>
-                새로고침
-              </button>
-            </div>
+            {err ? <p className="mt-3 text-sm text-red-600">{err}</p> : null}
           </div>
 
-          <div className="mt-4 text-sm opacity-70">비밀번호를 입력하세요.</div>
-
-          <div className="mt-3 grid gap-2 sm:max-w-md">
-            <input
-              className="input"
-              type="password"
-              value={pw}
-              onChange={(e) => setPw(e.target.value)}
-              placeholder="비밀번호"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') void doUnlock()
-              }}
-            />
-
-            <button
-              className="btn btn-primary"
-              onClick={doUnlock}
-              disabled={unlocking || !pw}
-            >
-              {unlocking ? '확인중...' : '입장'}
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" className="btn btn-outline" onClick={load}>
+              새로고침
             </button>
 
-            <div className="text-xs opacity-60">
-              엔터로도 입장 가능하게 해놨음.
-            </div>
-          </div>
-        </section>
-      ) : (
-        <section className="card card-pad scroll-reveal">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0">
-              <p className="mt-1 text-sm opacity-70">추가로 하고픈 말</p>
-
-              {err ? <p className="mt-3 text-sm text-red-600">{err}</p> : null}
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <button type="button" className="btn btn-outline" onClick={load}>
-                새로고침
+            {!unlocked ? (
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={() => setShowUnlockModal(true)}
+              >
+                로그인
               </button>
+            ) : null}
 
-              {unlocked && doc?.canEdit ? (
+            {doc?.canEdit ? (
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={() => setEditing((v) => !v)}
+              >
+                {editing ? '편집 닫기' : '편집'}
+              </button>
+            ) : null}
+
+            {doc?.canEdit && editing ? (
+              <>
                 <button
                   type="button"
-                  className="btn btn-outline"
-                  onClick={() => setEditing((v) => !v)}
+                  className="btn btn-primary"
+                  onClick={save}
+                  disabled={saving}
                 >
-                  {editing ? '편집 닫기' : '편집'}
+                  {saving ? '저장중...' : '저장'}
                 </button>
-              ) : null}
-
-              {unlocked && doc?.canEdit && editing ? (
-                <>
-                  <ImageUploadButton
-                    onUploaded={(url) => {
-                      setDraft((prev) => `${prev}\n\n![](${url})\n`)
-                    }}
-                  />
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    onClick={save}
-                    disabled={saving}
-                  >
-                    {saving ? '저장중...' : '저장'}
-                  </button>
-                </>
-              ) : null}
-            </div>
+              </>
+            ) : null}
           </div>
+        </div>
 
-          {editing ? (
-            <div className="mt-4 grid gap-3">
-              <MarkdownEditor
-                value={draft}
-                onChange={setDraft}
-                rows={18}
-                previewEmptyText="미리보기할 내용이 없습니다."
-              />
-              <div className="text-xs opacity-60">
-                이미지 업로드 버튼 누르면 마크다운으로 자동 삽입됨.
+        {editing ? (
+          <div className="mt-4 grid gap-3">
+            <MarkdownEditor
+              value={draft}
+              onChange={setDraft}
+              rows={18}
+              previewEmptyText="미리보기할 내용이 없습니다."
+              htmlMode="raw"
+            />
+          </div>
+        ) : (
+          <article className="markdown-body mt-4">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm, remarkBreaks]}
+              rehypePlugins={[rehypeRaw, rehypeHighlight]}
+              components={mdComponents}
+            >
+              {doc?.contentMd ?? ''}
+            </ReactMarkdown>
+          </article>
+        )}
+      </section>
+
+      {showUnlockModal ? (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/45"
+            aria-label="로그인 팝업 닫기"
+            onClick={() => setShowUnlockModal(false)}
+          />
+          <div className="surface card-pad modal-enter relative z-[71] w-full max-w-md">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <h2 className="text-lg font-semibold">로그인</h2>
+                <p className="mt-1 text-sm opacity-70">
+                  비밀번호를 입력하세요.
+                </p>
               </div>
-            </div>
-          ) : (
-            <article className="markdown-body mt-4">
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm, remarkBreaks]}
-                rehypePlugins={[rehypeHighlight]}
-                components={mdComponents}
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={() => setShowUnlockModal(false)}
               >
-                {doc?.contentMd ?? ''}
-              </ReactMarkdown>
-            </article>
-          )}
-        </section>
-      )}
+                X
+              </button>
+            </div>
+
+            <div className="mt-4 grid gap-2">
+              <input
+                className="input"
+                type="password"
+                value={pw}
+                autoFocus
+                onChange={(e) => setPw(e.target.value)}
+                placeholder="비밀번호"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void doUnlock()
+                }}
+              />
+
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={doUnlock}
+                disabled={unlocking || !pw}
+              >
+                {unlocking ? '확인중...' : '입장'}
+              </button>
+            </div>
+
+            {unlockErr ? (
+              <p className="mt-3 text-sm text-red-600">{unlockErr}</p>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
     </main>
   )
 }

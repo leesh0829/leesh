@@ -1,7 +1,6 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import ImageUploadButton from '@/app/components/ImageUploadButton'
 import MarkdownEditor from '@/app/components/MarkdownEditor'
 
 type EditPost = {
@@ -12,6 +11,16 @@ type EditPost = {
   status: string
 }
 
+/**
+ * Client-side editor for modifying a blog post, including title, Markdown content,
+ * slug regeneration, save (draft/publish), and delete actions.
+ *
+ * @param post - The post to edit; an `EditPost` object containing `id`, `title`,
+ *   `contentMd`, `slug`, and `status`.
+ * @returns The React element rendering the editor UI with inputs for title and
+ *   Markdown content, a regenerate-slug checkbox, save/publish/delete controls,
+ *   and inline status messages.
+ */
 export default function BlogEditClient({ post }: { post: EditPost }) {
   const [title, setTitle] = useState(post.title)
   const [contentMd, setContentMd] = useState(post.contentMd)
@@ -77,18 +86,6 @@ export default function BlogEditClient({ post }: { post: EditPost }) {
         />
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <ImageUploadButton
-          onUploaded={(url) => {
-            setContentMd((prev) => `${prev}\n\n![](${url})\n`)
-          }}
-          disabled={saving}
-        />
-        <span className="text-xs opacity-60">
-          업로드 후 마크다운에 이미지 링크가 자동으로 추가됩니다.
-        </span>
-      </div>
-
       <div className="grid gap-2">
         <label className="text-sm font-medium">본문 (Markdown)</label>
         <MarkdownEditor
@@ -97,6 +94,7 @@ export default function BlogEditClient({ post }: { post: EditPost }) {
           placeholder="마크다운으로 작성..."
           rows={18}
           previewEmptyText="미리보기할 본문이 없습니다."
+          htmlMode="raw"
         />
       </div>
 

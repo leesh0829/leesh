@@ -3,7 +3,6 @@
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import ImageUploadButton from '@/app/components/ImageUploadButton'
 import MarkdownEditor from '@/app/components/MarkdownEditor'
 
 type Status = 'TODO' | 'DOING' | 'DONE'
@@ -61,6 +60,17 @@ function toIsoOrNull(datetimeLocal: string): string | null {
   return d.toISOString()
 }
 
+/**
+ * Render the board detail UI that displays posts and provides controls for creating posts,
+ * editing board metadata, and managing a single-board schedule.
+ *
+ * @param board - The board object containing metadata and schedule defaults
+ * @param initialPosts - Initial list of posts for the board
+ * @param canCreate - Whether the current user may create posts or modify board settings
+ * @param backHref - URL for the back link (defaults to '/boards')
+ * @param backLabel - Label for the back link (defaults to 'boards')
+ * @returns The rendered React element for the board detail page
+ */
 export default function BoardDetailClient({
   board,
   initialPosts,
@@ -452,12 +462,6 @@ export default function BoardDetailClient({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  <ImageUploadButton
-                    onUploaded={(url) => {
-                      setContentMd((prev) => `${prev}\n\n![](${url})\n`)
-                    }}
-                  />
-
                   <select
                     className="select w-auto"
                     value={status}
@@ -496,6 +500,7 @@ export default function BoardDetailClient({
                     placeholder="본문 (Markdown 지원)"
                     rows={8}
                     previewEmptyText="미리보기할 본문이 없습니다."
+                    htmlMode="safe"
                   />
                 </div>
 

@@ -5,8 +5,11 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
 import rehypeHighlight from 'rehype-highlight'
+import rehypeRaw from 'rehype-raw'
+import rehypeSanitize from 'rehype-sanitize'
 import Link from 'next/link'
 import { displayUserLabel } from '@/app/lib/userLabel'
+import { sanitizedMarkdownSchema } from '@/app/lib/markdown'
 
 type HelpPost = {
   id: string
@@ -24,6 +27,15 @@ type Answer = {
   author: { name: string | null; email: string | null }
 }
 
+/**
+ * Client-side React component that displays a help post, its answers, and an operator answer form.
+ *
+ * Renders the post content (Markdown with sanitized HTML and syntax highlighting), a list of operator answers,
+ * and — when permitted — a textarea to submit a new answer.
+ *
+ * @param postId - The identifier of the help post to load and display
+ * @returns The JSX element containing the help post detail view, answers list, and conditional answer form
+ */
 export default function HelpDetailClient({ postId }: { postId: string }) {
   const [post, setPost] = useState<HelpPost | null>(null)
   const [answers, setAnswers] = useState<Answer[]>([])
@@ -186,7 +198,11 @@ export default function HelpDetailClient({ postId }: { postId: string }) {
         <div className="markdown-body">
           <ReactMarkdown
             remarkPlugins={[remarkGfm, remarkBreaks]}
-            rehypePlugins={[rehypeHighlight]}
+            rehypePlugins={[
+              rehypeRaw,
+              [rehypeSanitize, sanitizedMarkdownSchema],
+              rehypeHighlight,
+            ]}
             components={mdComponents}
           >
             {post.contentMd}

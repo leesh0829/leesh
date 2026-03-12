@@ -408,25 +408,33 @@ export default function LeeshClient() {
     },
     {
       name: 'Notiva',
-      summary:
-        '회의 / 강의 등 녹음파일을 텍스트로 변환해주고 AI 요약하는 MVP 서비스',
+      summary: 'Next.js + FastAPI 기반 AI 음성 기록 및 요약 웹 서비스',
       points: [
-        '녹음 파일을 텍스트로 변환하는 기능과 AI 요약 기능을 구현',
-        '사용자 피드백을 반영하여 UI/UX 개선',
-        'MVP 개발을 통해 아이디어 검증 실제 사용 및 운영',
+        'STT → 요약 → 임베딩 인덱싱을 Celery 비동기 파이프라인으로 처리',
+        '전사 데이터 임베딩 + 벡터 검색 기반 RAG Q&A 기능 구현',
+        'PostgreSQL / pgvector 기반 전사·요약 데이터 구조 설계',
       ],
       githubUrl: 'https://github.com/leesh0829/Notiva',
     },
     {
       name: 'Nope.exe',
-      summary:
-        'Windows용 규칙 기반 불필요한 광고 제거 목적 창 자동 닫기 유틸리티',
+      summary: 'Win32 API 기반 윈도우 창 자동 제어 유틸리티',
       points: [
-        'WM_CLOSE 메시지 기반 창 닫기 기능 구현',
-        '사용자 정의 규칙에 따른 창 감지 및 자동 닫기 기능 구현',
-        '사용자 피드백을 반영하여 기능 개선 및 안정성 향상',
+        'EnumWindows 등 Win32 API를 P/Invoke로 연동해 창 메타데이터 수집',
+        'JSON 규칙 엔진 기반 창 제어(닫기/숨김/프로세스 종료) 구현',
+        '쿨다운 로직 및 비동기 모니터 루프로 안정적 자동화 처리',
       ],
       githubUrl: 'https://github.com/leesh0829/Nope.exe',
+    },
+    {
+      name: 'tyPeng',
+      summary: '.NET 8 WPF 기반 투명 오버레이 타자 연습 애플리케이션',
+      points: [
+        'IME 우회 한글 두벌식 조합기(HangulComposer) 직접 구현',
+        '실시간 타이핑 지표(CPM/WPM/정확도) 계산 로직 설계',
+        '투명 오버레이 UI와 타이핑 엔진 구조 분리 설계',
+      ],
+      githubUrl: 'https://github.com/leesh0829/typeng',
     },
   ]
 

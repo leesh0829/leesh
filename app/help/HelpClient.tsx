@@ -12,6 +12,12 @@ type HelpPost = {
   author: { name: string | null; email: string | null }
 }
 
+/**
+ * Obscures the local part of an email address for privacy.
+ *
+ * @param email - The email address to mask
+ * @returns The masked email: if the input lacks a domain, returns the input unchanged; if the local part has length <= 2, shows the first character (or `*` if absent) followed by `*` and the domain; otherwise shows the first two characters followed by `***` and the domain.
+ */
 function maskEmail(email: string) {
   const [id, domain] = email.split('@')
   if (!domain) return email
@@ -19,6 +25,14 @@ function maskEmail(email: string) {
   return `${id.slice(0, 2)}***@${domain}`
 }
 
+/**
+ * Renders the customer support (Help) interface for viewing, searching, and creating help requests.
+ *
+ * Displays a list of help posts (loaded on mount), provides a title-based search, shows author information
+ * (name or masked email when name is absent), and includes a form to submit new requests in Markdown.
+ *
+ * @returns The rendered Help client React element
+ */
 export default function HelpClient() {
   const [posts, setPosts] = useState<HelpPost[]>([])
   const [listTitleQuery, setListTitleQuery] = useState('')
@@ -118,6 +132,7 @@ export default function HelpClient() {
             placeholder="내용 (Markdown)"
             rows={8}
             previewEmptyText="미리보기할 내용이 없습니다."
+            htmlMode="safe"
           />
         </div>
 

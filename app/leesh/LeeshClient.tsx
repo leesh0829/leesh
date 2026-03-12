@@ -7,7 +7,6 @@ import remarkBreaks from 'remark-breaks'
 import rehypeHighlight from 'rehype-highlight'
 import rehypeRaw from 'rehype-raw'
 import { toHumanHttpError } from '@/app/lib/httpErrorText'
-import ImageUploadButton from '@/app/components/ImageUploadButton'
 import MarkdownEditor from '@/app/components/MarkdownEditor'
 
 function extractApiMessage(payload: unknown): string | null {
@@ -779,11 +778,6 @@ export default function LeeshClient() {
 
             {doc?.canEdit && editing ? (
               <>
-                <ImageUploadButton
-                  onUploaded={(url) => {
-                    setDraft((prev) => `${prev}\n\n![](${url})\n`)
-                  }}
-                />
                 <button
                   type="button"
                   className="btn btn-primary"
@@ -806,9 +800,6 @@ export default function LeeshClient() {
               previewEmptyText="미리보기할 내용이 없습니다."
               htmlMode="raw"
             />
-            <div className="text-xs opacity-60">
-              이미지 업로드 버튼 누르면 마크다운으로 자동 삽입됨.
-            </div>
           </div>
         ) : (
           <article className="markdown-body mt-4">

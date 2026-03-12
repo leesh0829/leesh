@@ -1,7 +1,6 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import ImageUploadButton from '@/app/components/ImageUploadButton'
 import MarkdownEditor from '@/app/components/MarkdownEditor'
 
 export default function BlogEditorClient({ boardId }: { boardId: string }) {
@@ -80,15 +79,6 @@ export default function BlogEditorClient({ boardId }: { boardId: string }) {
           onChange={(e) => setTitle(e.target.value)}
           placeholder="제목"
         />
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <ImageUploadButton
-          onUploaded={(url) => {
-            setContentMd((prev) => `${prev}\n\n![](${url})\n`)
-          }}
-        />
-        <span className="badge">이미지는 본문에 마크다운으로 삽입됩니다</span>
       </div>
 
       <div className="grid gap-2">

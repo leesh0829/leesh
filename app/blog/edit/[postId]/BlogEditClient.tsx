@@ -1,7 +1,6 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import ImageUploadButton from '@/app/components/ImageUploadButton'
 import MarkdownEditor from '@/app/components/MarkdownEditor'
 
 type EditPost = {
@@ -75,18 +74,6 @@ export default function BlogEditClient({ post }: { post: EditPost }) {
           placeholder="제목"
           className="input"
         />
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <ImageUploadButton
-          onUploaded={(url) => {
-            setContentMd((prev) => `${prev}\n\n![](${url})\n`)
-          }}
-          disabled={saving}
-        />
-        <span className="text-xs opacity-60">
-          업로드 후 마크다운에 이미지 링크가 자동으로 추가됩니다.
-        </span>
       </div>
 
       <div className="grid gap-2">

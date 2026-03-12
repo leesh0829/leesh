@@ -3,7 +3,6 @@
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import ImageUploadButton from '@/app/components/ImageUploadButton'
 import MarkdownEditor from '@/app/components/MarkdownEditor'
 
 type Status = 'TODO' | 'DOING' | 'DONE'
@@ -452,12 +451,6 @@ export default function BoardDetailClient({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  <ImageUploadButton
-                    onUploaded={(url) => {
-                      setContentMd((prev) => `${prev}\n\n![](${url})\n`)
-                    }}
-                  />
-
                   <select
                     className="select w-auto"
                     value={status}

@@ -27,6 +27,15 @@ type Answer = {
   author: { name: string | null; email: string | null }
 }
 
+/**
+ * Client-side React component that displays a help post, its answers, and an operator answer form.
+ *
+ * Renders the post content (Markdown with sanitized HTML and syntax highlighting), a list of operator answers,
+ * and — when permitted — a textarea to submit a new answer.
+ *
+ * @param postId - The identifier of the help post to load and display
+ * @returns The JSX element containing the help post detail view, answers list, and conditional answer form
+ */
 export default function HelpDetailClient({ postId }: { postId: string }) {
   const [post, setPost] = useState<HelpPost | null>(null)
   const [answers, setAnswers] = useState<Answer[]>([])

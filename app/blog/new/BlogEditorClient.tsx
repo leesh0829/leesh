@@ -3,6 +3,15 @@
 import { useMemo, useState } from 'react'
 import MarkdownEditor from '@/app/components/MarkdownEditor'
 
+/**
+ * Renders a blog post editor UI for the given board and handles creating/saving posts.
+ *
+ * The component manages title, markdown content, secret-post state/password, client-side validation,
+ * and sending the post data to the backend. On successful save it navigates to the created post page.
+ *
+ * @param boardId - The identifier of the board where the post will be created
+ * @returns A React element containing the blog editor UI
+ */
 export default function BlogEditorClient({ boardId }: { boardId: string }) {
   const [title, setTitle] = useState('')
   const [contentMd, setContentMd] = useState('')

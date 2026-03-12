@@ -9,6 +9,16 @@ import ThemeToggle from './ThemeToggle'
 
 const NO_SHELL_PREFIXES = ['/login', '/sign-up']
 
+/**
+ * Render the application's outer layout and navigation shell around page content.
+ *
+ * Displays different layouts depending on the current route: a minimal layout for
+ * specified auth routes, a Leesh-specific layout with a back-to-main button, or the
+ * full shell with sidebar, top bar, responsive content area, and mobile bottom navigation.
+ *
+ * @param children - The page content to render inside the shell
+ * @returns The app shell React node that wraps the provided `children` with route-appropriate navigation, sidebar, and footer
+ */
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? '/'
   const isLeeshPage = useMemo(() => pathname.startsWith('/leesh'), [pathname])

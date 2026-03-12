@@ -65,6 +65,25 @@ const markdownComponents: Parameters<typeof ReactMarkdown>[0]['components'] = {
   },
 }
 
+/**
+ * A two-tab Markdown editor with editable "Write" mode and rendered "Preview" mode.
+ *
+ * Renders a textarea for composing Markdown and a preview panel that renders Markdown
+ * using configured remark/rehype plugins. The preview supports three HTML handling modes:
+ * - "off": no raw HTML processing (only syntax highlighting)
+ * - "safe": allows HTML but sanitizes it against a safe schema
+ * - "raw": allows raw HTML without sanitization
+ *
+ * @param value - The current Markdown content
+ * @param onChange - Called with the updated Markdown content when the textarea changes
+ * @param placeholder - Placeholder text shown in the textarea when empty
+ * @param rows - Number of visible textarea rows
+ * @param disabled - If true, the textarea is disabled
+ * @param className - Optional container CSS class
+ * @param previewEmptyText - Text to display in the preview when `value` is empty or whitespace
+ * @param htmlMode - Controls HTML handling in the preview: `'off' | 'safe' | 'raw'`
+ * @returns The Markdown editor React element
+ */
 export default function MarkdownEditor({
   value,
   onChange,

@@ -73,6 +73,17 @@ function extractMarkdownHeadings(markdown: string): TocHeading[] {
   return headings
 }
 
+/**
+ * Renders the blog post detail page for the given route slug.
+ *
+ * Fetches the post by id or slug from the database, determines viewer privileges and unlock state,
+ * and renders either a "not found" message, a secret-post gate, or the full post view with:
+ * the post header (title, date, actions), rendered Markdown content (with raw HTML and syntax highlighting),
+ * comments, and a table of contents generated from headings.
+ *
+ * @param params - A promise resolving to route parameters containing `slug`
+ * @returns The page element for the blog post; shows "글 없음" when the post is not found.
+ */
 export default async function BlogDetailPage({
   params,
 }: {

@@ -19,6 +19,14 @@ function maskEmail(email: string) {
   return `${id.slice(0, 2)}***@${domain}`
 }
 
+/**
+ * Renders the customer support (Help) interface for viewing, searching, and creating help requests.
+ *
+ * Displays a list of help posts (loaded on mount), provides a title-based search, shows author information
+ * (name or masked email when name is absent), and includes a form to submit new requests in Markdown.
+ *
+ * @returns The rendered Help client React element
+ */
 export default function HelpClient() {
   const [posts, setPosts] = useState<HelpPost[]>([])
   const [listTitleQuery, setListTitleQuery] = useState('')

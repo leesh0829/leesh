@@ -60,6 +60,17 @@ function toIsoOrNull(datetimeLocal: string): string | null {
   return d.toISOString()
 }
 
+/**
+ * Render the board detail UI that displays posts and provides controls for creating posts,
+ * editing board metadata, and managing a single-board schedule.
+ *
+ * @param board - The board object containing metadata and schedule defaults
+ * @param initialPosts - Initial list of posts for the board
+ * @param canCreate - Whether the current user may create posts or modify board settings
+ * @param backHref - URL for the back link (defaults to '/boards')
+ * @param backLabel - Label for the back link (defaults to 'boards')
+ * @returns The rendered React element for the board detail page
+ */
 export default function BoardDetailClient({
   board,
   initialPosts,

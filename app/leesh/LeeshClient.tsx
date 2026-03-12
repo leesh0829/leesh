@@ -9,6 +9,12 @@ import rehypeRaw from 'rehype-raw'
 import { toHumanHttpError } from '@/app/lib/httpErrorText'
 import MarkdownEditor from '@/app/components/MarkdownEditor'
 
+/**
+ * Extracts a trimmed message string from an API-like payload object.
+ *
+ * @param payload - The value to inspect for a `message` property.
+ * @returns The trimmed `message` string if present and non-empty, or `null` otherwise.
+ */
 function extractApiMessage(payload: unknown): string | null {
   if (!payload || typeof payload !== 'object') return null
   const record = payload as Record<string, unknown>
@@ -18,6 +24,11 @@ function extractApiMessage(payload: unknown): string | null {
   return trimmed ? trimmed : null
 }
 
+/**
+ * Parse a Response body as JSON and return null when parsing fails.
+ *
+ * @returns The parsed JSON value, or `null` if the response body cannot be parsed as JSON.
+ */
 async function readJsonSafely(res: Response): Promise<unknown> {
   try {
     return await res.json()
@@ -42,6 +53,13 @@ function GitHubIcon({ className = 'h-4 w-4' }: { className?: string }) {
   )
 }
 
+/**
+ * Render the main Leesh portfolio page with content viewing, editable markdown, unlock/login modal, and a contact form.
+ *
+ * The component manages loading and saving the document, edit/unlock state, contact submission, scroll-reveal animations, and renders static profile, projects, career, and tech-stack sections alongside markdown content (read-only or editable).
+ *
+ * @returns The React element for the Leesh portfolio page.
+ */
 export default function LeeshClient() {
   const [pw, setPw] = useState('')
   const [unlocking, setUnlocking] = useState(false)

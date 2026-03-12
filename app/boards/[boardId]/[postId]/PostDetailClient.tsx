@@ -81,6 +81,16 @@ async function readJsonSafely(res: Response): Promise<unknown> {
   }
 }
 
+/**
+ * Render the post detail view including content, schedule controls, and comments with editing and unlock flows.
+ *
+ * This component displays a post header (status, secret badge, title), the post body rendered from Markdown (raw HTML allowed but sanitized and syntax-highlighted), schedule controls when the user can edit, an unlock form for secret posts, and a comments section with listing, composing, editing, and deletion behaviors.
+ *
+ * @param boardName - Human-readable board name shown in the back-navigation link
+ * @param boardId - Identifier for the board used for API requests and navigation
+ * @param post - Initial post data used to populate the view and local editable state
+ * @returns The JSX for the post detail page including header, content, schedule editor (if editable), comment list and composer, and unlock form for secret posts
+ */
 export default function PostDetailClient({
   boardName,
   boardId,

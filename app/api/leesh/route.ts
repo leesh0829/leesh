@@ -69,6 +69,12 @@ async function getOrCreatePortfolioPost(ownerId: string) {
   return { board, post };
 }
 
+/**
+ * Return portfolio content and whether the client may edit it based on a cookie.
+ *
+ * @param req - Incoming HTTP request; the `cookie` header is inspected for `leesh_unlocked=1` to determine edit access.
+ * @returns A JSON object. When an owner exists, the object contains `id`, `title`, `contentMd`, `updatedAt`, `unlocked`, and `canEdit` (`true` if the cookie indicates unlocked, `false` otherwise). When no owner exists, the object contains `unlocked`, `canEdit` (same as `unlocked`), and `contentMd` set to a default placeholder.
+ */
 export async function GET(req: Request) {
   const cookie = req.headers.get("cookie") ?? "";
   const unlocked = cookie.includes(`${COOKIE_NAME}=1`);
@@ -97,6 +103,12 @@ export async function GET(req: Request) {
   });
 }
 
+/**
+ * Update the owner's portfolio Markdown content when the unlock cookie is present.
+ *
+ * @param req - Incoming HTTP request; body must be JSON with a `contentMd` string field.
+ * @returns The updated post object containing `id`, `title`, `contentMd`, and `updatedAt`.
+ */
 export async function PATCH(req: Request) {
   const cookie = req.headers.get("cookie") ?? "";
   const unlocked = cookie.includes(`${COOKIE_NAME}=1`);

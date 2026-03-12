@@ -11,6 +11,16 @@ type EditPost = {
   status: string
 }
 
+/**
+ * Client-side editor for modifying a blog post, including title, Markdown content,
+ * slug regeneration, save (draft/publish), and delete actions.
+ *
+ * @param post - The post to edit; an `EditPost` object containing `id`, `title`,
+ *   `contentMd`, `slug`, and `status`.
+ * @returns The React element rendering the editor UI with inputs for title and
+ *   Markdown content, a regenerate-slug checkbox, save/publish/delete controls,
+ *   and inline status messages.
+ */
 export default function BlogEditClient({ post }: { post: EditPost }) {
   const [title, setTitle] = useState(post.title)
   const [contentMd, setContentMd] = useState(post.contentMd)

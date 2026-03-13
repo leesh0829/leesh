@@ -834,6 +834,243 @@
     letter-spacing: 0.04em;
     animation: leesh-world-boss-damage 920ms cubic-bezier(0.16, 1, 0.3, 1) both;
   }
+
+  .scroll-summon-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 57;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .scroll-summon-overlay::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    pointer-events: none;
+  }
+
+  .scroll-summon-overlay-top::after {
+    bottom: 0;
+    height: 76vh;
+    background:
+      linear-gradient(
+        180deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.02) 18%,
+        rgba(91, 194, 255, 0.08) 36%,
+        rgba(91, 194, 255, 0.14) 66%,
+        rgba(91, 194, 255, 0.18) 100%
+      );
+    animation: leesh-scroll-water-rise 3.2s ease-out both;
+  }
+
+  .scroll-summon-overlay-bottom::after {
+    bottom: 0;
+    height: 28vh;
+    background:
+      radial-gradient(
+        ellipse at 50% 100%,
+        rgba(255, 127, 99, 0.22) 0%,
+        rgba(243, 201, 91, 0.08) 34%,
+        transparent 72%
+      );
+    animation: leesh-scroll-impact-flash 2.8s ease-out both;
+  }
+
+  .scroll-summon-aura {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(
+        520px 240px at 50% 50%,
+        color-mix(in srgb, var(--summon-accent) 20%, transparent),
+        transparent 72%
+      ),
+      radial-gradient(
+        460px 220px at 50% 45%,
+        color-mix(in srgb, var(--summon-accent-soft) 18%, transparent),
+        transparent 70%
+      );
+    opacity: 0;
+    animation: leesh-scroll-summon-aura 2.8s ease-out both;
+  }
+
+  .scroll-summon-burst {
+    position: absolute;
+    left: 50%;
+    width: min(720px, 120vw);
+    height: 240px;
+    transform: translateX(-50%);
+  }
+
+  .scroll-summon-burst-top {
+    top: -28px;
+  }
+
+  .scroll-summon-burst-bottom {
+    bottom: -28px;
+  }
+
+  .scroll-summon-burst-core {
+    position: absolute;
+    left: 50%;
+    width: min(460px, 92vw);
+    height: 160px;
+    transform: translateX(-50%);
+    border-radius: 9999px;
+    background:
+      radial-gradient(
+        ellipse at center,
+        color-mix(in srgb, var(--summon-accent) 44%, white 12%) 0%,
+        color-mix(in srgb, var(--summon-accent-soft) 32%, transparent) 42%,
+        transparent 74%
+      );
+    filter: blur(8px);
+    animation: leesh-scroll-summon-burst-core 2.8s ease-out both;
+  }
+
+  .scroll-summon-burst-top .scroll-summon-burst-core {
+    top: -34px;
+  }
+
+  .scroll-summon-burst-bottom .scroll-summon-burst-core {
+    bottom: -34px;
+  }
+
+  .scroll-summon-burst-wave {
+    position: absolute;
+    left: 50%;
+    width: min(620px, 96vw);
+    height: 180px;
+    transform: translateX(-50%);
+    border-radius: 9999px;
+    border: 1px solid color-mix(in srgb, var(--summon-accent) 34%, transparent);
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--summon-accent-soft) 16%, transparent) inset,
+      0 0 40px color-mix(in srgb, var(--summon-accent) 18%, transparent);
+    opacity: 0;
+    animation: leesh-scroll-summon-burst-wave 1.8s ease-out both;
+  }
+
+  .scroll-summon-burst-top .scroll-summon-burst-wave {
+    top: -14px;
+  }
+
+  .scroll-summon-burst-bottom .scroll-summon-burst-wave {
+    bottom: -14px;
+  }
+
+  .scroll-summon-burst-wave-a {
+    animation-delay: 0.04s;
+  }
+
+  .scroll-summon-burst-wave-b {
+    animation-delay: 0.18s;
+  }
+
+  .scroll-summon-burst-wave-c {
+    animation-delay: 0.32s;
+  }
+
+  .scroll-summon-particles {
+    position: absolute;
+    inset: 0;
+  }
+
+  .scroll-summon-particle {
+    position: absolute;
+    left: var(--particle-left);
+    width: var(--particle-size);
+    height: var(--particle-size);
+    border-radius: 9999px;
+    background:
+      radial-gradient(circle, rgba(255, 255, 255, 0.92) 0%, transparent 70%);
+    box-shadow: 0 0 22px color-mix(in srgb, var(--summon-accent-soft) 32%, transparent);
+    opacity: 0;
+    animation: leesh-scroll-summon-particle 1.4s ease-out both;
+    animation-delay: var(--particle-delay);
+  }
+
+  .scroll-summon-overlay-top .scroll-summon-particle {
+    top: 12%;
+  }
+
+  .scroll-summon-overlay-bottom .scroll-summon-particle {
+    bottom: 12%;
+  }
+
+  .scroll-reactive-item {
+    will-change: transform, filter;
+  }
+
+  .scroll-physics-original-hidden {
+    opacity: 0 !important;
+  }
+
+  .scroll-physics-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 120;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .scroll-physics-backdrop {
+    position: absolute;
+    inset: 0;
+  }
+
+  .scroll-physics-overlay-top .scroll-physics-backdrop {
+    background:
+      linear-gradient(
+        180deg,
+        rgba(91, 194, 255, 0.18) 0%,
+        rgba(91, 194, 255, 0.1) 26%,
+        rgba(91, 194, 255, 0.03) 54%,
+        transparent 100%
+      );
+    animation: leesh-scroll-physics-water 3.6s ease-out both;
+  }
+
+  .scroll-physics-overlay-bottom .scroll-physics-backdrop {
+    background:
+      radial-gradient(
+        ellipse at 50% 100%,
+        rgba(255, 127, 99, 0.16) 0%,
+        rgba(255, 127, 99, 0.06) 28%,
+        transparent 64%
+      );
+    animation: leesh-scroll-physics-impact 3.2s ease-out both;
+  }
+
+  .scroll-physics-clone {
+    position: fixed;
+    transform-origin: center center;
+    will-change: transform, filter, opacity;
+  }
+
+  .scroll-physics-clone-inner {
+    width: 100%;
+    height: 100%;
+  }
+
+  .scroll-physics-clone-inner > * {
+    margin: 0 !important;
+  }
+
+  .scroll-physics-clone-top {
+    animation:
+      leesh-scroll-physics-float-up 3.6s cubic-bezier(0.18, 0.82, 0.24, 1)
+      both;
+    animation-delay: var(--clone-delay, 0ms);
+  }
+
+  .scroll-physics-clone-bottom {
+    animation:
+      leesh-scroll-physics-collapse 3.1s cubic-bezier(0.2, 0.78, 0.28, 1) both;
+    animation-delay: var(--clone-delay, 0ms);
+  }
 }
 
 @keyframes leesh-orbit-spin {
@@ -1035,6 +1272,373 @@
   }
 }
 
+@keyframes leesh-scroll-summon-aura {
+  0% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.06);
+  }
+}
+
+@keyframes leesh-scroll-summon-burst-core {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) scaleX(0.6) scaleY(0.5);
+  }
+  18% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) scaleX(1.14) scaleY(1.2);
+  }
+}
+
+@keyframes leesh-scroll-summon-burst-wave {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) scaleX(0.4) scaleY(0.65);
+  }
+  15% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) scaleX(1.18) scaleY(1.26);
+  }
+}
+
+@keyframes leesh-scroll-summon-particle {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.7);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-76px) scale(1.2);
+  }
+}
+
+@keyframes leesh-scroll-water-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(36%);
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+}
+
+@keyframes leesh-scroll-impact-flash {
+  0% {
+    opacity: 0;
+    transform: scaleY(0.82);
+  }
+  18% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scaleY(1);
+  }
+}
+
+@keyframes leesh-scroll-float-up {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+    filter: saturate(1);
+  }
+  22% {
+    transform: translate3d(0, -34px, 0) rotate(-0.35deg);
+  }
+  46% {
+    transform: translate3d(0, -24px, 0) rotate(0.28deg);
+  }
+  68% {
+    transform: translate3d(0, -30px, 0) rotate(-0.18deg);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+    filter: saturate(1);
+  }
+}
+
+@keyframes leesh-scroll-fall-down {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+    filter: blur(0);
+  }
+  12% {
+    transform: translate3d(0, -8px, 0) rotate(0deg) scale(1);
+  }
+  78% {
+    transform: translate3d(0, 96px, 0) rotate(1.1deg) scale(0.988);
+    filter: blur(0.5px);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes leesh-scroll-fall-shiver {
+  from {
+    transform: translateY(0) rotate(0deg);
+  }
+  to {
+    transform: translateY(8px) rotate(0.7deg);
+  }
+}
+
+@keyframes leesh-scroll-physics-water {
+  0% {
+    opacity: 0;
+    transform: translateY(42%);
+  }
+  28% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+}
+
+@keyframes leesh-scroll-physics-impact {
+  0% {
+    opacity: 0;
+    transform: scaleY(0.84);
+  }
+  16% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scaleY(1);
+  }
+}
+
+@keyframes leesh-scroll-physics-float-up {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+    filter: saturate(1);
+  }
+  30% {
+    opacity: 1;
+    transform:
+      translate3d(
+        calc(var(--clone-tx, 0px) * 0.5),
+        calc(var(--clone-ty, 0px) * 0.72),
+        0
+      )
+      rotate(calc(var(--clone-rot, 0deg) * 0.45))
+      scale(var(--clone-scale, 1));
+  }
+  48% {
+    opacity: 1;
+    transform:
+      translate3d(var(--clone-tx, 0px), var(--clone-ty, 0px), 0)
+      rotate(var(--clone-rot, 0deg))
+      scale(var(--clone-scale, 1));
+    filter: saturate(1.08);
+  }
+  64% {
+    opacity: 1;
+    transform:
+      translate3d(
+        calc(var(--clone-tx, 0px) + 6px),
+        calc(var(--clone-ty, 0px) - 10px),
+        0
+      )
+      rotate(calc(var(--clone-rot, 0deg) * -0.65))
+      scale(calc(var(--clone-scale, 1) * 1.01));
+  }
+  80% {
+    opacity: 1;
+    transform:
+      translate3d(
+        calc(var(--clone-tx, 0px) - 5px),
+        calc(var(--clone-ty, 0px) - 3px),
+        0
+      )
+      rotate(calc(var(--clone-rot, 0deg) * 0.35))
+      scale(var(--clone-scale, 1));
+  }
+  100% {
+    opacity: 0;
+    transform:
+      translate3d(
+        calc(var(--clone-tx, 0px) + 2px),
+        calc(var(--clone-ty, 0px) - 6px),
+        0
+      )
+      rotate(calc(var(--clone-rot, 0deg) * 0.12))
+      scale(var(--clone-scale, 1));
+    filter: saturate(1);
+  }
+}
+
+@keyframes leesh-scroll-physics-collapse {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+    filter: blur(0);
+  }
+  8% {
+    transform: translate3d(-8px, 0, 0) rotate(-0.3deg) scale(1);
+  }
+  15% {
+    transform: translate3d(10px, 0, 0) rotate(0.32deg) scale(1);
+  }
+  22% {
+    transform: translate3d(-4px, -3px, 0) rotate(-0.18deg) scale(1);
+  }
+  52% {
+    opacity: 1;
+    transform:
+      translate3d(
+        calc(var(--clone-tx, 0px) * 0.48),
+        calc(var(--clone-ty, 0px) * 0.72),
+        0
+      )
+      rotate(calc(var(--clone-rot, 0deg) * 0.42))
+      scale(0.994);
+  }
+  72% {
+    opacity: 1;
+    transform:
+      translate3d(var(--clone-tx, 0px), var(--clone-ty, 0px), 0)
+      rotate(var(--clone-rot, 0deg))
+      scale(var(--clone-scale, 1));
+    filter: blur(0.42px);
+  }
+  84% {
+    opacity: 1;
+    transform:
+      translate3d(
+        calc(var(--clone-tx, 0px) + 2px),
+        calc(var(--clone-ty, 0px) + 14px),
+        0
+      )
+      rotate(calc(var(--clone-rot, 0deg) * -0.18))
+      scale(calc(var(--clone-scale, 1) * 0.988));
+    filter: blur(0.72px);
+  }
+  92% {
+    opacity: 1;
+    transform:
+      translate3d(var(--clone-tx, 0px), calc(var(--clone-ty, 0px) + 3px), 0)
+      rotate(calc(var(--clone-rot, 0deg) * 0.06))
+      scale(calc(var(--clone-scale, 1) * 0.994));
+    filter: blur(0.3px);
+  }
+  100% {
+    opacity: 0;
+    transform:
+      translate3d(var(--clone-tx, 0px), var(--clone-ty, 0px), 0)
+      rotate(calc(var(--clone-rot, 0deg) * 0.04))
+      scale(var(--clone-scale, 1));
+    filter: blur(0);
+  }
+}
+
+@keyframes leesh-scroll-item-flood-top {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+    filter: saturate(1);
+  }
+  28% {
+    transform:
+      translate3d(0, calc(var(--scroll-react-y, 0px) * 0.72), 0)
+      rotate(calc(var(--scroll-react-tilt, 0deg) * 0.18))
+      scale(1.006);
+    filter: saturate(1.04);
+  }
+  48% {
+    transform:
+      translate3d(0, var(--scroll-react-y, 0px), 0)
+      rotate(var(--scroll-react-tilt, 0deg))
+      scale(1.01);
+    filter: saturate(1.08);
+  }
+  68% {
+    transform:
+      translate3d(0, calc(var(--scroll-react-y, 0px) - 7px), 0)
+      rotate(calc(var(--scroll-react-tilt, 0deg) * -0.08))
+      scale(1.012);
+    filter: saturate(1.07);
+  }
+  82% {
+    transform:
+      translate3d(0, calc(var(--scroll-react-y, 0px) - 2px), 0)
+      rotate(calc(var(--scroll-react-tilt, 0deg) * 0.04))
+      scale(1.006);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+    filter: saturate(1);
+  }
+}
+
+@keyframes leesh-scroll-item-crash-bottom {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+    filter: blur(0);
+  }
+  8% {
+    transform: translate3d(-8px, 0, 0) rotate(-0.1deg) scale(1);
+  }
+  14% {
+    transform: translate3d(10px, 0, 0) rotate(0.1deg) scale(1);
+  }
+  20% {
+    transform: translate3d(-5px, -4px, 0) rotate(-0.08deg) scale(1);
+  }
+  44% {
+    transform:
+      translate3d(0, calc(var(--scroll-react-y, 0px) * 0.68), 0)
+      rotate(calc(var(--scroll-react-tilt, 0deg) * 0.2))
+      scale(0.996);
+    filter: blur(0.2px);
+  }
+  64% {
+    transform:
+      translate3d(0, var(--scroll-react-y, 0px), 0)
+      rotate(var(--scroll-react-tilt, 0deg))
+      scale(0.986);
+    filter: blur(0.55px);
+  }
+  78% {
+    transform:
+      translate3d(0, calc(var(--scroll-react-y, 0px) + 18px), 0)
+      rotate(calc(var(--scroll-react-tilt, 0deg) * -0.1))
+      scale(0.976);
+      filter: blur(0.72px);
+  }
+  90% {
+    transform:
+      translate3d(0, calc(var(--scroll-react-y, 0px) + 3px), 0)
+      rotate(calc(var(--scroll-react-tilt, 0deg) * 0.04))
+      scale(0.985);
+    filter: blur(0.34px);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+    filter: blur(0);
+  }
+}
+
 @media (hover: hover) and (pointer: fine) {
   .card,
   .surface,
@@ -1127,6 +1731,78 @@ body.world-boss-active {
   animation: leesh-world-boss-shake 260ms steps(2, jump-none) infinite;
 }
 
+html.scroll-summon-top-active body {
+  background:
+    radial-gradient(
+      720px 360px at 50% 18%,
+      rgba(109, 90, 255, 0.22),
+      transparent 62%
+    ),
+    radial-gradient(
+      760px 420px at 50% 64%,
+      rgba(38, 198, 255, 0.16),
+      transparent 68%
+    ),
+    radial-gradient(
+      900px 500px at 10% 0%,
+      rgba(109, 90, 255, 0.18),
+      transparent 60%
+    ),
+    radial-gradient(
+      900px 500px at 90% 10%,
+      rgba(38, 198, 255, 0.14),
+      transparent 55%
+    ),
+    radial-gradient(
+      900px 700px at 50% 100%,
+      rgba(109, 90, 255, 0.1),
+      transparent 60%
+    ),
+    var(--bg);
+}
+
+html.scroll-summon-bottom-active body {
+  background:
+    radial-gradient(
+      720px 360px at 50% 86%,
+      rgba(255, 127, 99, 0.22),
+      transparent 62%
+    ),
+    radial-gradient(
+      760px 420px at 50% 72%,
+      rgba(243, 201, 91, 0.15),
+      transparent 68%
+    ),
+    radial-gradient(
+      900px 500px at 10% 0%,
+      rgba(109, 90, 255, 0.18),
+      transparent 60%
+    ),
+    radial-gradient(
+      900px 500px at 90% 10%,
+      rgba(38, 198, 255, 0.14),
+      transparent 55%
+    ),
+    radial-gradient(
+      900px 700px at 50% 100%,
+      rgba(109, 90, 255, 0.1),
+      transparent 60%
+    ),
+    var(--bg);
+}
+
+html.scroll-summon-top-active .scroll-reactive-item {
+  animation:
+    leesh-scroll-item-flood-top 3.2s cubic-bezier(0.12, 0.88, 0.22, 1) both;
+  animation-delay: var(--scroll-react-delay, 0ms);
+}
+
+html.scroll-summon-bottom-active .scroll-reactive-item {
+  animation:
+    leesh-scroll-item-crash-bottom 3s cubic-bezier(0.14, 0.82, 0.28, 1) both;
+  animation-delay: var(--scroll-react-delay, 0ms);
+}
+
 @media (min-width: 1024px) {
   .world-boss-button {
     right: 16px;
@@ -1198,6 +1874,12 @@ body.world-boss-active {
   .world-boss-ring-b,
   .world-boss-ring-c,
   .world-boss-damage,
+  .scroll-summon-aura,
+  .scroll-summon-burst-core,
+  .scroll-summon-burst-wave,
+  .scroll-summon-particle,
+  .scroll-physics-backdrop,
+  .scroll-physics-clone,
   .stagger-in > * {
     animation: none !important;
     opacity: 1 !important;
@@ -1206,6 +1888,17 @@ body.world-boss-active {
 
   body.world-boss-active {
     animation: none !important;
+  }
+
+  html.scroll-summon-top-active .scroll-reactive-item,
+  html.scroll-summon-bottom-active .scroll-reactive-item {
+    animation: none !important;
+    transform: none !important;
+    filter: none !important;
+  }
+
+  .scroll-physics-original-hidden {
+    opacity: 1 !important;
   }
 
   .skeleton::after {

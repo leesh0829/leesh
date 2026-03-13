@@ -963,6 +963,7 @@ export default function CalendarClient() {
                               <div
                                 key={`${barAnimSeed}:${b.it.id}:${b.lane}:${b.colStart}:${b.colEnd}`}
                                 className="calendar-bar-enter"
+                                data-scroll-physics-include="true"
                                 style={{
                                   gridColumn: `${colFrom} / ${colTo}`,
                                   gridRow: 1,
@@ -1140,6 +1141,7 @@ export default function CalendarClient() {
                             return (
                               <div
                                 key={key}
+                                data-scroll-physics-include="true"
                                 style={{
                                   border: '1px solid var(--border)',
                                   background: 'transparent',

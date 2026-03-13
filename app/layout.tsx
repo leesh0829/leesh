@@ -7,6 +7,7 @@ import { cookies } from 'next/headers'
 import Providers from './components/Providers'
 import AppShell from './components/AppShell'
 import GlobalTopRightControls from './components/GlobalTopRightControls'
+import HeadingHackEffect from './components/HeadingHackEffect'
 import InversionMode from './components/InversionMode'
 import ScrollSummonEffect from './components/ScrollSummonEffect'
 import TitlePrank from './components/TitlePrank'
@@ -90,6 +91,7 @@ export default async function RootLayout({
         />
         <Providers>
           <TitlePrank />
+          <HeadingHackEffect />
           <InversionMode />
           <ScrollSummonEffect />
           <div className="app-physics-layer">

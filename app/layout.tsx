@@ -7,6 +7,7 @@ import { cookies } from 'next/headers'
 import Providers from './components/Providers'
 import AppShell from './components/AppShell'
 import GlobalTopRightControls from './components/GlobalTopRightControls'
+import TitlePrank from './components/TitlePrank'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -85,6 +86,7 @@ export default async function RootLayout({
           }}
         />
         <Providers>
+          <TitlePrank />
           <GlobalTopRightControls />
           <AppShell>{children}</AppShell>
         </Providers>

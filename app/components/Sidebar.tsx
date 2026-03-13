@@ -6,6 +6,7 @@ import { signOut, useSession } from 'next-auth/react'
 import { useEffect, useMemo, useState } from 'react'
 import { displayUserLabel } from '@/app/lib/userLabel'
 import DailyQuestCard from './DailyQuestCard'
+import DailyLuckCard from './DailyLuckCard'
 
 type Props = {
   open: boolean
@@ -195,6 +196,7 @@ export default function Sidebar({
               </button>
             </div>
             <ul>
+              <li className="mt-3 text-sm">사이드바 오늘의 행운 카드 추가</li>
               <li className="mt-3 text-sm">사이드바 일일 랜덤 퀘스트 추가</li>
               <li className="mt-3 text-sm">업데이트 내역 기능 추가</li>
               <li className="mt-3 text-sm">블로그 트리 추가</li>
@@ -323,6 +325,7 @@ export default function Sidebar({
             </div>
 
             <DailyQuestCard onNavigate={onClose} />
+            <DailyLuckCard />
           </div>
 
           <div className="mt-4">

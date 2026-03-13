@@ -649,6 +649,49 @@
       scale(0.8);
     animation: leesh-quest-burst 720ms cubic-bezier(0.16, 1, 0.3, 1) both;
   }
+
+  .daily-luck-card {
+    position: relative;
+    overflow: hidden;
+    border-radius: calc(var(--radius) - 4px);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    isolation: isolate;
+  }
+
+  .daily-luck-card::before {
+    content: '';
+    position: absolute;
+    inset: -20% -10% auto 55%;
+    height: 110px;
+    border-radius: 9999px;
+    background: radial-gradient(
+      circle,
+      rgba(255, 255, 255, 0.3) 0%,
+      rgba(255, 255, 255, 0) 72%
+    );
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .daily-luck-card > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .daily-luck-symbol {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 56px;
+    min-height: 56px;
+    border-radius: 18px;
+    border: 1px solid color-mix(in srgb, var(--border), white 12%);
+    background: color-mix(in srgb, var(--fg), transparent 95%);
+    font-size: 28px;
+    line-height: 1;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  }
 }
 
 @keyframes leesh-orbit-spin {

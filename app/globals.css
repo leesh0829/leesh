@@ -975,6 +975,54 @@
     }
   }
 
+  .inversion-mode-banner {
+    position: fixed;
+    left: 50%;
+    bottom: 1.25rem;
+    z-index: 95;
+    padding: 0.7rem 1rem;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    transform: translateX(-50%);
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--border));
+    background:
+      linear-gradient(
+        135deg,
+        rgba(124, 109, 255, 0.22),
+        rgba(38, 198, 255, 0.16)
+      ),
+      var(--card);
+    box-shadow:
+      0 18px 36px rgba(11, 16, 32, 0.12),
+      0 0 0 1px rgba(255, 255, 255, 0.18) inset;
+    backdrop-filter: blur(16px);
+    animation: leesh-inversion-banner 6800ms cubic-bezier(0.2, 0.8, 0.2, 1)
+      both;
+  }
+
+  html.ui-inversion-active body {
+    background:
+      radial-gradient(
+        780px 360px at 18% 14%,
+        rgba(255, 127, 99, 0.11),
+        transparent 62%
+      ),
+      radial-gradient(
+        720px 340px at 84% 18%,
+        rgba(124, 109, 255, 0.12),
+        transparent 60%
+      ),
+      radial-gradient(
+        640px 340px at 50% 100%,
+        rgba(38, 198, 255, 0.1),
+        transparent 62%
+      ),
+      var(--bg);
+  }
+
   .daily-luck-symbol {
     display: inline-flex;
     align-items: center;
@@ -2043,6 +2091,25 @@
   }
 }
 
+@keyframes leesh-inversion-banner {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px) scale(0.92);
+    filter: blur(6px);
+  }
+  12%,
+  78% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(8px) scale(0.96);
+    filter: blur(4px);
+  }
+}
+
 @media (hover: hover) and (pointer: fine) {
   .card,
   .surface,
@@ -2269,6 +2336,7 @@ html.scroll-summon-bottom-active .scroll-reactive-item {
   .modal-enter,
   .toast-enter,
   .toast-exit,
+  .inversion-mode-banner,
   .calendar-bar-enter,
   .not-found-portal,
   .not-found-ripple,

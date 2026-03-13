@@ -12,7 +12,7 @@ export default function Footer() {
         <div className="surface px-4 py-3">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
             <div></div>
-            <div>© {year} Leesh. All rights reserved.</div>
+            <div data-inversion-trigger="true">© {year} Leesh. All rights reserved.</div>
             <div></div>
           </div>
         </div>

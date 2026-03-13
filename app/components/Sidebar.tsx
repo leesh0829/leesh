@@ -196,6 +196,7 @@ export default function Sidebar({
               </button>
             </div>
             <ul>
+              <li className="mt-3 text-sm">월드 보스 버튼 이스터에그 추가</li>
               <li className="mt-3 text-sm">사이드바 오늘의 행운 카드 추가</li>
               <li className="mt-3 text-sm">사이드바 일일 랜덤 퀘스트 추가</li>
               <li className="mt-3 text-sm">업데이트 내역 기능 추가</li>

@@ -8,6 +8,7 @@ import Providers from './components/Providers'
 import AppShell from './components/AppShell'
 import GlobalTopRightControls from './components/GlobalTopRightControls'
 import TitlePrank from './components/TitlePrank'
+import WorldBossButton from './components/WorldBossButton'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -87,6 +88,7 @@ export default async function RootLayout({
         />
         <Providers>
           <TitlePrank />
+          <WorldBossButton />
           <GlobalTopRightControls />
           <AppShell>{children}</AppShell>
         </Providers>

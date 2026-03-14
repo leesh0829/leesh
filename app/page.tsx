@@ -1,5 +1,10 @@
 import Link from 'next/link'
 
+/**
+ * Renders the application's homepage with a header, category chips, a grid of feature cards, and an upcoming tasks list.
+ *
+ * @returns A JSX element representing the homepage layout, including the Leesh link and description, a dashboard button, rounded category chips, five feature cards (Blog, Boards, TODO, Calendar, Mini Game), and a short "next tasks" list.
+ */
 export default function HomePage() {
   return (
     <main className="mx-auto w-full max-w-4xl">
@@ -28,7 +33,7 @@ export default function HomePage() {
         </div>
 
         <div className="mt-5 flex flex-wrap gap-2">
-          {['블로그', '게시판', 'TODO', '캘린더'].map((t) => (
+          {['블로그', '게시판', 'TODO', '캘린더', '미니 게임'].map((t) => (
             <span
               key={t}
               className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300"
@@ -63,6 +68,12 @@ export default function HomePage() {
           desc="월 단위 일정 뷰"
           href="/calendar"
           actions={[{ label: '캘린더 가기', href: '/calendar' }]}
+        />
+        <Card
+          title="미니 게임"
+          desc="홈과 사이드바에서 바로 여는 반응속도 테스트"
+          href="/minigame"
+          actions={[{ label: '플레이', href: '/minigame' }]}
         />
       </section>
 

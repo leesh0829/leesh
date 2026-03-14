@@ -71,6 +71,19 @@ function NavItem({
   )
 }
 
+/**
+ * Sidebar component providing responsive, permission-aware navigation, account controls, and auxiliary widgets.
+ *
+ * Renders a mobile-overlay and a desktop sticky sidebar that fetches permission data to build the navigation list,
+ * highlights the active route, shows account/login controls, includes DailyQuestCard and DailyLuckCard, a Mini Game block,
+ * and an updates modal.
+ *
+ * @param open - Whether the mobile sidebar overlay is open.
+ * @param onClose - Callback to close the sidebar (used for mobile overlay and link navigation).
+ * @param desktopOpen - Whether the desktop sidebar is expanded and visible.
+ * @param onToggleDesktop - Callback to toggle the desktop sidebar's expanded/collapsed state.
+ * @returns The sidebar JSX element.
+ */
 export default function Sidebar({
   open,
   onClose,
@@ -196,6 +209,7 @@ export default function Sidebar({
               </button>
             </div>
             <ul>
+              <li className="mt-3 text-sm">미니 게임 Reflex Sprint 추가</li>
               <li className="mt-3 text-sm">스크롤 소환 연출 추가</li>
               <li className="mt-3 text-sm">월드 보스 버튼 이스터에그 추가</li>
               <li className="mt-3 text-sm">사이드바 오늘의 행운 카드 추가</li>
@@ -328,6 +342,31 @@ export default function Sidebar({
 
             <DailyQuestCard onNavigate={onClose} />
             <DailyLuckCard />
+            <section className="surface mt-4 p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] opacity-65">
+                    Mini Game
+                  </div>
+                  <div className="mt-1 text-sm font-semibold">
+                    Reflex Sprint
+                  </div>
+                </div>
+                <span className="badge">NEW</span>
+              </div>
+
+              <p className="mt-2 text-xs leading-5 opacity-80">
+                신호가 뜨는 순간 눌러서 반응속도를 재는 초소형 게임입니다.
+              </p>
+
+              <Link
+                href="/minigame"
+                onClick={onClose}
+                className="btn btn-primary mt-3 w-full"
+              >
+                열기
+              </Link>
+            </section>
           </div>
 
           <div className="mt-4">

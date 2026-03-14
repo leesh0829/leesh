@@ -33,12 +33,18 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     const segments = pathname.split('/').filter(Boolean)
     return segments.length === 2 && segments[0] === 'blog'
   }, [pathname])
+  const isBoardPostDetail = useMemo(() => {
+    if (!pathname.startsWith('/boards/')) return false
+    const segments = pathname.split('/').filter(Boolean)
+    return segments.length === 3 && segments[0] === 'boards'
+  }, [pathname])
   const isWideLayout = useMemo(
     () =>
       isBlogDetail ||
+      isBoardPostDetail ||
       pathname.startsWith('/calendar') ||
       pathname.startsWith('/todos'),
-    [isBlogDetail, pathname]
+    [isBlogDetail, isBoardPostDetail, pathname]
   )
 
   // mobile sidebar
@@ -148,7 +154,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         ) : null}
 
         {/* Scroll container */}
-        <div className="min-w-0 flex-1 overflow-y-auto pb-[calc(72px+env(safe-area-inset-bottom))] lg:pb-0">
+        <div className="app-scroll-container min-w-0 flex-1 overflow-y-auto pb-[calc(72px+env(safe-area-inset-bottom))] lg:pb-0">
           <div className="min-h-full flex flex-col">
             {/* desktop 상단 컨트롤: 사이드바 열기 + 블로그 목록 복귀 */}
             {!desktopOpen || isBlogDetail ? (

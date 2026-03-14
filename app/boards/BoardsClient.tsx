@@ -74,7 +74,6 @@ export default function BoardsClient({
     const start = (currentPage - 1) * BOARD_PAGE_SIZE
     return sortedBoards.slice(start, start + BOARD_PAGE_SIZE)
   }, [sortedBoards, currentPage])
-
   const reload = async () => {
     const res = await fetch('/api/boards')
     if (res.ok) setBoards(await res.json())

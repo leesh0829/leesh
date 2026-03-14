@@ -6,7 +6,13 @@ import { cookies } from 'next/headers'
 
 import Providers from './components/Providers'
 import AppShell from './components/AppShell'
+import DotMode from './components/DotMode'
 import GlobalTopRightControls from './components/GlobalTopRightControls'
+import HeadingHackEffect from './components/HeadingHackEffect'
+import InversionMode from './components/InversionMode'
+import ScrollSummonEffect from './components/ScrollSummonEffect'
+import TitlePrank from './components/TitlePrank'
+import WorldBossButton from './components/WorldBossButton'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -20,7 +26,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: 'Leesh',
-  description: 'Portfolio + Blog + Boards + TODO + Calendar',
+  description: 'helping people find their way',
 }
 
 const THEME_COOKIE_KEY = 'leesh-theme'
@@ -85,8 +91,16 @@ export default async function RootLayout({
           }}
         />
         <Providers>
-          <GlobalTopRightControls />
-          <AppShell>{children}</AppShell>
+          <TitlePrank />
+          <DotMode />
+          <HeadingHackEffect />
+          <InversionMode />
+          <ScrollSummonEffect />
+          <div className="app-physics-layer">
+            <WorldBossButton />
+            <GlobalTopRightControls />
+            <AppShell>{children}</AppShell>
+          </div>
         </Providers>
       </body>
     </html>

@@ -303,7 +303,6 @@ export default function BoardDetailClient({
     const start = (currentPostPage - 1) * POST_PAGE_SIZE
     return sortedPosts.slice(start, start + POST_PAGE_SIZE)
   }, [sortedPosts, currentPostPage])
-
   return (
     <main className="container-page py-8">
       <div className="surface card-pad card-hover-border-only">

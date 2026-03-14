@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { signOut, useSession } from 'next-auth/react'
 import { useEffect, useMemo, useState } from 'react'
 import { displayUserLabel } from '@/app/lib/userLabel'
+import MiniGameClient from '@/app/minigame/MiniGameClient'
 
 type Props = {
   open: boolean
@@ -69,19 +70,6 @@ function NavItem({
   )
 }
 
-/**
- * Sidebar component providing responsive, permission-aware navigation, account controls, and auxiliary widgets.
- *
- * Renders a mobile-overlay and a desktop sticky sidebar that fetches permission data to build the navigation list,
- * highlights the active route, shows account/login controls, includes DailyQuestCard and DailyLuckCard, a Mini Game block,
- * and an updates modal.
- *
- * @param open - Whether the mobile sidebar overlay is open.
- * @param onClose - Callback to close the sidebar (used for mobile overlay and link navigation).
- * @param desktopOpen - Whether the desktop sidebar is expanded and visible.
- * @param onToggleDesktop - Callback to toggle the desktop sidebar's expanded/collapsed state.
- * @returns The sidebar JSX element.
- */
 export default function Sidebar({
   open,
   onClose,
@@ -93,6 +81,7 @@ export default function Sidebar({
 
   const [perms, setPerms] = useState<Perm[] | null>(null)
   const [showUpdates, setShowUpdates] = useState(false)
+  const [mode, setMode] = useState<'menu' | 'game'>('menu')
 
   useEffect(() => {
     ;(async () => {
@@ -207,7 +196,7 @@ export default function Sidebar({
               </button>
             </div>
             <ul>
-              <li className="mt-3 text-sm">미니 게임 Reflex Sprint 추가</li>
+              <li className="mt-3 text-sm">사이드바 미니 게임 아케이드 추가</li>
               <li className="mt-3 text-sm">스크롤 소환 연출 추가</li>
               <li className="mt-3 text-sm">월드 보스 버튼 이스터에그 추가</li>
               <li className="mt-3 text-sm">사이드바 오늘의 행운 카드 추가</li>
@@ -252,8 +241,8 @@ export default function Sidebar({
             ? ' lg:w-64 lg:p-4'
             : ' lg:w-0 lg:p-0 lg:overflow-hidden lg:border-r-0')
         }
-      >
-        <div
+        >
+          <div
           className={
             'flex h-full min-h-0 flex-col transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none ' +
             (desktopOpen
@@ -262,9 +251,34 @@ export default function Sidebar({
           }
         >
           <div className="mb-4 flex items-center justify-between">
-            <Link href="/" onClick={onClose} className="text-base font-bold">
-              Leesh
-            </Link>
+            {mode === 'game' ? (
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={() => setMode('menu')}
+                aria-label="사이드바 메뉴로 돌아가기"
+                title="돌아가기"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  className="h-4 w-4"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M15 5L8 12L15 19"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+            ) : (
+              <Link href="/" onClick={onClose} className="text-base font-bold">
+                Leesh
+              </Link>
+            )}
 
             {/* desktop hide 버튼 */}
             <button
@@ -287,67 +301,112 @@ export default function Sidebar({
             </button>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            <nav className="grid gap-1">
-              {nav.map((n) => (
-                <NavItem
-                  key={n.href}
-                  href={n.href}
-                  label={n.label}
-                  active={
-                    pathname === n.href ||
-                    (n.href !== '/' && pathname.startsWith(n.href))
-                  }
-                  onNavigate={onClose}
-                />
-              ))}
-            </nav>
-
-            <div className="mt-6 card p-3 text-sm">
-              <div className="mb-2 font-semibold">계정</div>
-              <div className="truncate opacity-80">{userLabel}</div>
-
-              <div className="mt-3 flex gap-2">
-                {session?.user ? (
-                  <button
-                    type="button"
-                    onClick={() => signOut({ callbackUrl: '/' })}
-                    className="w-full btn btn-primary"
-                  >
-                    로그아웃
-                  </button>
-                ) : (
-                  <div className="flex w-full gap-2">
-                    <Link
-                      href="/login"
-                      onClick={onClose}
-                      className="w-1/2 btn btn-primary text-center"
-                    >
-                      로그인
-                    </Link>
-
-                    <Link
-                      href="/sign-up"
-                      onClick={onClose}
-                      className="w-1/2 btn btn-outline text-center"
-                    >
-                      회원가입
-                    </Link>
-                  </div>
-                )}
-              </div>
+          {mode === 'game' ? (
+            <div className="min-h-0 flex-1 overflow-hidden">
+              <MiniGameClient />
             </div>
-          </div>
+          ) : (
+            <>
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                <nav className="grid gap-1">
+                  {nav.map((n) => (
+                    <NavItem
+                      key={n.href}
+                      href={n.href}
+                      label={n.label}
+                      active={
+                        pathname === n.href ||
+                        (n.href !== '/' && pathname.startsWith(n.href))
+                      }
+                      onNavigate={onClose}
+                    />
+                  ))}
+                </nav>
 
-          <div className="mt-4">
-            <button
-              type="button"
-              className="btn btn-outline w-full"
-              onClick={() => setShowUpdates(true)}
-            >
-              📄
-            </button>
-          </div>
+                <div className="mt-6 card p-3 text-sm">
+                  <div className="mb-2 font-semibold">계정</div>
+                  <div className="truncate opacity-80">{userLabel}</div>
+
+                  <div className="mt-3 flex gap-2">
+                    {session?.user ? (
+                      <button
+                        type="button"
+                        onClick={() => signOut({ callbackUrl: '/' })}
+                        className="w-full btn btn-primary"
+                      >
+                        로그아웃
+                      </button>
+                    ) : (
+                      <div className="flex w-full gap-2">
+                        <Link
+                          href="/login"
+                          onClick={onClose}
+                          className="w-1/2 btn btn-primary text-center"
+                        >
+                          로그인
+                        </Link>
+
+                        <Link
+                          href="/sign-up"
+                          onClick={onClose}
+                          className="w-1/2 btn btn-outline text-center"
+                        >
+                          회원가입
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  className="btn btn-outline w-full"
+                  onClick={() => setMode('game')}
+                  aria-label="미니 게임 열기"
+                  title="미니 게임"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    className="h-4 w-4"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M7 9H17C19.2091 9 21 10.7909 21 13V14C21 16.2091 19.2091 18 17 18H7C4.79086 18 3 16.2091 3 14V13C3 10.7909 4.79086 9 7 9Z"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M8 13H12"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M10 11V15"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <circle cx="16.5" cy="12.5" r="1" fill="currentColor" stroke="none" />
+                    <circle cx="18.5" cy="14.5" r="1" fill="currentColor" stroke="none" />
+                  </svg>
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-outline w-full"
+                  onClick={() => setShowUpdates(true)}
+                  aria-label="업데이트 내역 열기"
+                  title="업데이트 내역"
+                >
+                  📄
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </aside>
     </>

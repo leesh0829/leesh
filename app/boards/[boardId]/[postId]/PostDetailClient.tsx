@@ -15,6 +15,9 @@ import { displayUserLabel } from '@/app/lib/userLabel'
 import MarkdownEditor from '@/app/components/MarkdownEditor'
 import { useToast } from '@/app/components/ToastProvider'
 import { sanitizedMarkdownSchema } from '@/app/lib/markdown'
+import SectionTocClient, {
+  type TocHeading,
+} from '@/app/components/SectionTocClient'
 
 type Post = {
   id: string
@@ -79,6 +82,58 @@ async function readJsonSafely(res: Response): Promise<unknown> {
   } catch {
     return null
   }
+}
+
+function slugifyHeading(text: string): string {
+  const normalized = text
+    .toLowerCase()
+    .trim()
+    .replace(/[`*_~[\](){}<>]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9가-힣-_]/g, '')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+
+  return normalized || 'section'
+}
+
+function normalizeHeadingText(raw: string): string {
+  return raw
+    .replace(/\[(.*?)\]\((.*?)\)/g, '$1')
+    .replace(/[`*_~]/g, '')
+    .trim()
+}
+
+function extractMarkdownHeadings(markdown: string): TocHeading[] {
+  const lines = markdown.split(/\r?\n/)
+  const counters = new Map<string, number>()
+  const headings: TocHeading[] = []
+  let inCodeFence = false
+
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (trimmed.startsWith('```') || trimmed.startsWith('~~~')) {
+      inCodeFence = !inCodeFence
+      continue
+    }
+    if (inCodeFence) continue
+
+    const m = line.match(/^(#{1,6})\s+(.+?)\s*#*\s*$/)
+    if (!m) continue
+
+    const level = m[1].length
+    const text = normalizeHeadingText(m[2])
+    if (!text) continue
+
+    const base = slugifyHeading(text)
+    const used = counters.get(base) ?? 0
+    counters.set(base, used + 1)
+    const id = used === 0 ? base : `${base}-${used + 1}`
+
+    headings.push({ id, text, level })
+  }
+
+  return headings
 }
 
 /**
@@ -222,6 +277,10 @@ export default function PostDetailClient({
   const [allDay, setAllDay] = useState(() => !!postState.allDay)
   const [scheduleError, setScheduleError] = useState<string | null>(null)
   const [scheduleSaving, setScheduleSaving] = useState(false)
+  const tocHeadings = useMemo(
+    () => extractMarkdownHeadings(postState.contentMd ?? ''),
+    [postState.contentMd]
+  )
 
   useEffect(() => {
     setStartLocal(toDatetimeLocalValue(postState.startAt ?? null))
@@ -445,10 +504,34 @@ export default function PostDetailClient({
     setCommentsError(message)
     toast.error(message)
   }
+  const tocVisible = !locked && !editing && tocHeadings.length > 0
+
+  const headingIdQueue = [...tocHeadings.map((h) => h.id)]
+  const nextHeadingId = () => headingIdQueue.shift() ?? undefined
+
+  const headingComponent = (
+    Tag: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'
+  ) =>
+    function Heading({
+      children,
+      ...props
+    }: React.HTMLAttributes<HTMLHeadingElement>) {
+      const id = nextHeadingId()
+      return (
+        <Tag id={id} className="scroll-mt-24" {...props}>
+          {children}
+        </Tag>
+      )
+    }
 
   return (
-    <main className="container-page py-8">
-      <div className="surface card-pad card-hover-border-only">
+    <main className="py-8">
+      <div
+        className={
+          'relative ' + (tocVisible ? 'lg:pr-[320px]' : '')
+        }
+      >
+        <div className="surface card-pad card-hover-border-only">
         <Link href={`/boards/${boardId}`} className="btn btn-outline">
           ← {boardName}
         </Link>
@@ -646,6 +729,12 @@ export default function PostDetailClient({
                       rehypeHighlight,
                     ]}
                     components={{
+                      h1: headingComponent('h1'),
+                      h2: headingComponent('h2'),
+                      h3: headingComponent('h3'),
+                      h4: headingComponent('h4'),
+                      h5: headingComponent('h5'),
+                      h6: headingComponent('h6'),
                       img: ({ alt, src, ...props }) => {
                         const safeSrc =
                           typeof src === 'string' ? src.trim() : ''
@@ -674,7 +763,7 @@ export default function PostDetailClient({
           </section>
         )}
 
-        <section className="card card-pad mt-6 card-hover-border-only">
+          <section className="card card-pad mt-6 card-hover-border-only">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-bold">댓글</h3>
             <span className="badge">{comments.length}</span>
@@ -797,7 +886,14 @@ export default function PostDetailClient({
                   )
                 })}
           </div>
-        </section>
+          </section>
+        </div>
+
+        {tocVisible ? (
+          <div className="hidden lg:fixed lg:right-6 lg:top-1/2 lg:block lg:w-[280px] lg:-translate-y-1/2">
+            <SectionTocClient headings={tocHeadings} title="본문 목차" />
+          </div>
+        ) : null}
       </div>
     </main>
   )

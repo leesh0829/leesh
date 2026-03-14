@@ -33,12 +33,18 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     const segments = pathname.split('/').filter(Boolean)
     return segments.length === 2 && segments[0] === 'blog'
   }, [pathname])
+  const isBoardPostDetail = useMemo(() => {
+    if (!pathname.startsWith('/boards/')) return false
+    const segments = pathname.split('/').filter(Boolean)
+    return segments.length === 3 && segments[0] === 'boards'
+  }, [pathname])
   const isWideLayout = useMemo(
     () =>
       isBlogDetail ||
+      isBoardPostDetail ||
       pathname.startsWith('/calendar') ||
       pathname.startsWith('/todos'),
-    [isBlogDetail, pathname]
+    [isBlogDetail, isBoardPostDetail, pathname]
   )
 
   // mobile sidebar

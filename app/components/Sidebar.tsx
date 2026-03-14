@@ -5,8 +5,6 @@ import { usePathname } from 'next/navigation'
 import { signOut, useSession } from 'next-auth/react'
 import { useEffect, useMemo, useState } from 'react'
 import { displayUserLabel } from '@/app/lib/userLabel'
-import DailyQuestCard from './DailyQuestCard'
-import DailyLuckCard from './DailyLuckCard'
 
 type Props = {
   open: boolean
@@ -339,32 +337,6 @@ export default function Sidebar({
                 )}
               </div>
             </div>
-
-            <DailyQuestCard onNavigate={onClose} />
-            <DailyLuckCard />
-            <section className="surface mt-4 p-3">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] opacity-65">
-                    Mini Game
-                  </div>
-                  <div className="mt-1 text-sm font-semibold">Mini Arcade</div>
-                </div>
-                <span className="badge">NEW</span>
-              </div>
-
-              <p className="mt-2 text-xs leading-5 opacity-80">
-                반응속도, 숫자 러시, 타겟 클릭까지 가볍게 열 수 있는 초소형 게임 모음입니다.
-              </p>
-
-              <Link
-                href="/minigame"
-                onClick={onClose}
-                className="btn btn-primary mt-3 w-full"
-              >
-                열기
-              </Link>
-            </section>
           </div>
 
           <div className="mt-4">

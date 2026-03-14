@@ -1,4 +1,6 @@
 import Link from 'next/link'
+import DailyLuckCard from './components/DailyLuckCard'
+import DailyQuestCard from './components/DailyQuestCard'
 
 /**
  * Renders the application's homepage with a header, category chips, a grid of feature cards, and an upcoming tasks list.
@@ -77,14 +79,9 @@ export default function HomePage() {
         />
       </section>
 
-      <section className="surface card-pad mt-6">
-        <h2 className="text-base font-semibold">다음에 할 것들</h2>
-        <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-zinc-700 dark:text-zinc-300">
-          <li>할일1</li>
-          <li>할일2</li>
-          <li>할일3</li>
-          <li>할일4</li>
-        </ul>
+      <section className="mt-6 grid gap-4 lg:grid-cols-2">
+        <DailyQuestCard />
+        <DailyLuckCard />
       </section>
     </main>
   )

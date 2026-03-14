@@ -31,11 +31,18 @@ type CloneSpec = {
   zIndex: number
 }
 
+type EdgeState = {
+  atTop: boolean
+  atBottom: boolean
+  maxScroll: number
+}
+
 const SUMMON_DURATION_MS = 3600
 const OVERSCROLL_TRIGGER = 8000
 const MAX_REACTIVE_WIDTH_RATIO = 0.985
 const MAX_REACTIVE_HEIGHT_RATIO = 0.92
 const MAX_REACTIVE_AREA_RATIO = 0.78
+const EDGE_EPSILON = 2
 
 const CARD_SELECTOR = [
   '[data-scroll-physics-include="true"]',
@@ -100,30 +107,151 @@ const PRESETS: SummonPreset[] = [
   { accent: '#ff7f63', accentSoft: '#f3c95b' },
 ]
 
+/**
+ * Selects a random element from the provided array.
+ *
+ * @param items - The array to pick from
+ * @returns A random element from `items`, or `undefined` if `items` is empty
+ */
 function randomItem<T>(items: readonly T[]) {
   return items[Math.floor(Math.random() * items.length)] ?? items[0]
 }
 
-function getWindowEdgeState() {
-  const maxScroll = document.documentElement.scrollHeight - window.innerHeight
-  if (maxScroll <= 0) return { atTop: true, atBottom: true }
+/**
+ * Get the document element to use for reading or writing scroll position.
+ *
+ * @returns The scrolling element (`document.scrollingElement`) if present, otherwise `document.documentElement`
+ */
+function getWindowScrollElement() {
+  return document.scrollingElement ?? document.documentElement
+}
+
+/**
+ * Determine whether the window's vertical scroll is at the top or bottom and return the maximum scroll offset.
+ *
+ * If the document's maximum scrollable distance is less than or equal to EDGE_EPSILON, both `atTop` and `atBottom` are set to `true`.
+ *
+ * @returns An EdgeState with `atTop` true when the window scroll offset is less than or equal to EDGE_EPSILON, `atBottom` true when the window scroll offset is within EDGE_EPSILON of the maximum scrollable offset, and `maxScroll` as the maximum vertical scroll offset (always >= 0).
+ */
+function getWindowEdgeState(): EdgeState {
+  const scrollElement = getWindowScrollElement()
+  const maxScroll = Math.max(0, scrollElement.scrollHeight - window.innerHeight)
+  const scrollTop = Math.max(0, window.scrollY || scrollElement.scrollTop || 0)
+
+  if (maxScroll <= EDGE_EPSILON) {
+    return { atTop: true, atBottom: true, maxScroll }
+  }
 
   return {
-    atTop: window.scrollY <= 0,
-    atBottom: window.scrollY >= maxScroll - 1,
+    atTop: scrollTop <= EDGE_EPSILON,
+    atBottom: scrollTop >= maxScroll - EDGE_EPSILON,
+    maxScroll,
   }
 }
 
-function getElementEdgeState(element: HTMLElement) {
-  const maxScroll = element.scrollHeight - element.clientHeight
-  if (maxScroll <= 0) return { atTop: true, atBottom: true }
+/**
+ * Determine whether an element is scrolled to its top or bottom and report its maximum vertical scroll.
+ *
+ * @param element - The HTMLElement whose vertical scroll state to evaluate.
+ * @returns An EdgeState object: `atTop` is `true` if the element's scroll position is within EDGE_EPSILON pixels of the top, `atBottom` is `true` if within EDGE_EPSILON pixels of the bottom, and `maxScroll` is the maximum permissible `scrollTop` value (>= 0).
+ */
+function getElementEdgeState(element: HTMLElement): EdgeState {
+  const maxScroll = Math.max(0, element.scrollHeight - element.clientHeight)
+  const scrollTop = Math.max(0, element.scrollTop)
+
+  if (maxScroll <= EDGE_EPSILON) {
+    return { atTop: true, atBottom: true, maxScroll }
+  }
 
   return {
-    atTop: element.scrollTop <= 0,
-    atBottom: element.scrollTop >= maxScroll - 1,
+    atTop: scrollTop <= EDGE_EPSILON,
+    atBottom: scrollTop >= maxScroll - EDGE_EPSILON,
+    maxScroll,
   }
 }
 
+/**
+ * Determines whether an element is vertically scrollable.
+ *
+ * @param element - The element to test for vertical scrollability
+ * @returns `true` if the element's computed overflow allows vertical scrolling and its maximum scroll distance is greater than EDGE_EPSILON, `false` otherwise
+ */
+function isVerticallyScrollable(element: HTMLElement) {
+  const style = window.getComputedStyle(element)
+  if (!/(auto|scroll|overlay)/.test(style.overflowY)) return false
+
+  return getElementEdgeState(element).maxScroll > EDGE_EPSILON
+}
+
+/**
+ * Selects the vertical scroll root: the provided element if it is vertically scrollable, otherwise the global window.
+ *
+ * @param scrollTarget - Candidate HTMLElement to use as the scroll root
+ * @returns The `scrollTarget` when it can scroll vertically, `window` otherwise
+ */
+function getEffectiveScrollRoot(scrollTarget: HTMLElement | null) {
+  if (scrollTarget && isVerticallyScrollable(scrollTarget)) {
+    return scrollTarget
+  }
+
+  return window
+}
+
+/**
+ * Normalize an EventTarget to an HTMLElement when possible.
+ *
+ * @param target - The event target to normalize; may be an EventTarget, Node, or `null`
+ * @returns The corresponding HTMLElement if `target` is an `HTMLElement`, the `parentElement` when `target` is a `Node`, or `null` if no element can be resolved
+ */
+function getEventElement(target: EventTarget | null) {
+  if (target instanceof HTMLElement) return target
+  if (target instanceof Node) return target.parentElement
+  return null
+}
+
+/**
+ * Determine whether any ancestor between an event target and a root boundary can still scroll in the given vertical direction.
+ *
+ * @param target - The originating EventTarget (e.g., event.target); may be null.
+ * @param direction - 'top' to check for available upward scroll, 'bottom' to check for available downward scroll.
+ * @param rootBoundary - The element at which to stop searching (exclusive).
+ * @returns `true` if a nested vertically-scrollable ancestor exists that can scroll further in the specified direction, `false` otherwise.
+ */
+function hasNestedScrollInDirection(
+  target: EventTarget | null,
+  direction: SummonEdge,
+  rootBoundary: HTMLElement
+) {
+  let element = getEventElement(target)
+
+  while (element && element !== rootBoundary) {
+    if (isVerticallyScrollable(element)) {
+      const { maxScroll } = getElementEdgeState(element)
+      const scrollTop = Math.max(0, element.scrollTop)
+
+      if (direction === 'top' && scrollTop > EDGE_EPSILON) return true
+      if (direction === 'bottom' && scrollTop < maxScroll - EDGE_EPSILON) {
+        return true
+      }
+    }
+
+    element = element.parentElement
+  }
+
+  return false
+}
+
+/**
+ * Copies the current state of form controls from a source element into a cloned element.
+ *
+ * For corresponding input, textarea, and select controls matched by document order, this updates:
+ * - input: `value`, `checked`, `checked` attribute and `value` attribute;
+ * - textarea: `value` and `textContent`;
+ * - select: `value` and each option's `selected` state.
+ *
+ * @param sourceRoot - Root element containing the live form controls to read state from
+ * @param cloneRoot - Root element (typically a cloned subtree) to receive the copied state
+ */
 function syncFormState(sourceRoot: HTMLElement, cloneRoot: HTMLElement) {
   const sourceFields = sourceRoot.querySelectorAll<
     HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
@@ -330,6 +458,13 @@ function buildCloneSpecs(elements: HTMLElement[], edge: SummonEdge) {
   })
 }
 
+/**
+ * Displays a temporary "summon" overlay that clones and animates prominent page elements when the user overscrolls the top or bottom edge.
+ *
+ * When active, the component listens for scroll, wheel, and touch input to detect directional overscroll beyond a threshold, hides the original elements involved, adds edge-specific classes to the document root, and renders cloned elements with animated transforms and a themed backdrop. The summon automatically resets after a fixed duration and also resets on navigation or unmount. Event listeners and any DOM modifications are cleaned up when the effect ends.
+ *
+ * @returns The overlay DOM tree containing the backdrop and animated clones while a summon is active, or `null` when inactive.
+ */
 export default function ScrollSummonEffect() {
   const pathname = usePathname()
 
@@ -405,9 +540,17 @@ export default function ScrollSummonEffect() {
       '.app-scroll-container'
     ) as HTMLElement | null
 
+    const getRootBoundary = () => {
+      const scrollRoot = getEffectiveScrollRoot(scrollTarget)
+      return scrollRoot instanceof HTMLElement
+        ? scrollRoot
+        : (getWindowScrollElement() as HTMLElement)
+    }
+
     const getEdgeState = () => {
-      return scrollTarget
-        ? getElementEdgeState(scrollTarget)
+      const scrollRoot = getEffectiveScrollRoot(scrollTarget)
+      return scrollRoot instanceof HTMLElement
+        ? getElementEdgeState(scrollRoot)
         : getWindowEdgeState()
     }
 
@@ -472,14 +615,36 @@ export default function ScrollSummonEffect() {
       if (triggeredRef.current || active) return
 
       const wheelEvent = event as WheelEvent
+      const direction =
+        wheelEvent.deltaY > 0
+          ? 'bottom'
+          : wheelEvent.deltaY < 0
+            ? 'top'
+            : null
+      if (!direction) {
+        resetOverscroll()
+        return
+      }
+
+      if (
+        hasNestedScrollInDirection(
+          wheelEvent.target,
+          direction,
+          getRootBoundary()
+        )
+      ) {
+        resetOverscroll()
+        return
+      }
+
       const edgeState = getEdgeState()
 
-      if (edgeState.atBottom && wheelEvent.deltaY > 0) {
+      if (direction === 'bottom' && edgeState.atBottom) {
         accumulateOverscroll('bottom', Math.abs(wheelEvent.deltaY))
         return
       }
 
-      if (edgeState.atTop && wheelEvent.deltaY < 0) {
+      if (direction === 'top' && edgeState.atTop) {
         accumulateOverscroll('top', Math.abs(wheelEvent.deltaY))
         return
       }
@@ -502,15 +667,32 @@ export default function ScrollSummonEffect() {
 
       const delta = prevY - currentY
       touchYRef.current = currentY
+      const direction = delta > 0 ? 'bottom' : delta < 0 ? 'top' : null
+
+      if (!direction) {
+        resetOverscroll()
+        return
+      }
+
+      if (
+        hasNestedScrollInDirection(
+          touchEvent.target,
+          direction,
+          getRootBoundary()
+        )
+      ) {
+        resetOverscroll()
+        return
+      }
 
       const edgeState = getEdgeState()
 
-      if (edgeState.atBottom && delta > 0) {
+      if (direction === 'bottom' && edgeState.atBottom) {
         accumulateOverscroll('bottom', Math.abs(delta))
         return
       }
 
-      if (edgeState.atTop && delta < 0) {
+      if (direction === 'top' && edgeState.atTop) {
         accumulateOverscroll('top', Math.abs(delta))
         return
       }
@@ -522,19 +704,26 @@ export default function ScrollSummonEffect() {
       touchYRef.current = null
     }
 
-    const target: HTMLElement | Window = scrollTarget ?? window
-    target.addEventListener('scroll', onScroll, { passive: true })
-    target.addEventListener('wheel', onWheel, { passive: true })
-    target.addEventListener('touchstart', onTouchStart, { passive: true })
-    target.addEventListener('touchmove', onTouchMove, { passive: true })
-    target.addEventListener('touchend', onTouchEnd, { passive: true })
+    window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('wheel', onWheel, { passive: true })
+    window.addEventListener('touchstart', onTouchStart, { passive: true })
+    window.addEventListener('touchmove', onTouchMove, { passive: true })
+    window.addEventListener('touchend', onTouchEnd, { passive: true })
+
+    if (scrollTarget) {
+      scrollTarget.addEventListener('scroll', onScroll, { passive: true })
+    }
 
     return () => {
-      target.removeEventListener('scroll', onScroll as EventListener)
-      target.removeEventListener('wheel', onWheel)
-      target.removeEventListener('touchstart', onTouchStart)
-      target.removeEventListener('touchmove', onTouchMove)
-      target.removeEventListener('touchend', onTouchEnd)
+      window.removeEventListener('scroll', onScroll as EventListener)
+      window.removeEventListener('wheel', onWheel)
+      window.removeEventListener('touchstart', onTouchStart)
+      window.removeEventListener('touchmove', onTouchMove)
+      window.removeEventListener('touchend', onTouchEnd)
+
+      if (scrollTarget) {
+        scrollTarget.removeEventListener('scroll', onScroll as EventListener)
+      }
     }
   }, [active, pathname])
 

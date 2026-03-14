@@ -1023,6 +1023,124 @@
       var(--bg);
   }
 
+  html.dot-mode-active body {
+    image-rendering: pixelated;
+    background:
+      linear-gradient(rgba(14, 20, 38, 0.1) 50%, transparent 50%),
+      linear-gradient(90deg, rgba(22, 30, 56, 0.08) 50%, transparent 50%),
+      radial-gradient(
+        780px 460px at 50% 0%,
+        rgba(126, 255, 221, 0.18),
+        transparent 58%
+      ),
+      linear-gradient(180deg, #dde8ff 0%, #f8fbff 100%);
+    background-size:
+      8px 8px,
+      8px 8px,
+      auto,
+      auto;
+    font-family:
+      var(--font-geist-mono),
+      ui-monospace,
+      SFMono-Regular,
+      Menlo,
+      Monaco,
+      Consolas,
+      monospace;
+  }
+
+  html.dot-mode-active body::before,
+  html.dot-mode-active body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 80;
+  }
+
+  html.dot-mode-active body::before {
+    background:
+      repeating-linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.06) 0 2px,
+        transparent 2px 6px
+      );
+    mix-blend-mode: soft-light;
+    opacity: 0.55;
+  }
+
+  html.dot-mode-active body::after {
+    background:
+      radial-gradient(circle at center, transparent 0 55%, rgba(11, 16, 32, 0.12) 100%);
+    opacity: 0.9;
+  }
+
+  html.dot-mode-active .surface,
+  html.dot-mode-active .card,
+  html.dot-mode-active .btn,
+  html.dot-mode-active .badge,
+  html.dot-mode-active .nav-link,
+  html.dot-mode-active .input,
+  html.dot-mode-active .select,
+  html.dot-mode-active .textarea {
+    border-radius: 0 !important;
+    backdrop-filter: none !important;
+    box-shadow:
+      0 0 0 2px rgba(13, 25, 45, 0.16),
+      6px 6px 0 rgba(13, 25, 45, 0.12) !important;
+  }
+
+  html.dot-mode-active .surface,
+  html.dot-mode-active .card {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(231, 240, 255, 0.96)) !important;
+    border-color: rgba(14, 24, 42, 0.26) !important;
+  }
+
+  html.dot-mode-active .btn,
+  html.dot-mode-active .nav-link,
+  html.dot-mode-active .badge,
+  html.dot-mode-active .input,
+  html.dot-mode-active .select,
+  html.dot-mode-active .textarea {
+    background: #f6fbff !important;
+    border-color: rgba(15, 24, 40, 0.24) !important;
+  }
+
+  html.dot-mode-active .btn-primary,
+  html.dot-mode-active .nav-link-active {
+    color: #0d1a2a !important;
+    background:
+      linear-gradient(180deg, #a3ffe5 0%, #79d2ff 100%) !important;
+    border-color: rgba(13, 25, 45, 0.3) !important;
+    box-shadow:
+      0 0 0 2px rgba(13, 25, 45, 0.18),
+      6px 6px 0 rgba(76, 137, 255, 0.18) !important;
+  }
+
+  html.dot-mode-active h1,
+  html.dot-mode-active h2,
+  html.dot-mode-active h3,
+  html.dot-mode-active h4,
+  html.dot-mode-active h5,
+  html.dot-mode-active h6,
+  html.dot-mode-active .text-2xl,
+  html.dot-mode-active .text-xl,
+  html.dot-mode-active .text-lg,
+  html.dot-mode-active .text-base {
+    letter-spacing: -0.04em;
+    text-shadow: 2px 2px 0 rgba(126, 255, 221, 0.16);
+  }
+
+  html.dot-mode-active .daily-quest-card,
+  html.dot-mode-active .daily-luck-card,
+  html.dot-mode-active .not-found-creature,
+  html.dot-mode-active .world-boss-panel,
+  html.dot-mode-active .scroll-physics-overlay,
+  html.dot-mode-active .inversion-mode-banner {
+    filter: saturate(1.08) contrast(1.04);
+  }
+
   .daily-luck-symbol {
     display: inline-flex;
     align-items: center;
@@ -2324,6 +2442,11 @@ html.scroll-summon-bottom-active .scroll-reactive-item {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html.dot-mode-active body::before,
+  html.dot-mode-active body::after {
+    animation: none !important;
+  }
+
   .leesh-page .scroll-reveal,
   .leesh-page .scroll-reveal.is-visible {
     transition: none !important;

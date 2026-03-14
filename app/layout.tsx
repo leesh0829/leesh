@@ -6,6 +6,7 @@ import { cookies } from 'next/headers'
 
 import Providers from './components/Providers'
 import AppShell from './components/AppShell'
+import DotMode from './components/DotMode'
 import GlobalTopRightControls from './components/GlobalTopRightControls'
 import HeadingHackEffect from './components/HeadingHackEffect'
 import InversionMode from './components/InversionMode'
@@ -91,6 +92,7 @@ export default async function RootLayout({
         />
         <Providers>
           <TitlePrank />
+          <DotMode />
           <HeadingHackEffect />
           <InversionMode />
           <ScrollSummonEffect />

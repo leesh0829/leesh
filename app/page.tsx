@@ -66,7 +66,7 @@ export default function HomePage() {
         />
         <Card
           title="미니 게임"
-          desc="홈과 사이드바에서 바로 여는 반응속도 테스트"
+          desc="반응속도, 숫자 러시, 타겟 클릭까지 바로 여는 초소형 게임 모음"
           href="/minigame"
           actions={[{ label: '플레이', href: '/minigame' }]}
         />

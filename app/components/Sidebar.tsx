@@ -335,15 +335,13 @@ export default function Sidebar({
                   <div className="text-[11px] font-semibold uppercase tracking-[0.22em] opacity-65">
                     Mini Game
                   </div>
-                  <div className="mt-1 text-sm font-semibold">
-                    Reflex Sprint
-                  </div>
+                  <div className="mt-1 text-sm font-semibold">Mini Arcade</div>
                 </div>
                 <span className="badge">NEW</span>
               </div>
 
               <p className="mt-2 text-xs leading-5 opacity-80">
-                신호가 뜨는 순간 눌러서 반응속도를 재는 초소형 게임입니다.
+                반응속도, 숫자 러시, 타겟 클릭까지 가볍게 열 수 있는 초소형 게임 모음입니다.
               </p>
 
               <Link

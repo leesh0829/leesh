@@ -71,6 +71,19 @@ function NavItem({
   )
 }
 
+/**
+ * Sidebar component providing responsive, permission-aware navigation, account controls, and auxiliary widgets.
+ *
+ * Renders a mobile-overlay and a desktop sticky sidebar that fetches permission data to build the navigation list,
+ * highlights the active route, shows account/login controls, includes DailyQuestCard and DailyLuckCard, a Mini Game block,
+ * and an updates modal.
+ *
+ * @param open - Whether the mobile sidebar overlay is open.
+ * @param onClose - Callback to close the sidebar (used for mobile overlay and link navigation).
+ * @param desktopOpen - Whether the desktop sidebar is expanded and visible.
+ * @param onToggleDesktop - Callback to toggle the desktop sidebar's expanded/collapsed state.
+ * @returns The sidebar JSX element.
+ */
 export default function Sidebar({
   open,
   onClose,

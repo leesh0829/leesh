@@ -1,5 +1,10 @@
 import Link from 'next/link'
 
+/**
+ * Renders the application's homepage with a header, category chips, a grid of feature cards, and an upcoming tasks list.
+ *
+ * @returns A JSX element representing the homepage layout, including the Leesh link and description, a dashboard button, rounded category chips, five feature cards (Blog, Boards, TODO, Calendar, Mini Game), and a short "next tasks" list.
+ */
 export default function HomePage() {
   return (
     <main className="mx-auto w-full max-w-4xl">

@@ -87,6 +87,13 @@ function readStorage<T>(
   }
 }
 
+/**
+ * Persist the provided stats object to localStorage under the module's STORAGE_KEY, replacing any previously stored value.
+ *
+ * @param next - The StoredStats object to persist (contains `bestTime`, `rounds`, and `falseStarts`)
+ */
+function writeStoredStats(next: StoredStats) {
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
 function writeStorage<T>(key: string, value: T) {
   window.localStorage.setItem(key, JSON.stringify(value))
 }
@@ -171,10 +178,22 @@ function readTargetBurstStats() {
   )
 }
 
+/**
+ * Format a reaction time in milliseconds for display.
+ *
+ * @param value - Reaction time in milliseconds, or `null` when no measurement exists
+ * @returns `'--'` if `value` is `null`, otherwise the time suffixed with ` ms` (for example, `123 ms`)
+ */
 function formatTime(value: number | null) {
   return value === null ? '--' : `${value} ms`
 }
 
+/**
+ * Map a reaction time (ms) to a short Korean performance label.
+ *
+ * @param time - Reaction time in milliseconds, or `null` when no measurement exists
+ * @returns `'첫 기록 대기'` if `time` is `null`, `'번개급'` if `time` ≤ 180, `'상당히 빠름'` if `time` ≤ 240, `'좋음'` if `time` ≤ 320, `'무난'` if `time` ≤ 420, otherwise `'다시 한 판'`
+ */
 function getReactionLabel(time: number | null) {
   if (time === null) return '첫 기록 대기'
   if (time <= 180) return '번개급'

@@ -87,13 +87,6 @@ function readStorage<T>(
   }
 }
 
-/**
- * Persist the provided stats object to localStorage under the module's STORAGE_KEY, replacing any previously stored value.
- *
- * @param next - The StoredStats object to persist (contains `bestTime`, `rounds`, and `falseStarts`)
- */
-function writeStoredStats(next: StoredStats) {
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
 function writeStorage<T>(key: string, value: T) {
   window.localStorage.setItem(key, JSON.stringify(value))
 }

@@ -15,6 +15,16 @@ const STORAGE_KEY = 'leesh-mini-game-reflex'
 const MIN_DELAY_MS = 1200
 const MAX_DELAY_MS = 2800
 
+/**
+ * Read persisted mini-game statistics from localStorage, validating and coercing stored values.
+ *
+ * Returns a fallback when running outside the browser, when the storage key is missing, or when parsing fails.
+ *
+ * - `bestTime` is normalized to an integer in milliseconds (rounded) and coerced to at least 1, or set to `null` if absent/invalid.
+ * - `rounds` and `falseStarts` are coerced to non-negative integers (truncated).
+ *
+ * @returns The stored statistics object with shape `{ bestTime: number | null, rounds: number, falseStarts: number }`.
+ */
 function readStoredStats(): StoredStats {
   const fallback: StoredStats = {
     bestTime: null,
@@ -56,14 +66,31 @@ function readStoredStats(): StoredStats {
   }
 }
 
+/**
+ * Persist the provided stats object to localStorage under the module's STORAGE_KEY, replacing any previously stored value.
+ *
+ * @param next - The StoredStats object to persist (contains `bestTime`, `rounds`, and `falseStarts`)
+ */
 function writeStoredStats(next: StoredStats) {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
 }
 
+/**
+ * Format a reaction time in milliseconds for display.
+ *
+ * @param value - Reaction time in milliseconds, or `null` when no measurement exists
+ * @returns `'--'` if `value` is `null`, otherwise the time suffixed with ` ms` (for example, `123 ms`)
+ */
 function formatTime(value: number | null) {
   return value === null ? '--' : `${value} ms`
 }
 
+/**
+ * Map a reaction time (ms) to a short Korean performance label.
+ *
+ * @param time - Reaction time in milliseconds, or `null` when no measurement exists
+ * @returns `'첫 기록 대기'` if `time` is `null`, `'번개급'` if `time` ≤ 180, `'상당히 빠름'` if `time` ≤ 240, `'좋음'` if `time` ≤ 320, `'무난'` if `time` ≤ 420, otherwise `'다시 한 판'`
+ */
 function getReactionLabel(time: number | null) {
   if (time === null) return '첫 기록 대기'
   if (time <= 180) return '번개급'
@@ -73,6 +100,15 @@ function getReactionLabel(time: number | null) {
   return '다시 한 판'
 }
 
+/**
+ * Render the Reflex Sprint mini-game UI and manage its client-side behavior.
+ *
+ * Renders an interactive reaction-time game, handling game phases, keyboard and
+ * click controls, timer-based signaling, and persistence of best time, rounds,
+ * and false-start counts to localStorage.
+ *
+ * @returns The React element for the Reflex Sprint mini-game interface.
+ */
 export default function MiniGameClient() {
   const [stats, setStats] = useState<StoredStats>(() => readStoredStats())
   const [phase, setPhase] = useState<Phase>('idle')

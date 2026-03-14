@@ -104,6 +104,16 @@ function normalizeHeadingText(raw: string): string {
     .trim()
 }
 
+/**
+ * Extracts Markdown headings (levels 1–6) as a list of table-of-contents entries.
+ *
+ * Ignores headings that appear inside fenced code blocks, normalizes heading text,
+ * and generates URL-friendly, document-unique `id` values (numeric suffixes are
+ * appended when the same slug appears multiple times).
+ *
+ * @param markdown - The raw Markdown source to scan for headings
+ * @returns An array of `TocHeading` objects containing `id`, `text`, and `level`. `id` is a URL-friendly slug unique within the provided document.
+ */
 function extractMarkdownHeadings(markdown: string): TocHeading[] {
   const lines = markdown.split(/\r?\n/)
   const counters = new Map<string, number>()
@@ -210,14 +220,12 @@ const PostMarkdownContent = memo(function PostMarkdownContent({
 })
 
 /**
- * Render the post detail view including content, schedule controls, and comments with editing and unlock flows.
- *
- * This component displays a post header (status, secret badge, title), the post body rendered from Markdown (raw HTML allowed but sanitized and syntax-highlighted), schedule controls when the user can edit, an unlock form for secret posts, and a comments section with listing, composing, editing, and deletion behaviors.
+ * Display a post detail page with header, editable schedule, secret-unlock flow, rendered Markdown content, and a comments area.
  *
  * @param boardName - Human-readable board name shown in the back-navigation link
- * @param boardId - Identifier for the board used for API requests and navigation
+ * @param boardId - Board identifier used for API requests and navigation
  * @param post - Initial post data used to populate the view and local editable state
- * @returns The JSX for the post detail page including header, content, schedule editor (if editable), comment list and composer, and unlock form for secret posts
+ * @returns The JSX element for the post detail view, including header, content area (or edit form), schedule controls, unlock form when locked, and comments UI
  */
 export default function PostDetailClient({
   boardName,

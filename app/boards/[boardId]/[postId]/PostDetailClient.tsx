@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { memo, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { toHumanHttpError } from '@/app/lib/httpErrorText'
@@ -135,6 +135,79 @@ function extractMarkdownHeadings(markdown: string): TocHeading[] {
 
   return headings
 }
+
+const PostMarkdownContent = memo(function PostMarkdownContent({
+  contentMd,
+  tocHeadings,
+}: {
+  contentMd: string
+  tocHeadings: TocHeading[]
+}) {
+  const markdownComponents = useMemo(() => {
+    const headingIdQueue = [...tocHeadings.map((h) => h.id)]
+    const nextHeadingId = () => headingIdQueue.shift() ?? undefined
+
+    const headingComponent = (
+      Tag: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'
+    ) =>
+      function Heading({
+        children,
+        ...props
+      }: React.HTMLAttributes<HTMLHeadingElement>) {
+        const id = nextHeadingId()
+        return (
+          <Tag id={id} className="scroll-mt-24" {...props}>
+            {children}
+          </Tag>
+        )
+      }
+
+    return {
+      h1: headingComponent('h1'),
+      h2: headingComponent('h2'),
+      h3: headingComponent('h3'),
+      h4: headingComponent('h4'),
+      h5: headingComponent('h5'),
+      h6: headingComponent('h6'),
+      img: ({ alt, src, ...props }: React.ImgHTMLAttributes<HTMLImageElement>) => {
+        const safeSrc = typeof src === 'string' ? src.trim() : ''
+        if (!safeSrc) return null
+
+        return (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            {...props}
+            src={safeSrc}
+            alt={alt ?? ''}
+            style={{
+              maxWidth: '100%',
+              height: 'auto',
+              borderRadius: 12,
+            }}
+          />
+        )
+      },
+    }
+  }, [tocHeadings])
+
+  return (
+    <article className="card card-pad card-hover-border-only">
+      <div className="markdown-body">
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm, remarkBreaks]}
+          rehypePlugins={[
+            rehypeRaw,
+            [rehypeSanitize, sanitizedMarkdownSchema],
+            rehypeHighlight,
+          ]}
+          components={markdownComponents}
+        >
+          {contentMd}
+        </ReactMarkdown>
+      </div>
+    </article>
+  )
+})
 
 /**
  * Render the post detail view including content, schedule controls, and comments with editing and unlock flows.
@@ -506,24 +579,6 @@ export default function PostDetailClient({
   }
   const tocVisible = !locked && !editing && tocHeadings.length > 0
 
-  const headingIdQueue = [...tocHeadings.map((h) => h.id)]
-  const nextHeadingId = () => headingIdQueue.shift() ?? undefined
-
-  const headingComponent = (
-    Tag: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'
-  ) =>
-    function Heading({
-      children,
-      ...props
-    }: React.HTMLAttributes<HTMLHeadingElement>) {
-      const id = nextHeadingId()
-      return (
-        <Tag id={id} className="scroll-mt-24" {...props}>
-          {children}
-        </Tag>
-      )
-    }
-
   return (
     <main className="py-8">
       <div
@@ -719,46 +774,10 @@ export default function PostDetailClient({
                 </div>
               </div>
             ) : (
-              <article className="card card-pad card-hover-border-only">
-                <div className="markdown-body">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm, remarkBreaks]}
-                    rehypePlugins={[
-                      rehypeRaw,
-                      [rehypeSanitize, sanitizedMarkdownSchema],
-                      rehypeHighlight,
-                    ]}
-                    components={{
-                      h1: headingComponent('h1'),
-                      h2: headingComponent('h2'),
-                      h3: headingComponent('h3'),
-                      h4: headingComponent('h4'),
-                      h5: headingComponent('h5'),
-                      h6: headingComponent('h6'),
-                      img: ({ alt, src, ...props }) => {
-                        const safeSrc =
-                          typeof src === 'string' ? src.trim() : ''
-                        if (!safeSrc) return null
-                        return (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            {...props}
-                            src={safeSrc}
-                            alt={alt ?? ''}
-                            style={{
-                              maxWidth: '100%',
-                              height: 'auto',
-                              borderRadius: 12,
-                            }}
-                          />
-                        )
-                      },
-                    }}
-                  >
-                    {postState.contentMd || '(본문 없음)'}
-                  </ReactMarkdown>
-                </div>
-              </article>
+              <PostMarkdownContent
+                contentMd={postState.contentMd || '(본문 없음)'}
+                tocHeadings={tocHeadings}
+              />
             )}
           </section>
         )}

@@ -32,7 +32,7 @@ type CloneSpec = {
 }
 
 const SUMMON_DURATION_MS = 3600
-const OVERSCROLL_TRIGGER = 1400 * 30
+const OVERSCROLL_TRIGGER = 8000
 const MAX_REACTIVE_WIDTH_RATIO = 0.985
 const MAX_REACTIVE_HEIGHT_RATIO = 0.92
 const MAX_REACTIVE_AREA_RATIO = 0.78
@@ -136,7 +136,10 @@ function syncFormState(sourceRoot: HTMLElement, cloneRoot: HTMLElement) {
     const cloneField = cloneFields[index]
     if (!cloneField) return
 
-    if (field instanceof HTMLInputElement && cloneField instanceof HTMLInputElement) {
+    if (
+      field instanceof HTMLInputElement &&
+      cloneField instanceof HTMLInputElement
+    ) {
       cloneField.value = field.value
       cloneField.checked = field.checked
       if (field.checked) cloneField.setAttribute('checked', 'checked')
@@ -154,7 +157,10 @@ function syncFormState(sourceRoot: HTMLElement, cloneRoot: HTMLElement) {
       return
     }
 
-    if (field instanceof HTMLSelectElement && cloneField instanceof HTMLSelectElement) {
+    if (
+      field instanceof HTMLSelectElement &&
+      cloneField instanceof HTMLSelectElement
+    ) {
       cloneField.value = field.value
       Array.from(cloneField.options).forEach((option) => {
         option.selected = option.value === field.value
@@ -229,12 +235,20 @@ function collectReactiveElements(container: HTMLElement) {
   )
 
   const cards = cardCandidates.filter((element) =>
-    isEligibleReactiveElement(element, viewportWidth, viewportHeight, viewportArea)
+    isEligibleReactiveElement(
+      element,
+      viewportWidth,
+      viewportHeight,
+      viewportArea
+    )
   )
 
   const selectedCardSet = new Set(cards)
   const isInsideSelectedCard = (element: HTMLElement) =>
-    cards.some((card) => card !== element && selectedCardSet.has(card) && card.contains(element))
+    cards.some(
+      (card) =>
+        card !== element && selectedCardSet.has(card) && card.contains(element)
+    )
 
   const interactives = Array.from(
     container.querySelectorAll<HTMLElement>(INTERACTIVE_SELECTOR)
@@ -276,10 +290,7 @@ function collectReactiveElements(container: HTMLElement) {
     })
 }
 
-function buildCloneSpecs(
-  elements: HTMLElement[],
-  edge: SummonEdge
-) {
+function buildCloneSpecs(elements: HTMLElement[], edge: SummonEdge) {
   const viewportHeight = window.innerHeight
 
   return elements.map((element, index) => {
@@ -293,9 +304,7 @@ function buildCloneSpecs(
         : viewportHeight - rect.height - 12 - (index % 3) * 2
 
     const tx =
-      edge === 'top'
-        ? ((index % 6) - 2.5) * 3.5
-        : ((index % 7) - 3) * 2.5
+      edge === 'top' ? ((index % 6) - 2.5) * 3.5 : ((index % 7) - 3) * 2.5
 
     const ty = targetTop - rect.top
     const delay =
@@ -313,9 +322,7 @@ function buildCloneSpecs(
       tx,
       ty,
       rotate:
-        edge === 'top'
-          ? ((index % 5) - 2) * 1.8
-          : ((index % 7) - 3) * 4.6,
+        edge === 'top' ? ((index % 5) - 2) * 1.8 : ((index % 7) - 3) * 4.6,
       delay,
       scale: edge === 'top' ? 1.015 : 0.985,
       zIndex: 1000 + index,
@@ -372,11 +379,16 @@ export default function ScrollSummonEffect() {
 
   useEffect(() => {
     const root = document.documentElement
-    root.classList.remove('scroll-summon-top-active', 'scroll-summon-bottom-active')
+    root.classList.remove(
+      'scroll-summon-top-active',
+      'scroll-summon-bottom-active'
+    )
 
     if (active) {
       root.classList.add(
-        edge === 'top' ? 'scroll-summon-top-active' : 'scroll-summon-bottom-active'
+        edge === 'top'
+          ? 'scroll-summon-top-active'
+          : 'scroll-summon-bottom-active'
       )
     }
 
@@ -407,7 +419,9 @@ export default function ScrollSummonEffect() {
     const triggerSummon = (direction: SummonEdge) => {
       if (triggeredRef.current || active) return
 
-      const container = document.querySelector('.app-physics-layer') as HTMLElement | null
+      const container = document.querySelector(
+        '.app-physics-layer'
+      ) as HTMLElement | null
       if (!container) return
 
       const elements = collectReactiveElements(container)

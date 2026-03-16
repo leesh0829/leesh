@@ -1,6 +1,13 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent,
+} from 'react'
 
 type GameId = 'reflex' | 'numberRush' | 'targetBurst'
 
@@ -580,16 +587,31 @@ function TargetBurstGame() {
     }, TARGET_BURST_DURATION_MS)
   }, [clearTimers])
 
-  const handleTargetClick = useCallback(() => {
-    if (phase !== 'playing') {
-      startGame()
-      return
-    }
+  const handleTargetClick = useCallback(
+    (event: MouseEvent<HTMLButtonElement>) => {
+      if (phase !== 'playing') {
+        startGame()
+        return
+      }
 
-    scoreRef.current += 1
-    setScore(scoreRef.current)
-    setTarget(getRandomTargetPosition())
-  }, [phase, startGame])
+      const bounds = event.currentTarget.getBoundingClientRect()
+      const clickX = event.clientX - bounds.left
+      const clickY = event.clientY - bounds.top
+      const targetCenterX = (target.x / 100) * bounds.width
+      const targetCenterY = (target.y / 100) * bounds.height
+      const targetRadius = target.size / 2
+      const distance = Math.hypot(clickX - targetCenterX, clickY - targetCenterY)
+
+      if (distance > targetRadius) {
+        return
+      }
+
+      scoreRef.current += 1
+      setScore(scoreRef.current)
+      setTarget(getRandomTargetPosition())
+    },
+    [phase, startGame, target]
+  )
 
   return (
     <div className="grid gap-3">

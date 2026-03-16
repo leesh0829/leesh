@@ -371,7 +371,7 @@ function ReflexSprintGame() {
       <button
         type="button"
         onClick={handleAction}
-        className="surface relative min-h-[220px] overflow-hidden p-4 text-left"
+        className="surface card-hover-border-only relative min-h-[220px] overflow-hidden p-4 text-left"
       >
         <div
           aria-hidden="true"
@@ -461,6 +461,7 @@ function NumberRushGame() {
         return
       }
 
+      setBoard(shuffleNumbers(9))
       setNextNumber((current) => current + 1)
     },
     [nextNumber, persistStats, phase, startGame, stats.bestTime, stats.rounds]
@@ -468,11 +469,9 @@ function NumberRushGame() {
 
   return (
     <div className="grid gap-3">
-      <section className="surface p-4">
+      <section className="surface card-hover-border-only p-4">
         <div className="mb-3 flex items-center justify-between gap-2">
-          <span className="badge">
-            {phase === 'playing' ? `다음 ${nextNumber}` : '1부터 9'}
-          </span>
+          <span className="badge">{phase === 'playing' ? '순서 입력' : '1부터 9'}</span>
           <button type="button" className="btn btn-primary" onClick={startGame}>
             {phase === 'playing' ? '재시작' : '시작'}
           </button>
@@ -481,7 +480,6 @@ function NumberRushGame() {
         <div className="grid grid-cols-3 gap-2">
           {board.map((value) => {
             const cleared = value < nextNumber
-            const isNext = value === nextNumber && phase === 'playing'
 
             return (
               <button
@@ -489,12 +487,10 @@ function NumberRushGame() {
                 type="button"
                 onClick={() => handleCellClick(value)}
                 className={[
-                  'aspect-square rounded-xl border text-xl font-black',
+                  'card-hover-border-only aspect-square rounded-xl border text-xl font-black',
                   cleared
                     ? 'bg-emerald-300/20 opacity-45'
-                    : isNext
-                      ? 'bg-amber-300/25 ring-2 ring-amber-300/45'
-                      : 'bg-white/8',
+                    : 'bg-white/8',
                 ].join(' ')}
                 disabled={cleared}
               >
@@ -615,7 +611,7 @@ function TargetBurstGame() {
 
   return (
     <div className="grid gap-3">
-      <section className="surface p-4">
+      <section className="surface card-hover-border-only p-4">
         <div className="mb-3 flex items-center justify-between gap-2">
           <span className="badge">
             {phase === 'playing' ? '12초 제한' : '타겟 클릭'}
@@ -637,7 +633,7 @@ function TargetBurstGame() {
         <button
           type="button"
           onClick={handleTargetClick}
-          className="relative block h-[250px] w-full overflow-hidden rounded-xl border bg-black/10"
+          className="card-hover-border-only relative block h-[250px] w-full overflow-hidden rounded-xl border bg-black/10"
           aria-label="타겟 게임 영역"
         >
           <div
@@ -679,7 +675,7 @@ export default function MiniGameClient() {
   )
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="mini-arcade flex h-full min-h-0 flex-col">
       <div className="mb-3">
         <div className="text-[11px] font-semibold uppercase tracking-[0.24em] opacity-60">
           Mini Arcade

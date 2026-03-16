@@ -2339,11 +2339,34 @@
     transform: none !important;
   }
 
+  .card-hover-border-only {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    transition:
+      transform 180ms ease,
+      box-shadow 220ms ease,
+      border-color 220ms ease,
+      background-color 220ms ease;
+  }
+
+  .card-hover-border-only:hover {
+    transform: translateY(-2px);
+    border-color: rgba(109, 90, 255, 0.35);
+    box-shadow: 0 16px 38px rgba(11, 16, 32, 0.14);
+  }
+
   /* /leesh: 카드 전체 하이라이트 대신 테두리만 반응 */
   .leesh-page .card::after,
   .leesh-page .surface::after,
   .leesh-page .card:hover::after,
   .leesh-page .surface:hover::after {
+    opacity: 0 !important;
+    transform: none !important;
+  }
+
+  .mini-arcade .surface::after,
+  .mini-arcade .surface:hover::after {
     opacity: 0 !important;
     transform: none !important;
   }

@@ -15,6 +15,7 @@ import { displayUserLabel } from '@/app/lib/userLabel'
 import MarkdownEditor from '@/app/components/MarkdownEditor'
 import { useToast } from '@/app/components/ToastProvider'
 import { sanitizedMarkdownSchema } from '@/app/lib/markdown'
+import { useAsyncLock } from '@/app/lib/useAsyncLock'
 import SectionTocClient, {
   type TocHeading,
 } from '@/app/components/SectionTocClient'
@@ -231,15 +232,20 @@ export default function PostDetailClient({
   boardName,
   boardId,
   post,
+  backHref = `/boards/${boardId}`,
+  backLabel,
 }: {
   boardName: string
   boardId: string
   post: Post
+  backHref?: string
+  backLabel?: string
 }) {
   const toast = useToast()
   const router = useRouter()
   const { data: session } = useSession()
   const myEmail = session?.user?.email ?? null
+  const resolvedBackLabel = backLabel ?? boardName
 
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null)
   const [editingCommentText, setEditingCommentText] = useState('')
@@ -327,6 +333,7 @@ export default function PostDetailClient({
   const [commentsLoading, setCommentsLoading] = useState(true)
   const [newComment, setNewComment] = useState('')
   const [commentsError, setCommentsError] = useState<string | null>(null)
+  const { pending: commentSubmitting, run: runCommentSubmit } = useAsyncLock()
 
   const [editing, setEditing] = useState(false)
   const [savingEdit, setSavingEdit] = useState(false)
@@ -527,7 +534,7 @@ export default function PostDetailClient({
         return
       }
 
-      router.push(`/boards/${boardId}`)
+      router.push(backHref)
       router.refresh()
     } finally {
       setSavingEdit(false)
@@ -562,28 +569,33 @@ export default function PostDetailClient({
   }
 
   const addComment = async () => {
-    const res = await fetch(
-      `/api/boards/${boardId}/posts/${postState.id}/comments`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: newComment }),
+    await runCommentSubmit(async () => {
+      const content = newComment.trim()
+      if (!content) return
+
+      const res = await fetch(
+        `/api/boards/${boardId}/posts/${postState.id}/comments`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content }),
+        }
+      )
+
+      if (res.ok) {
+        setNewComment('')
+        await loadComments()
+        toast.success('댓글을 등록했습니다.')
+        return
       }
-    )
 
-    if (res.ok) {
-      setNewComment('')
-      loadComments()
-      toast.success('댓글을 등록했습니다.')
-      return
-    }
-
-    const payload = await readJsonSafely(res)
-    const msg = extractApiMessage(payload) ?? '댓글 처리 실패'
-    const human = toHumanHttpError(res.status, msg)
-    const message = human ?? `${res.status} · ${msg}`
-    setCommentsError(message)
-    toast.error(message)
+      const payload = await readJsonSafely(res)
+      const msg = extractApiMessage(payload) ?? '댓글 처리 실패'
+      const human = toHumanHttpError(res.status, msg)
+      const message = human ?? `${res.status} · ${msg}`
+      setCommentsError(message)
+      toast.error(message)
+    })
   }
   const tocVisible = !locked && !editing && tocHeadings.length > 0
 
@@ -595,8 +607,8 @@ export default function PostDetailClient({
         }
       >
         <div className="surface card-pad card-hover-border-only">
-        <Link href={`/boards/${boardId}`} className="btn btn-outline">
-          ← {boardName}
+        <Link href={backHref} className="btn btn-outline">
+          ← {resolvedBackLabel}
         </Link>
 
         <header className="mt-4">
@@ -816,10 +828,22 @@ export default function PostDetailClient({
               }}
               placeholder="댓글 입력 (Enter=전송, Shift+Enter=줄바꿈)"
               rows={3}
+              disabled={commentSubmitting}
             />
-            <div className="flex justify-end">
-              <button className="btn btn-primary" onClick={addComment}>
-                등록
+            <div className="flex items-center justify-between gap-3">
+              {commentSubmitting ? (
+                <div className="text-sm" style={{ color: 'var(--muted)' }}>
+                  댓글을 등록하는 중입니다...
+                </div>
+              ) : (
+                <span />
+              )}
+              <button
+                className="btn btn-primary"
+                onClick={addComment}
+                disabled={commentSubmitting || !newComment.trim()}
+              >
+                {commentSubmitting ? '등록중...' : '등록'}
               </button>
             </div>
           </div>

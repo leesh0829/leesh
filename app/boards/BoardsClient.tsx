@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
+import { useAsyncLock } from '@/app/lib/useAsyncLock'
 
 type Board = {
   id: string
@@ -40,6 +41,7 @@ export default function BoardsClient({
   const [scheduleStartAt, setScheduleStartAt] = useState('')
   const [scheduleEndAt, setScheduleEndAt] = useState('')
   const [scheduleAllDay, setScheduleAllDay] = useState(false)
+  const { pending: creating, run: runCreate } = useAsyncLock()
 
   const startIso = useMemo(
     () => toIsoOrNull(scheduleStartAt),
@@ -80,50 +82,52 @@ export default function BoardsClient({
   }
 
   const create = async () => {
-    if (!name.trim()) {
-      alert('보드 이름을 입력해줘')
-      return
-    }
+    await runCreate(async () => {
+      if (!name.trim()) {
+        alert('보드 이름을 입력해줘')
+        return
+      }
 
-    if (singleSchedule && !startIso) {
-      alert('단일 일정 보드는 시작일시(또는 날짜)가 필수임')
-      return
-    }
+      if (singleSchedule && !startIso) {
+        alert('단일 일정 보드는 시작일시(또는 날짜)가 필수임')
+        return
+      }
 
-    const res = await fetch('/api/boards', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name,
-        description,
-        singleSchedule,
-        scheduleStatus,
-        scheduleStartAt: singleSchedule ? startIso : null,
-        scheduleEndAt: singleSchedule ? endIso : null,
-        scheduleAllDay: singleSchedule ? scheduleAllDay : false,
-      }),
+      const res = await fetch('/api/boards', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          description,
+          singleSchedule,
+          scheduleStatus,
+          scheduleStartAt: singleSchedule ? startIso : null,
+          scheduleEndAt: singleSchedule ? endIso : null,
+          scheduleAllDay: singleSchedule ? scheduleAllDay : false,
+        }),
+      })
+
+      if (res.status === 401) {
+        alert('로그인 후 보드를 만들 수 있습니다.')
+        return
+      }
+
+      if (res.ok) {
+        setName('')
+        setDescription('')
+        setSingleSchedule(false)
+        setScheduleStatus('TODO')
+        setScheduleStartAt('')
+        setScheduleEndAt('')
+        setScheduleAllDay(false)
+        await reload()
+        setPage(1)
+        return
+      }
+
+      const err = await res.json().catch(() => ({}))
+      alert(err?.message ?? '생성 실패')
     })
-
-    if (res.status === 401) {
-      alert('로그인 후 보드를 만들 수 있습니다.')
-      return
-    }
-
-    if (res.ok) {
-      setName('')
-      setDescription('')
-      setSingleSchedule(false)
-      setScheduleStatus('TODO')
-      setScheduleStartAt('')
-      setScheduleEndAt('')
-      setScheduleAllDay(false)
-      await reload()
-      setPage(1)
-      return
-    }
-
-    const err = await res.json().catch(() => ({}))
-    alert(err?.message ?? '생성 실패')
   }
 
   return (
@@ -196,6 +200,7 @@ export default function BoardsClient({
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="보드 이름"
+                    disabled={creating}
                   />
                 </div>
 
@@ -206,6 +211,7 @@ export default function BoardsClient({
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="설명"
+                    disabled={creating}
                   />
                 </div>
               </div>
@@ -216,6 +222,7 @@ export default function BoardsClient({
                     type="checkbox"
                     checked={singleSchedule}
                     onChange={(e) => setSingleSchedule(e.target.checked)}
+                    disabled={creating}
                   />
                   한 일정만(단일 일정 보드)
                 </label>
@@ -228,6 +235,7 @@ export default function BoardsClient({
                       onChange={(e) =>
                         setScheduleStatus(e.target.value as Status)
                       }
+                      disabled={creating}
                     >
                       <option value="TODO">TODO</option>
                       <option value="DOING">DOING</option>
@@ -240,6 +248,7 @@ export default function BoardsClient({
                       value={scheduleStartAt}
                       onChange={(e) => setScheduleStartAt(e.target.value)}
                       title="시작"
+                      disabled={creating || scheduleAllDay}
                     />
                     <input
                       className="input"
@@ -247,6 +256,7 @@ export default function BoardsClient({
                       value={scheduleEndAt}
                       onChange={(e) => setScheduleEndAt(e.target.value)}
                       title="종료(선택)"
+                      disabled={creating || scheduleAllDay}
                     />
 
                     <label className="flex items-center gap-2 text-sm">
@@ -254,6 +264,7 @@ export default function BoardsClient({
                         type="checkbox"
                         checked={scheduleAllDay}
                         onChange={(e) => setScheduleAllDay(e.target.checked)}
+                        disabled={creating}
                       />
                       하루종일
                     </label>
@@ -271,10 +282,16 @@ export default function BoardsClient({
                   type="button"
                   className="btn btn-primary"
                   onClick={create}
+                  disabled={creating || !name.trim()}
                 >
-                  생성
+                  {creating ? '생성중...' : '생성'}
                 </button>
               </div>
+              {creating ? (
+                <p className="text-sm" style={{ color: 'var(--muted)' }}>
+                  보드를 생성하는 중입니다. 완료될 때까지 잠시만 기다려주세요.
+                </p>
+              ) : null}
             </div>
           </section>
         ) : null}

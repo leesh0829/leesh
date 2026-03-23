@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import MarkdownEditor from '@/app/components/MarkdownEditor'
+import { useAsyncLock } from '@/app/lib/useAsyncLock'
 
 /**
  * Renders a blog post editor UI for the given board and handles creating/saving posts.
@@ -16,7 +17,7 @@ export default function BlogEditorClient({ boardId }: { boardId: string }) {
   const [title, setTitle] = useState('')
   const [contentMd, setContentMd] = useState('')
   const [msg, setMsg] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
+  const { pending: saving, run: runSave } = useAsyncLock()
 
   const [isSecret, setIsSecret] = useState(false)
   const [secretPassword, setSecretPassword] = useState('')
@@ -29,53 +30,52 @@ export default function BlogEditorClient({ boardId }: { boardId: string }) {
   }, [contentMd, isSecret, secretPassword, title])
 
   async function save(publish: boolean) {
-    setMsg(null)
+    await runSave(async () => {
+      setMsg(null)
 
-    if (!title.trim()) {
-      setMsg('제목을 입력해주세요.')
-      return
-    }
+      if (!title.trim()) {
+        setMsg('제목을 입력해주세요.')
+        return
+      }
 
-    if (!contentMd.trim()) {
-      setMsg('본문을 입력해주세요.')
-      return
-    }
+      if (!contentMd.trim()) {
+        setMsg('본문을 입력해주세요.')
+        return
+      }
 
-    if (publish && isSecret && !secretPassword.trim()) {
-      setMsg('비밀글 발행은 비밀번호가 필요합니다.')
-      return
-    }
+      if (publish && isSecret && !secretPassword.trim()) {
+        setMsg('비밀글 발행은 비밀번호가 필요합니다.')
+        return
+      }
 
-    setSaving(true)
+      const res = await fetch('/api/blog/posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          boardId,
+          title: title.trim(),
+          contentMd,
+          publish,
+          isSecret,
+          secretPassword: isSecret ? secretPassword.trim() || null : null,
+        }),
+      })
 
-    const res = await fetch('/api/blog/posts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        boardId,
-        title: title.trim(),
-        contentMd,
-        publish,
-        isSecret,
-        secretPassword: isSecret ? secretPassword.trim() || null : null,
-      }),
+      const data = await res.json().catch(() => null)
+
+      if (!res.ok) {
+        setMsg(data?.message ?? '저장 실패')
+        return
+      }
+
+      const postId = typeof data?.id === 'string' ? data.id : null
+      if (!postId) {
+        setMsg('저장 응답이 올바르지 않습니다. 다시 시도해주세요.')
+        return
+      }
+
+      window.location.href = `/blog/${encodeURIComponent(postId)}`
     })
-
-    const data = await res.json().catch(() => null)
-    setSaving(false)
-
-    if (!res.ok) {
-      setMsg(data?.message ?? '저장 실패')
-      return
-    }
-
-    const postId = typeof data?.id === 'string' ? data.id : null
-    if (!postId) {
-      setMsg('저장 응답이 올바르지 않습니다. 다시 시도해주세요.')
-      return
-    }
-
-    window.location.href = `/blog/${encodeURIComponent(postId)}`
   }
 
   return (
@@ -87,6 +87,7 @@ export default function BlogEditorClient({ boardId }: { boardId: string }) {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="제목"
+          disabled={saving}
         />
       </div>
 
@@ -99,6 +100,7 @@ export default function BlogEditorClient({ boardId }: { boardId: string }) {
           rows={18}
           previewEmptyText="미리보기할 본문이 없습니다."
           htmlMode="raw"
+          disabled={saving}
         />
       </div>
 
@@ -113,6 +115,7 @@ export default function BlogEditorClient({ boardId }: { boardId: string }) {
                 setIsSecret(next)
                 if (!next) setSecretPassword('')
               }}
+              disabled={saving}
             />
             비밀글
           </label>
@@ -125,6 +128,7 @@ export default function BlogEditorClient({ boardId }: { boardId: string }) {
                 value={secretPassword}
                 onChange={(e) => setSecretPassword(e.target.value)}
                 placeholder="비밀번호"
+                disabled={saving}
               />
             </div>
           ) : (
@@ -132,6 +136,12 @@ export default function BlogEditorClient({ boardId }: { boardId: string }) {
           )}
         </div>
       </div>
+
+      {saving ? (
+        <p className="text-sm" style={{ color: 'var(--muted)' }}>
+          요청을 전송하는 중입니다. 완료될 때까지 잠시만 기다려주세요.
+        </p>
+      ) : null}
 
       <div className="flex flex-wrap gap-2">
         <button

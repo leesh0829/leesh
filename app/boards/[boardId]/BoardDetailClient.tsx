@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import MarkdownEditor from '@/app/components/MarkdownEditor'
+import { useAsyncLock } from '@/app/lib/useAsyncLock'
 
 type Status = 'TODO' | 'DOING' | 'DONE'
 
@@ -77,14 +78,17 @@ export default function BoardDetailClient({
   canCreate,
   backHref = '/boards',
   backLabel = 'boards',
+  postDetailBaseHref,
 }: {
   board: Board
   initialPosts: Post[]
   canCreate: boolean
   backHref?: string
   backLabel?: string
+  postDetailBaseHref?: string
 }) {
   const router = useRouter()
+  const resolvedPostDetailBaseHref = postDetailBaseHref ?? `/boards/${board.id}`
   const POST_PAGE_SIZE = 10
   const [posts, setPosts] = useState<Post[]>(initialPosts)
   const [postSortOrder, setPostSortOrder] = useState<'desc' | 'asc'>('desc')
@@ -160,7 +164,7 @@ export default function BoardDetailClient({
       return
     }
 
-    window.location.href = '/boards'
+    window.location.href = backHref
   }
 
   const saveSchedule = async () => {
@@ -225,6 +229,7 @@ export default function BoardDetailClient({
   const [startAt, setStartAt] = useState<string>('')
   const [endAt, setEndAt] = useState<string>('')
   const [allDay, setAllDay] = useState(false)
+  const { pending: creatingPost, run: runCreatePost } = useAsyncLock()
 
   const reload = async () => {
     const res = await fetch(`/api/boards/${board.id}/posts`)
@@ -232,48 +237,50 @@ export default function BoardDetailClient({
   }
 
   const create = async () => {
-    if (singleSchedule) {
-      alert('이 보드는 단일 일정 모드라 post 일정 생성이 막혀있음')
-      return
-    }
+    await runCreatePost(async () => {
+      if (singleSchedule) {
+        alert('이 보드는 단일 일정 모드라 post 일정 생성이 막혀있음')
+        return
+      }
 
-    const payload: CreatePostBody = {
-      title,
-      contentMd,
-      status,
-      isSecret,
-      secretPassword: isSecret ? secretPassword : undefined,
-      startAt: startAt ? new Date(startAt).toISOString() : null,
-      endAt: endAt ? new Date(endAt).toISOString() : null,
-      allDay,
-    }
+      const payload: CreatePostBody = {
+        title,
+        contentMd,
+        status,
+        isSecret,
+        secretPassword: isSecret ? secretPassword : undefined,
+        startAt: startAt ? new Date(startAt).toISOString() : null,
+        endAt: endAt ? new Date(endAt).toISOString() : null,
+        allDay,
+      }
 
-    const res = await fetch(`/api/boards/${board.id}/posts`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      const res = await fetch(`/api/boards/${board.id}/posts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+
+      if (res.status === 401) {
+        alert('로그인 후, 보드 소유자만 작성할 수 있습니다.')
+        return
+      }
+
+      if (res.ok) {
+        setTitle('')
+        setContentMd('')
+        setIsSecret(false)
+        setSecretPassword('')
+        setStatus('TODO')
+        setStartAt('')
+        setEndAt('')
+        setAllDay(false)
+        await reload()
+        return
+      }
+
+      const err = await res.json().catch(() => ({}))
+      alert(err.message ?? '생성 실패')
     })
-
-    if (res.status === 401) {
-      alert('로그인 후, 보드 소유자만 작성할 수 있습니다.')
-      return
-    }
-
-    if (res.ok) {
-      setTitle('')
-      setContentMd('')
-      setIsSecret(false)
-      setSecretPassword('')
-      setStatus('TODO')
-      setStartAt('')
-      setEndAt('')
-      setAllDay(false)
-      await reload()
-      return
-    }
-
-    const err = await res.json().catch(() => ({}))
-    alert(err.message ?? '생성 실패')
   }
 
   const normalizedPostTitleQuery = postTitleQuery.trim().toLowerCase()
@@ -457,6 +464,7 @@ export default function BoardDetailClient({
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="제목"
+                    disabled={creatingPost}
                   />
                 </div>
 
@@ -465,6 +473,7 @@ export default function BoardDetailClient({
                     className="select w-auto"
                     value={status}
                     onChange={(e) => setStatus(e.target.value as Status)}
+                    disabled={creatingPost}
                   >
                     <option value="TODO">TODO</option>
                     <option value="DOING">DOING</option>
@@ -476,6 +485,7 @@ export default function BoardDetailClient({
                       type="checkbox"
                       checked={isSecret}
                       onChange={(e) => setIsSecret(e.target.checked)}
+                      disabled={creatingPost}
                     />
                     비밀글
                   </label>
@@ -487,6 +497,7 @@ export default function BoardDetailClient({
                       onChange={(e) => setSecretPassword(e.target.value)}
                       placeholder="비밀번호"
                       type="password"
+                      disabled={creatingPost}
                     />
                   ) : null}
                 </div>
@@ -500,6 +511,7 @@ export default function BoardDetailClient({
                     rows={8}
                     previewEmptyText="미리보기할 본문이 없습니다."
                     htmlMode="safe"
+                    disabled={creatingPost}
                   />
                 </div>
 
@@ -512,12 +524,14 @@ export default function BoardDetailClient({
                         type="datetime-local"
                         value={startAt}
                         onChange={(e) => setStartAt(e.target.value)}
+                        disabled={creatingPost || allDay}
                       />
                       <input
                         className="input"
                         type="datetime-local"
                         value={endAt}
                         onChange={(e) => setEndAt(e.target.value)}
+                        disabled={creatingPost || allDay}
                       />
                     </div>
                   </div>
@@ -529,15 +543,27 @@ export default function BoardDetailClient({
                         type="checkbox"
                         checked={allDay}
                         onChange={(e) => setAllDay(e.target.checked)}
+                        disabled={creatingPost}
                       />
                       하루종일
                     </label>
                   </div>
                 </div>
 
-                <div className="flex justify-end">
-                  <button className="btn btn-primary" onClick={create}>
-                    생성
+                <div className="flex items-center justify-between gap-3">
+                  {creatingPost ? (
+                    <p className="text-sm" style={{ color: 'var(--muted)' }}>
+                      글을 생성하는 중입니다. 완료될 때까지 잠시만 기다려주세요.
+                    </p>
+                  ) : (
+                    <span />
+                  )}
+                  <button
+                    className="btn btn-primary"
+                    onClick={create}
+                    disabled={creatingPost || !title.trim()}
+                  >
+                    {creatingPost ? '생성중...' : '생성'}
                   </button>
                 </div>
               </div>
@@ -626,7 +652,7 @@ export default function BoardDetailClient({
               pagedPosts.map((p) => (
                 <Link
                   key={p.id}
-                  href={`/boards/${board.id}/${encodeURIComponent(p.slug ?? p.id)}`}
+                  href={`${resolvedPostDetailBaseHref}/${encodeURIComponent(p.slug ?? p.id)}`}
                   className="card card-pad block no-underline hover:no-underline"
                 >
                   <div className="flex items-start justify-between gap-3">

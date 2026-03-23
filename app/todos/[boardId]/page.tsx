@@ -116,7 +116,8 @@ export default async function TodoBoardDetailPage({
       initialPosts={safePosts}
       canCreate={canCreate}
       backHref="/todos"
-      backLabel="← todos"
+      backLabel="todos"
+      postDetailBaseHref={`/todos/${board.id}`}
     />
   )
 }

@@ -232,15 +232,20 @@ export default function PostDetailClient({
   boardName,
   boardId,
   post,
+  backHref = `/boards/${boardId}`,
+  backLabel,
 }: {
   boardName: string
   boardId: string
   post: Post
+  backHref?: string
+  backLabel?: string
 }) {
   const toast = useToast()
   const router = useRouter()
   const { data: session } = useSession()
   const myEmail = session?.user?.email ?? null
+  const resolvedBackLabel = backLabel ?? boardName
 
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null)
   const [editingCommentText, setEditingCommentText] = useState('')
@@ -529,7 +534,7 @@ export default function PostDetailClient({
         return
       }
 
-      router.push(`/boards/${boardId}`)
+      router.push(backHref)
       router.refresh()
     } finally {
       setSavingEdit(false)
@@ -602,8 +607,8 @@ export default function PostDetailClient({
         }
       >
         <div className="surface card-pad card-hover-border-only">
-        <Link href={`/boards/${boardId}`} className="btn btn-outline">
-          ← {boardName}
+        <Link href={backHref} className="btn btn-outline">
+          ← {resolvedBackLabel}
         </Link>
 
         <header className="mt-4">

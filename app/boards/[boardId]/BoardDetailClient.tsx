@@ -78,14 +78,17 @@ export default function BoardDetailClient({
   canCreate,
   backHref = '/boards',
   backLabel = 'boards',
+  postDetailBaseHref,
 }: {
   board: Board
   initialPosts: Post[]
   canCreate: boolean
   backHref?: string
   backLabel?: string
+  postDetailBaseHref?: string
 }) {
   const router = useRouter()
+  const resolvedPostDetailBaseHref = postDetailBaseHref ?? `/boards/${board.id}`
   const POST_PAGE_SIZE = 10
   const [posts, setPosts] = useState<Post[]>(initialPosts)
   const [postSortOrder, setPostSortOrder] = useState<'desc' | 'asc'>('desc')
@@ -161,7 +164,7 @@ export default function BoardDetailClient({
       return
     }
 
-    window.location.href = '/boards'
+    window.location.href = backHref
   }
 
   const saveSchedule = async () => {
@@ -649,7 +652,7 @@ export default function BoardDetailClient({
               pagedPosts.map((p) => (
                 <Link
                   key={p.id}
-                  href={`/boards/${board.id}/${encodeURIComponent(p.slug ?? p.id)}`}
+                  href={`${resolvedPostDetailBaseHref}/${encodeURIComponent(p.slug ?? p.id)}`}
                   className="card card-pad block no-underline hover:no-underline"
                 >
                   <div className="flex items-start justify-between gap-3">

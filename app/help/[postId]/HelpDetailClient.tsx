@@ -10,6 +10,7 @@ import rehypeSanitize from 'rehype-sanitize'
 import Link from 'next/link'
 import { displayUserLabel } from '@/app/lib/userLabel'
 import { sanitizedMarkdownSchema } from '@/app/lib/markdown'
+import { useAsyncLock } from '@/app/lib/useAsyncLock'
 
 type HelpPost = {
   id: string
@@ -42,7 +43,7 @@ export default function HelpDetailClient({ postId }: { postId: string }) {
   const [err, setErr] = useState<string | null>(null)
 
   const [draft, setDraft] = useState('')
-  const [saving, setSaving] = useState(false)
+  const { pending: saving, run: runSendAnswer } = useAsyncLock()
 
   const canSend = useMemo(() => !!draft.trim(), [draft])
 
@@ -71,25 +72,25 @@ export default function HelpDetailClient({ postId }: { postId: string }) {
   }, [load])
 
   const sendAnswer = async () => {
-    setSaving(true)
-    setErr(null)
+    await runSendAnswer(async () => {
+      setErr(null)
 
-    const res = await fetch(`/api/help/posts/${postId}/answers`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: draft }),
+      const res = await fetch(`/api/help/posts/${postId}/answers`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: draft }),
+      })
+
+      const data = await res.json().catch(() => null)
+
+      if (!res.ok) {
+        setErr(data?.message ?? '답변 등록 실패')
+        return
+      }
+
+      setDraft('')
+      await load()
     })
-
-    const data = await res.json().catch(() => null)
-    setSaving(false)
-
-    if (!res.ok) {
-      setErr(data?.message ?? '답변 등록 실패')
-      return
-    }
-
-    setDraft('')
-    await load()
   }
 
   const mdComponents: Parameters<typeof ReactMarkdown>[0]['components'] = {
@@ -255,6 +256,7 @@ export default function HelpDetailClient({ postId }: { postId: string }) {
               placeholder="운영진 답변 작성..."
               rows={5}
               className="textarea"
+              disabled={saving}
               style={{ resize: 'vertical' }}
             />
 

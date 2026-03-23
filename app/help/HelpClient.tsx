@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import MarkdownEditor from '@/app/components/MarkdownEditor'
+import { useAsyncLock } from '@/app/lib/useAsyncLock'
 
 type HelpPost = {
   id: string
@@ -33,7 +34,7 @@ export default function HelpClient() {
   const [title, setTitle] = useState('')
   const [contentMd, setContentMd] = useState('')
   const [err, setErr] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
+  const { pending: saving, run: runCreate } = useAsyncLock()
 
   const canSubmit = useMemo(() => !!title.trim(), [title])
   const normalizedListTitleQuery = listTitleQuery.trim().toLowerCase()
@@ -62,26 +63,26 @@ export default function HelpClient() {
   }, [])
 
   const create = async () => {
-    setSaving(true)
-    setErr(null)
+    await runCreate(async () => {
+      setErr(null)
 
-    const res = await fetch('/api/help/posts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, contentMd }),
+      const res = await fetch('/api/help/posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, contentMd }),
+      })
+
+      const data = await res.json().catch(() => null)
+
+      if (!res.ok) {
+        setErr(data?.message ?? '등록 실패')
+        return
+      }
+
+      setTitle('')
+      setContentMd('')
+      await load()
     })
-
-    const data = await res.json().catch(() => null)
-    setSaving(false)
-
-    if (!res.ok) {
-      setErr(data?.message ?? '등록 실패')
-      return
-    }
-
-    setTitle('')
-    setContentMd('')
-    await load()
   }
 
   return (
@@ -115,6 +116,7 @@ export default function HelpClient() {
             onChange={(e) => setTitle(e.target.value)}
             placeholder="제목"
             className="input"
+            disabled={saving}
           />
         </div>
 
@@ -127,6 +129,7 @@ export default function HelpClient() {
             rows={8}
             previewEmptyText="미리보기할 내용이 없습니다."
             htmlMode="safe"
+            disabled={saving}
           />
         </div>
 

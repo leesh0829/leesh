@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { DragEvent } from 'react'
 import { toHumanHttpError } from '@/app/lib/httpErrorText'
 import { useToast } from '@/app/components/ToastProvider'
+import { useAsyncLock } from '@/app/lib/useAsyncLock'
 
 type ScheduleStatus = 'TODO' | 'DOING' | 'DONE'
 
@@ -459,6 +460,7 @@ export default function TodosClient() {
   const [dragOverStatus, setDragOverStatus] = useState<ScheduleStatus | null>(
     null
   )
+  const { pending: creatingBoard, run: runCreateBoard } = useAsyncLock()
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -633,41 +635,43 @@ export default function TodosClient() {
   }
 
   const create = async () => {
-    const payload = {
-      name,
-      description: desc || null,
-      singleSchedule,
-      scheduleAllDay,
-      scheduleStartAt: singleSchedule
-        ? isoFromDatetimeLocal(scheduleStartLocal)
-        : null,
-      scheduleEndAt: singleSchedule
-        ? isoFromDatetimeLocal(scheduleEndLocal)
-        : null,
-    }
+    await runCreateBoard(async () => {
+      const payload = {
+        name,
+        description: desc || null,
+        singleSchedule,
+        scheduleAllDay,
+        scheduleStartAt: singleSchedule
+          ? isoFromDatetimeLocal(scheduleStartLocal)
+          : null,
+        scheduleEndAt: singleSchedule
+          ? isoFromDatetimeLocal(scheduleEndLocal)
+          : null,
+      }
 
-    const r = await fetch('/api/todos/boards', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      const r = await fetch('/api/todos/boards', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+
+      if (!r.ok) {
+        const msg = await readApiErrorMessage(r)
+        const message = `${r.status} ${r.statusText} · ${msg ?? 'create failed'}`
+        setErr(message)
+        toast.error(message)
+        return
+      }
+
+      setName('')
+      setDesc('')
+      setSingleSchedule(false)
+      setScheduleAllDay(false)
+      setScheduleStartLocal('')
+      setScheduleEndLocal('')
+      await load()
+      toast.success('TODO 보드를 생성했습니다.')
     })
-
-    if (!r.ok) {
-      const msg = await readApiErrorMessage(r)
-      const message = `${r.status} ${r.statusText} · ${msg ?? 'create failed'}`
-      setErr(message)
-      toast.error(message)
-      return
-    }
-
-    setName('')
-    setDesc('')
-    setSingleSchedule(false)
-    setScheduleAllDay(false)
-    setScheduleStartLocal('')
-    setScheduleEndLocal('')
-    await load()
-    toast.success('TODO 보드를 생성했습니다.')
   }
 
   const move = async (id: string, next: ScheduleStatus) => {
@@ -897,6 +901,7 @@ export default function TodosClient() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="보드 이름"
+                  disabled={creatingBoard}
                 />
               </div>
 
@@ -907,6 +912,7 @@ export default function TodosClient() {
                   value={desc}
                   onChange={(e) => setDesc(e.target.value)}
                   placeholder="설명 (선택)"
+                  disabled={creatingBoard}
                 />
               </div>
 
@@ -915,6 +921,7 @@ export default function TodosClient() {
                   type="checkbox"
                   checked={singleSchedule}
                   onChange={(e) => setSingleSchedule(e.target.checked)}
+                  disabled={creatingBoard}
                 />
                 단일 일정 모드
               </label>
@@ -930,7 +937,7 @@ export default function TodosClient() {
                       type="datetime-local"
                       value={scheduleStartLocal}
                       onChange={(e) => setScheduleStartLocal(e.target.value)}
-                      disabled={scheduleAllDay}
+                      disabled={creatingBoard || scheduleAllDay}
                     />
                   </div>
 
@@ -943,7 +950,7 @@ export default function TodosClient() {
                       type="datetime-local"
                       value={scheduleEndLocal}
                       onChange={(e) => setScheduleEndLocal(e.target.value)}
-                      disabled={scheduleAllDay}
+                      disabled={creatingBoard || scheduleAllDay}
                     />
                   </div>
 
@@ -952,19 +959,27 @@ export default function TodosClient() {
                       type="checkbox"
                       checked={scheduleAllDay}
                       onChange={(e) => setScheduleAllDay(e.target.checked)}
+                      disabled={creatingBoard}
                     />
                     하루종일
                   </label>
                 </div>
               ) : null}
 
-              <div className="flex justify-end">
+              <div className="flex items-center justify-between gap-3">
+                {creatingBoard ? (
+                  <div className="text-sm" style={{ color: 'var(--muted)' }}>
+                    TODO 보드를 생성하는 중입니다...
+                  </div>
+                ) : (
+                  <span />
+                )}
                 <button
                   type="submit"
                   className="btn btn-primary"
-                  disabled={!name.trim()}
+                  disabled={creatingBoard || !name.trim()}
                 >
-                  생성
+                  {creatingBoard ? '생성중...' : '생성'}
                 </button>
               </div>
             </form>

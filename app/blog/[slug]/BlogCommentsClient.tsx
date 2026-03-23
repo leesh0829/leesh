@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react'
 import { toHumanHttpError } from '@/app/lib/httpErrorText'
 import { displayUserLabel } from '@/app/lib/userLabel'
 import { useToast } from '@/app/components/ToastProvider'
+import { useAsyncLock } from '@/app/lib/useAsyncLock'
 
 type CommentItem = {
   id: string
@@ -63,6 +64,7 @@ export default function BlogCommentsClient({
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
   const [savingEdit, setSavingEdit] = useState(false)
+  const { pending: submitting, run: runSubmit } = useAsyncLock()
 
   async function startEdit(c: CommentItem) {
     setEditingId(c.id)
@@ -148,27 +150,32 @@ export default function BlogCommentsClient({
   }
 
   async function submit() {
-    const text = content.trim()
-    if (!text) return
+    await runSubmit(async () => {
+      const text = content.trim()
+      if (!text) return
 
-    setError(null)
-    const res = await fetch(`/api/boards/${boardId}/posts/${postId}/comments`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: text }),
+      setError(null)
+      const res = await fetch(
+        `/api/boards/${boardId}/posts/${postId}/comments`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: text }),
+        }
+      )
+
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}))
+        const message = d?.message ?? '댓글 작성 실패'
+        setError(message)
+        toast.error(message)
+        return
+      }
+
+      setContent('')
+      await load()
+      toast.success('댓글을 등록했습니다.')
     })
-
-    if (!res.ok) {
-      const d = await res.json().catch(() => ({}))
-      const message = d?.message ?? '댓글 작성 실패'
-      setError(message)
-      toast.error(message)
-      return
-    }
-
-    setContent('')
-    await load()
-    toast.success('댓글을 등록했습니다.')
   }
 
   useEffect(() => {
@@ -197,11 +204,24 @@ export default function BlogCommentsClient({
           }}
           placeholder="댓글 달기... (Enter=전송, Shift+Enter=줄바꿈)"
           rows={3}
+          disabled={submitting}
         />
 
-        <div className="flex justify-end">
-          <button type="button" onClick={submit} className="btn btn-primary">
-            등록
+        <div className="flex items-center justify-between gap-3">
+          {submitting ? (
+            <div className="text-sm" style={{ color: 'var(--muted)' }}>
+              댓글을 등록하는 중입니다...
+            </div>
+          ) : (
+            <span />
+          )}
+          <button
+            type="button"
+            onClick={submit}
+            className="btn btn-primary"
+            disabled={submitting || !content.trim()}
+          >
+            {submitting ? '등록중...' : '등록'}
           </button>
         </div>
 

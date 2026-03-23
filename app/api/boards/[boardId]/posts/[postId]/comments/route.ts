@@ -14,7 +14,7 @@ type CommentRow = {
   author: { name: string | null; email: string | null }
 }
 
-async function resolveReadableBlogPost(
+async function resolveReadablePost(
   req: Request,
   {
     boardId,
@@ -30,19 +30,38 @@ async function resolveReadableBlogPost(
     where: {
       id: postId,
       boardId,
-      board: { type: 'BLOG' },
-      status: 'DONE',
     },
     select: {
       id: true,
       authorId: true,
       isSecret: true,
-      board: { select: { ownerId: true } },
+      status: true,
+      board: { select: { ownerId: true, type: true } },
     },
   })
 
   if (!post) return { ok: false, status: 404 }
 
+  if (post.board.type === 'GENERAL') return { ok: true }
+
+  if (post.board.type === 'TODO') {
+    if (userId === post.board.ownerId) return { ok: true }
+
+    const shared = await prisma.scheduleShare.findFirst({
+      where: {
+        requesterId: userId,
+        ownerId: post.board.ownerId,
+        scope: 'TODO',
+        status: 'ACCEPTED',
+      },
+      select: { id: true },
+    })
+
+    return shared ? { ok: true } : { ok: false, status: 403 }
+  }
+
+  if (post.board.type !== 'BLOG') return { ok: false, status: 404 }
+  if (post.status !== 'DONE') return { ok: false, status: 404 }
   if (!post.isSecret) return { ok: true }
 
   const isPrivileged = userId === post.authorId || userId === post.board.ownerId
@@ -85,7 +104,7 @@ export async function GET(
   if (!user)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
-  const readable = await resolveReadableBlogPost(req, {
+  const readable = await resolveReadablePost(req, {
     boardId,
     postId,
     userId: user.id,
@@ -131,7 +150,7 @@ export async function POST(
   if (!user)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
-  const readable = await resolveReadableBlogPost(req, {
+  const readable = await resolveReadablePost(req, {
     boardId,
     postId,
     userId: user.id,

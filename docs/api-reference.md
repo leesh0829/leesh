@@ -95,7 +95,7 @@
 
 | Endpoint | Method | Auth | 설명 |
 |---|---|---|---|
-| `/api/calendar` | `GET` | 로그인 | 월별 일정 조회 (`?month=YYYY-MM`) |
+| `/api/calendar` | `GET` | 로그인 | 월별 일정 조회 (`?month=YYYY-MM`, 대한민국 공휴일 포함) |
 | `/api/schedule-shares` | `GET` | 로그인 | 공유 요청/수락 목록 조회 |
 | `/api/schedule-shares` | `POST` | 로그인 | 공유 요청 생성(scope: TODO/CALENDAR) |
 | `/api/schedule-shares/[shareId]` | `PATCH` | owner | 공유 요청 승인/거절 |

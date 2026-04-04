@@ -3,6 +3,7 @@ import { prisma } from '@/app/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import { toISOStringSafe } from '@/app/lib/date'
+import { getKoreanHolidayCalendarItems } from '@/app/lib/koreanHolidayCalendar'
 import {
   getReadableScheduleOwnerIds,
   toUserLabel,
@@ -193,7 +194,9 @@ export async function GET(req: Request) {
       }
     })
 
-  const merged = [...data, ...boardSchedules].sort((a, b) => {
+  const holidays = getKoreanHolidayCalendarItems(month)
+
+  const merged = [...data, ...boardSchedules, ...holidays].sort((a, b) => {
     const at = a.startAt ? new Date(a.startAt).getTime() : 0
     const bt = b.startAt ? new Date(b.startAt).getTime() : 0
     if (at !== bt) return at - bt

@@ -3,10 +3,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { toHumanHttpError } from '@/app/lib/httpErrorText'
+import {
+  KOREA_HOLIDAY_LABEL,
+  KOREA_HOLIDAY_OWNER_ID,
+} from '@/app/lib/koreanHolidayConstants'
 import { useToast } from '@/app/components/ToastProvider'
 
+type CalStatus = 'TODO' | 'DOING' | 'DONE' | 'HOLIDAY'
+type EditableCalStatus = Exclude<CalStatus, 'HOLIDAY'>
+
 type CalItem = {
-  kind: 'POST' | 'BOARD'
+  kind: 'POST' | 'BOARD' | 'HOLIDAY'
   id: string
   slug: string | null
   boardId: string
@@ -18,12 +25,14 @@ type CalItem = {
   canEdit: boolean
   title: string
   displayTitle: string
-  status: 'TODO' | 'DOING' | 'DONE'
+  status: CalStatus
   isSecret: boolean
   startAt: string | null
   endAt: string | null
   allDay: boolean
   createdAt?: string | null
+  isSubstituteHoliday?: boolean
+  isLunarHoliday?: boolean
 }
 
 type SharePeer = {
@@ -58,6 +67,7 @@ type ShareAccount = {
   label: string
   color: string
   isSelf: boolean
+  isBuiltin?: boolean
 }
 
 function extractApiMessage(payload: unknown): string | null {
@@ -172,6 +182,25 @@ function getOwnerColor(ownerId: string) {
   return color
 }
 
+function isHolidayItem(it: CalItem) {
+  return it.kind === 'HOLIDAY'
+}
+
+function getItemMetaLine(it: CalItem) {
+  if (isHolidayItem(it)) {
+    const tags = [
+      it.isSubstituteHoliday ? '대체공휴일' : null,
+      it.isLunarHoliday ? '음력' : null,
+    ].filter(Boolean)
+
+    return tags.length > 0
+      ? `${it.boardName} · ${tags.join(' · ')}`
+      : it.boardName
+  }
+
+  return `${it.shared ? `공유:${it.ownerLabel} · ` : ''}${it.boardName} · ${it.status}`
+}
+
 /**
  * endAt 보정:
  * - endAt이 null이면 startAt 하루짜리로
@@ -208,12 +237,12 @@ export default function CalendarClient() {
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
   const [boardFilter, setBoardFilter] = useState<string>('ALL')
-  const [statusFilter, setStatusFilter] = useState<'ALL' | CalItem['status']>(
+  const [statusFilter, setStatusFilter] = useState<'ALL' | EditableCalStatus>(
     'ALL'
   )
   const [editing, setEditing] = useState<CalItem | null>(null)
   const [editTitle, setEditTitle] = useState('')
-  const [editStatus, setEditStatus] = useState<CalItem['status']>('TODO')
+  const [editStatus, setEditStatus] = useState<CalStatus>('TODO')
   const [editStart, setEditStart] = useState('')
   const [editEnd, setEditEnd] = useState('')
   const [editAllDay, setEditAllDay] = useState(false)
@@ -249,9 +278,11 @@ export default function CalendarClient() {
       .sort((a, b) => a.name.localeCompare(b.name))
   }, [items])
 
-  const selfOwnerIdFromItems = items.find((it) => !it.shared)?.ownerId ?? null
+  const selfOwnerIdFromItems =
+    items.find((it) => !it.shared && !isHolidayItem(it))?.ownerId ?? null
   const selfLabelFromItems =
-    items.find((it) => !it.shared)?.ownerLabel ?? '내 계정'
+    items.find((it) => !it.shared && !isHolidayItem(it))?.ownerLabel ??
+    '내 계정'
   const selfAccountId = meShare?.id ?? selfOwnerIdFromItems ?? 'self'
   const selfAccountLabel = meShare?.label ?? selfLabelFromItems
 
@@ -267,9 +298,17 @@ export default function CalendarClient() {
       color: '#ffffff',
       isSelf: true,
     })
+    map.set(KOREA_HOLIDAY_OWNER_ID, {
+      id: KOREA_HOLIDAY_OWNER_ID,
+      label: KOREA_HOLIDAY_LABEL,
+      color: '#fecaca',
+      isSelf: false,
+      isBuiltin: true,
+    })
 
     for (const owner of acceptedOwners) {
       if (owner.id === selfAccountId) continue
+      if (owner.id === KOREA_HOLIDAY_OWNER_ID) continue
       if (map.has(owner.id)) continue
       map.set(owner.id, {
         id: owner.id,
@@ -281,8 +320,12 @@ export default function CalendarClient() {
 
     return [
       map.get(selfAccountId)!,
+      map.get(KOREA_HOLIDAY_OWNER_ID)!,
       ...Array.from(map.values())
-        .filter((row) => row.id !== selfAccountId)
+        .filter(
+          (row) =>
+            row.id !== selfAccountId && row.id !== KOREA_HOLIDAY_OWNER_ID
+        )
         .sort((a, b) => a.label.localeCompare(b.label)),
     ]
   }, [outgoingShares, selfAccountId, selfAccountLabel])
@@ -471,6 +514,7 @@ export default function CalendarClient() {
   const closeEdit = () => setEditing(null)
 
   const getDetailHref = (it: CalItem) => {
+    if (isHolidayItem(it)) return null
     if (it.kind === 'BOARD') {
       if (it.boardType === 'TODO') return `/todos/${it.boardId}`
       if (it.boardType === 'CALENDAR') return '/calendar'
@@ -843,9 +887,7 @@ export default function CalendarClient() {
                     className="select w-full sm:w-32"
                     value={statusFilter}
                     onChange={(e) =>
-                      setStatusFilter(
-                        e.target.value as 'ALL' | CalItem['status']
-                      )
+                      setStatusFilter(e.target.value as 'ALL' | EditableCalStatus)
                     }
                   >
                     <option value="ALL">전체 상태</option>
@@ -1256,7 +1298,7 @@ export default function CalendarClient() {
                                 className="surface card-pad text-left"
                                 onClick={() => openEdit(it)}
                                 style={
-                                  it.shared
+                                  it.shared || isHolidayItem(it)
                                     ? {
                                         background: `color-mix(in srgb, ${
                                           ownerColorMap[it.ownerId] ??
@@ -1272,8 +1314,7 @@ export default function CalendarClient() {
                                   {it.displayTitle || it.title}
                                 </div>
                                 <div className="mt-1 text-xs opacity-70 truncate">
-                                  {it.shared ? `공유:${it.ownerLabel} · ` : ''}
-                                  {it.boardName} · {it.status}
+                                  {getItemMetaLine(it)}
                                 </div>
                               </button>
                             ))}
@@ -1324,6 +1365,10 @@ export default function CalendarClient() {
 
           <section className="mt-5 grid gap-2">
             <div className="text-sm font-semibold">계정 리스트</div>
+            <p className="text-xs opacity-70 leading-5">
+              대한민국 공휴일 캘린더는 기본으로 추가되어 있으며, 체크로 표시를
+              켜고 끌 수 있습니다.
+            </p>
             {shareLoading ? (
               <div className="grid gap-2">
                 {Array.from({ length: 3 }).map((_, i) => (
@@ -1363,6 +1408,8 @@ export default function CalendarClient() {
                   </span>
                   {account.isSelf ? (
                     <span className="badge ml-auto">나</span>
+                  ) : account.isBuiltin ? (
+                    <span className="badge ml-auto">기본</span>
                   ) : null}
                 </label>
               ))
@@ -1529,8 +1576,7 @@ export default function CalendarClient() {
                       {it.displayTitle || it.title}
                     </div>
                     <div style={{ fontSize: 12, opacity: 0.75 }}>
-                      {it.shared ? `공유:${it.ownerLabel} · ` : ''}
-                      {it.boardName} · {it.status}
+                      {getItemMetaLine(it)}
                     </div>
                   </button>
                 ))
@@ -1571,7 +1617,11 @@ export default function CalendarClient() {
               }}
             >
               <h3 style={{ margin: 0 }}>
-                {editing.canEdit ? '일정 수정' : '일정 보기 (공유 읽기 전용)'}
+                {editing.canEdit
+                  ? '일정 수정'
+                  : isHolidayItem(editing)
+                    ? '대한민국 공휴일 보기'
+                    : '일정 보기 (공유 읽기 전용)'}
               </h3>
               <button onClick={closeEdit}>닫기</button>
             </div>
@@ -1581,7 +1631,18 @@ export default function CalendarClient() {
                 소유자: {editing.ownerLabel}
               </div>
 
-              {editing.kind === 'BOARD' ? (
+              {isHolidayItem(editing) ? (
+                <div style={{ display: 'grid', gap: 6 }}>
+                  <div style={{ fontSize: 12, opacity: 0.7 }}>구분</div>
+                  <div style={{ fontWeight: 700 }}>{editing.title}</div>
+                  <div style={{ fontSize: 12, opacity: 0.75 }}>
+                    {getItemMetaLine(editing)}
+                  </div>
+                  <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>
+                    기본 제공되는 읽기 전용 공휴일 캘린더입니다.
+                  </div>
+                </div>
+              ) : editing.kind === 'BOARD' ? (
                 <div style={{ display: 'grid', gap: 6 }}>
                   <div style={{ fontSize: 12, opacity: 0.7 }}>보드</div>
                   <div style={{ fontWeight: 700 }}>{editing.boardName}</div>
@@ -1601,50 +1662,56 @@ export default function CalendarClient() {
                 </label>
               )}
 
-              <label style={{ display: 'grid', gap: 6 }}>
-                상태
-                <select
-                  value={editStatus}
-                  onChange={(e) =>
-                    setEditStatus(e.target.value as CalItem['status'])
-                  }
-                  disabled={!editing.canEdit}
-                >
-                  <option value="TODO">TODO</option>
-                  <option value="DOING">DOING</option>
-                  <option value="DONE">DONE</option>
-                </select>
-              </label>
+              {!isHolidayItem(editing) ? (
+                <>
+                  <label style={{ display: 'grid', gap: 6 }}>
+                    상태
+                    <select
+                      value={editStatus}
+                      onChange={(e) =>
+                        setEditStatus(e.target.value as EditableCalStatus)
+                      }
+                      disabled={!editing.canEdit}
+                    >
+                      <option value="TODO">TODO</option>
+                      <option value="DOING">DOING</option>
+                      <option value="DONE">DONE</option>
+                    </select>
+                  </label>
 
-              <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <input
-                  type="checkbox"
-                  checked={editAllDay}
-                  onChange={(e) => setEditAllDay(e.target.checked)}
-                  disabled={!editing.canEdit}
-                />
-                allDay
-              </label>
+                  <label
+                    style={{ display: 'flex', gap: 8, alignItems: 'center' }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={editAllDay}
+                      onChange={(e) => setEditAllDay(e.target.checked)}
+                      disabled={!editing.canEdit}
+                    />
+                    allDay
+                  </label>
 
-              <label style={{ display: 'grid', gap: 6 }}>
-                시작
-                <input
-                  type="datetime-local"
-                  value={editStart}
-                  onChange={(e) => setEditStart(e.target.value)}
-                  disabled={!editing.canEdit}
-                />
-              </label>
+                  <label style={{ display: 'grid', gap: 6 }}>
+                    시작
+                    <input
+                      type="datetime-local"
+                      value={editStart}
+                      onChange={(e) => setEditStart(e.target.value)}
+                      disabled={!editing.canEdit}
+                    />
+                  </label>
 
-              <label style={{ display: 'grid', gap: 6 }}>
-                종료
-                <input
-                  type="datetime-local"
-                  value={editEnd}
-                  onChange={(e) => setEditEnd(e.target.value)}
-                  disabled={!editing.canEdit}
-                />
-              </label>
+                  <label style={{ display: 'grid', gap: 6 }}>
+                    종료
+                    <input
+                      type="datetime-local"
+                      value={editEnd}
+                      onChange={(e) => setEditEnd(e.target.value)}
+                      disabled={!editing.canEdit}
+                    />
+                  </label>
+                </>
+              ) : null}
 
               <div
                 style={{
@@ -1654,7 +1721,13 @@ export default function CalendarClient() {
                   marginTop: 6,
                 }}
               >
-                <Link href={getDetailHref(editing)}>자세히 보기</Link>
+                {getDetailHref(editing) ? (
+                  <Link href={getDetailHref(editing)!}>자세히 보기</Link>
+                ) : (
+                  <div style={{ fontSize: 12, opacity: 0.7 }}>
+                    공휴일 일정은 캘린더에서만 확인할 수 있습니다.
+                  </div>
+                )}
 
                 {editing.canEdit ? (
                   <div style={{ display: 'flex', gap: 8 }}>
@@ -1667,7 +1740,9 @@ export default function CalendarClient() {
                   </div>
                 ) : (
                   <div style={{ fontSize: 12, opacity: 0.7 }}>
-                    공유받은 일정은 수정/삭제할 수 없습니다.
+                    {isHolidayItem(editing)
+                      ? '기본 공휴일 일정은 수정/삭제할 수 없습니다.'
+                      : '공유받은 일정은 수정/삭제할 수 없습니다.'}
                   </div>
                 )}
               </div>

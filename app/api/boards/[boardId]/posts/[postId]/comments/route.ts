@@ -60,7 +60,8 @@ async function resolveReadablePost(
     return shared ? { ok: true } : { ok: false, status: 403 }
   }
 
-  if (post.board.type !== 'BLOG') return { ok: false, status: 404 }
+  if (post.board.type !== 'BLOG' && post.board.type !== 'DOCS')
+    return { ok: false, status: 404 }
   if (post.status !== 'DONE') return { ok: false, status: 404 }
   if (!post.isSecret) return { ok: true }
 

@@ -11,7 +11,14 @@ import {
 
 export const runtime = 'nodejs'
 
-type BoardType = 'GENERAL' | 'BLOG' | 'PORTFOLIO' | 'TODO' | 'CALENDAR' | 'HELP'
+type BoardType =
+  | 'GENERAL'
+  | 'BLOG'
+  | 'DOCS'
+  | 'PORTFOLIO'
+  | 'TODO'
+  | 'CALENDAR'
+  | 'HELP'
 type PostStatus = 'TODO' | 'DOING' | 'DONE'
 
 type CalendarBoardRow = {

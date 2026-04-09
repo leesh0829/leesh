@@ -5,48 +5,19 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { badRequestFromZod, parseJsonWithSchema } from '@/app/lib/validation'
-import {
-  BLOG_POST_TYPE_VALUES,
-  parseReviewRatingHalf,
-} from '@/app/lib/blog'
 
 export const runtime = 'nodejs'
-const updateBlogPostSchema = z
+
+const updateDocsPostSchema = z
   .object({
     title: z.string().trim().min(1, 'invalid body'),
     contentMd: z.string(),
-    blogCategory: z.enum(BLOG_POST_TYPE_VALUES),
-    reviewRatingHalf: z.union([z.number().int(), z.null()]).optional(),
     publish: z.boolean().optional().default(false),
     regenerateSlug: z.boolean().optional().default(false),
     isSecret: z.boolean().optional(),
     secretPassword: z.union([z.string(), z.null()]).optional(),
   })
   .strict()
-  .superRefine((value, ctx) => {
-    const rating =
-      value.reviewRatingHalf == null
-        ? null
-        : parseReviewRatingHalf(String(value.reviewRatingHalf), {
-            allowZero: true,
-          })
-
-    if (value.reviewRatingHalf != null && rating == null) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: '별점은 0점부터 5점까지 0.5점 단위만 가능합니다.',
-        path: ['reviewRatingHalf'],
-      })
-    }
-
-    if (value.blogCategory !== 'REVIEW' && value.reviewRatingHalf != null) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: '별점은 리뷰/후기 글에서만 사용할 수 있습니다.',
-        path: ['reviewRatingHalf'],
-      })
-    }
-  })
 
 function slugify(input: string): string {
   return input
@@ -77,18 +48,17 @@ export async function PUT(
   const { postId } = await params
 
   const userId = await getUserIdOr401()
-  if (!userId)
+  if (!userId) {
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
+  }
 
-  const parsed = await parseJsonWithSchema(req, updateBlogPostSchema)
+  const parsed = await parseJsonWithSchema(req, updateDocsPostSchema)
   if (!parsed.success) {
     return badRequestFromZod(parsed.error, 'invalid body')
   }
 
   const title = parsed.data.title
   const contentMd = parsed.data.contentMd
-  const blogCategory = parsed.data.blogCategory
-  const reviewRatingHalf = parsed.data.reviewRatingHalf ?? null
   const publish = parsed.data.publish
   const regenerateSlug = parsed.data.regenerateSlug
   const isSecret = parsed.data.isSecret
@@ -109,13 +79,13 @@ export async function PUT(
     )
   }
 
-  // 작성자 + BLOG 타입 보드 글만 수정 가능
   const existing = await prisma.post.findFirst({
-    where: { id: postId, authorId: userId, board: { type: 'BLOG' } },
+    where: { id: postId, authorId: userId, board: { type: 'DOCS' } },
     select: { id: true, boardId: true, slug: true },
   })
-  if (!existing)
+  if (!existing) {
     return NextResponse.json({ message: 'not found' }, { status: 404 })
+  }
 
   let nextSlug = existing.slug
 
@@ -136,8 +106,6 @@ export async function PUT(
   const data: Record<string, unknown> = {
     title,
     contentMd,
-    blogCategory,
-    reviewRatingHalf,
     slug: nextSlug ?? undefined,
     status: publish ? 'DONE' : 'DOING',
   }
@@ -146,10 +114,8 @@ export async function PUT(
     data.isSecret = isSecret
 
     if (!isSecret) {
-      // 비밀글 해제하면 해시 제거
       data.secretPasswordHash = null
     } else if (secretPassword && secretPassword.length >= 4) {
-      // 비밀글 유지 + 비번 입력한 경우만 갱신
       data.secretPasswordHash = await bcrypt.hash(secretPassword, 10)
     }
   }
@@ -170,16 +136,17 @@ export async function DELETE(
   const { postId } = await params
 
   const userId = await getUserIdOr401()
-  if (!userId)
+  if (!userId) {
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
+  }
 
-  // 작성자 + BLOG 글만 삭제 가능
   const existing = await prisma.post.findFirst({
-    where: { id: postId, authorId: userId, board: { type: 'BLOG' } },
+    where: { id: postId, authorId: userId, board: { type: 'DOCS' } },
     select: { id: true },
   })
-  if (!existing)
+  if (!existing) {
     return NextResponse.json({ message: 'not found' }, { status: 404 })
+  }
 
   await prisma.post.delete({ where: { id: postId } })
   return NextResponse.json({ ok: true })

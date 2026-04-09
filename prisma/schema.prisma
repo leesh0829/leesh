@@ -107,6 +107,8 @@ model Post {
   contentMd String
   status    PostStatus
   priority  Int        @default(0)
+  blogCategory     BlogPostCategory @default(INFO)
+  reviewRatingHalf Int?
 
   startAt DateTime?
   endAt   DateTime?
@@ -151,10 +153,17 @@ enum PostStatus {
 enum BoardType {
   GENERAL
   BLOG
+  DOCS
   PORTFOLIO
   TODO
   CALENDAR
   HELP
+}
+
+enum BlogPostCategory {
+  INFO
+  REVIEW
+  DAILY
 }
 
 enum PermissionOverrideMode {

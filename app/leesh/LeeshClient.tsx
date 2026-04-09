@@ -656,6 +656,44 @@ export default function LeeshClient() {
       </section>
 
       <section className="surface card-pad scroll-reveal">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-2xl font-semibold">GitHub</h2>
+          </div>
+
+          <a
+            href="https://github.com/leesh0829"
+            target="_blank"
+            rel="noreferrer"
+            className="btn btn-outline"
+            aria-label="leesh0829 GitHub 프로필 열기"
+          >
+            <GitHubIcon />
+            GitHub
+          </a>
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-black/10 bg-black/[0.03] p-4">
+          <div className="overflow-x-auto">
+            <a
+              href="https://github.com/leesh0829"
+              target="_blank"
+              rel="noreferrer"
+              className="block min-w-[720px]"
+              aria-label="GitHub 잔디 크게 보기"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="https://ghchart.rshah.org/6d5aff/leesh0829"
+                alt="leesh0829 GitHub contribution chart"
+                className="h-auto w-full rounded-xl"
+              />
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <section className="surface card-pad scroll-reveal">
         <h2 className="text-2xl font-semibold">Tech Stack</h2>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           {detailedTechStacks.map((item) => (

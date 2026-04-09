@@ -18,7 +18,7 @@ type CalItem = {
   slug: string | null
   boardId: string
   boardName: string
-  boardType: 'GENERAL' | 'BLOG' | 'PORTFOLIO' | 'TODO' | 'CALENDAR' | 'HELP'
+  boardType: 'GENERAL' | 'BLOG' | 'DOCS' | 'PORTFOLIO' | 'TODO' | 'CALENDAR' | 'HELP'
   ownerId: string
   ownerLabel: string
   shared: boolean
@@ -524,6 +524,8 @@ export default function CalendarClient() {
     switch (it.boardType) {
       case 'BLOG':
         return `/blog/${encodeURIComponent(it.id)}`
+      case 'DOCS':
+        return `/docs/${encodeURIComponent(it.id)}`
       case 'TODO':
         return `/todos`
       case 'CALENDAR':

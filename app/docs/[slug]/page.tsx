@@ -6,16 +6,12 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
 import rehypeRaw from 'rehype-raw'
-import BlogCommentsClient from './BlogCommentsClient'
-import BlogActionsClient from './BlogActionsClient'
-import BlogSecretGateClient from './BlogSecretGateClient'
-import BlogTocClient from './BlogTocClient'
+import BlogCommentsClient from '@/app/blog/[slug]/BlogCommentsClient'
+import BlogActionsClient from '@/app/blog/[slug]/BlogActionsClient'
+import BlogSecretGateClient from '@/app/blog/[slug]/BlogSecretGateClient'
+import BlogTocClient from '@/app/blog/[slug]/BlogTocClient'
 import { cookies } from 'next/headers'
 import { readUnlockedPostIds, UNLOCK_COOKIE_NAME } from '@/app/lib/unlockCookie'
-import {
-  formatReviewRatingHalf,
-  getBlogPostTypeLabel,
-} from '@/app/lib/blog'
 
 export const runtime = 'nodejs'
 
@@ -39,10 +35,7 @@ function slugifyHeading(text: string): string {
 }
 
 function normalizeHeadingText(raw: string): string {
-  return raw
-    .replace(/\[(.*?)\]\((.*?)\)/g, '$1')
-    .replace(/[`*_~]/g, '')
-    .trim()
+  return raw.replace(/\[(.*?)\]\((.*?)\)/g, '$1').replace(/[`*_~]/g, '').trim()
 }
 
 function extractMarkdownHeadings(markdown: string): TocHeading[] {
@@ -77,18 +70,7 @@ function extractMarkdownHeadings(markdown: string): TocHeading[] {
   return headings
 }
 
-/**
- * Renders the blog post detail page for the given route slug.
- *
- * Fetches the post by id or slug from the database, determines viewer privileges and unlock state,
- * and renders either a "not found" message, a secret-post gate, or the full post view with:
- * the post header (title, date, actions), rendered Markdown content (with raw HTML and syntax highlighting),
- * comments, and a table of contents generated from headings.
- *
- * @param params - A promise resolving to route parameters containing `slug`
- * @returns The page element for the blog post; shows "글 없음" when the post is not found.
- */
-export default async function BlogDetailPage({
+export default async function DocsDetailPage({
   params,
 }: {
   params: Promise<{ slug: string }>
@@ -102,8 +84,6 @@ export default async function BlogDetailPage({
     title: true,
     contentMd: true,
     createdAt: true,
-    blogCategory: true,
-    reviewRatingHalf: true,
     authorId: true,
     isSecret: true,
     board: { select: { ownerId: true } },
@@ -112,7 +92,7 @@ export default async function BlogDetailPage({
   const byId = await prisma.post.findFirst({
     where: {
       id: slug,
-      board: { type: 'BLOG' },
+      board: { type: 'DOCS' },
       status: 'DONE',
     },
     select,
@@ -123,7 +103,7 @@ export default async function BlogDetailPage({
     (await prisma.post.findFirst({
       where: {
         slug,
-        board: { type: 'BLOG' },
+        board: { type: 'DOCS' },
         status: 'DONE',
       },
       orderBy: { createdAt: 'desc' },
@@ -135,7 +115,7 @@ export default async function BlogDetailPage({
       <main className="container-page py-8">
         <div className="surface card-pad">
           <div className="text-sm" style={{ color: 'var(--muted)' }}>
-            글 없음
+            문서 없음
           </div>
         </div>
       </main>
@@ -192,26 +172,17 @@ export default async function BlogDetailPage({
                 ) : null}
               </h1>
               <div className="mt-2 text-sm" style={{ color: 'var(--muted)' }}>
-                {toISOStringSafe(post.createdAt).slice(0, 10)} ·{' '}
-                {getBlogPostTypeLabel(post.blogCategory)}
-                {post.reviewRatingHalf !== null ? (
-                  <span
-                    className="ml-2 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold align-middle"
-                    style={{
-                      borderColor: 'rgba(214, 158, 46, 0.35)',
-                      background: 'rgba(250, 204, 21, 0.12)',
-                      color: '#c78900',
-                    }}
-                  >
-                    <span aria-hidden="true">★</span>
-                    <span>{formatReviewRatingHalf(post.reviewRatingHalf)}</span>
-                  </span>
-                ) : null}
+                {toISOStringSafe(post.createdAt).slice(0, 10)}
               </div>
             </div>
 
             <div className="shrink-0">
-              <BlogActionsClient postId={post.id} canEdit={isPrivileged} />
+              <BlogActionsClient
+                postId={post.id}
+                canEdit={isPrivileged}
+                apiBasePath="/api/docs/posts"
+                detailBasePath="/docs"
+              />
             </div>
           </header>
 

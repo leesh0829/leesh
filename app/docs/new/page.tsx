@@ -2,11 +2,11 @@ import { prisma } from '@/app/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import Link from 'next/link'
-import BlogEditorClient from './BlogEditorClient'
+import BlogEditorClient from '@/app/blog/new/BlogEditorClient'
 
 export const runtime = 'nodejs'
 
-export default async function BlogNewPage() {
+export default async function DocsNewPage() {
   const session = await getServerSession(authOptions)
   if (!session?.user?.email) {
     return (
@@ -37,14 +37,14 @@ export default async function BlogNewPage() {
     )
   }
 
-  let blogBoard = await prisma.board.findFirst({
-    where: { ownerId: user.id, type: 'BLOG' },
+  let docsBoard = await prisma.board.findFirst({
+    where: { ownerId: user.id, type: 'DOCS' },
     select: { id: true },
   })
 
-  if (!blogBoard) {
-    blogBoard = await prisma.board.create({
-      data: { ownerId: user.id, name: '블로그', type: 'BLOG' },
+  if (!docsBoard) {
+    docsBoard = await prisma.board.create({
+      data: { ownerId: user.id, name: '문서', type: 'DOCS' },
       select: { id: true },
     })
   }
@@ -53,17 +53,21 @@ export default async function BlogNewPage() {
     <main className="space-y-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <div className="text-xs opacity-60">Blog</div>
-          <h1 className="text-2xl font-semibold">새 글 작성</h1>
+          <div className="text-xs opacity-60">Docs</div>
+          <h1 className="text-2xl font-semibold">새 문서 작성</h1>
         </div>
 
-        <Link href="/blog" className="btn btn-outline">
+        <Link href="/docs" className="btn btn-outline">
           목록으로
         </Link>
       </div>
 
       <div className="surface card-pad card-hover-border-only">
-        <BlogEditorClient boardId={blogBoard.id} showBlogMeta />
+        <BlogEditorClient
+          boardId={docsBoard.id}
+          apiBasePath="/api/docs/posts"
+          detailBasePath="/docs"
+        />
       </div>
     </main>
   )

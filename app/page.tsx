@@ -14,8 +14,8 @@ export default function HomePage() {
               </Link>
             </h1>
             <p className="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
-              포트폴리오 / 블로그 / 게시판 / TODO / 캘린더까지 일정 관리를 한
-              번에.
+              포트폴리오 / 블로그 / Docs / 게시판 / TODO / 캘린더까지 일정
+              관리를 한 번에.
             </p>
           </div>
 
@@ -30,7 +30,7 @@ export default function HomePage() {
         </div>
 
         <div className="mt-5 flex flex-wrap gap-2">
-          {['블로그', '게시판', 'TODO', '캘린더'].map((t) => (
+          {['블로그', 'Docs', '게시판', 'TODO', '캘린더'].map((t) => (
             <span
               key={t}
               className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300"
@@ -47,6 +47,12 @@ export default function HomePage() {
           desc="마크다운 기반 포스팅 + 로그인 댓글"
           href="/blog"
           actions={[{ label: '목록', href: '/blog' }]}
+        />
+        <Card
+          title="Docs"
+          desc="배운 것과 공부할 것을 문서처럼 정리하는 공간"
+          href="/docs"
+          actions={[{ label: '문서 보기', href: '/docs' }]}
         />
         <Card
           title="게시판"

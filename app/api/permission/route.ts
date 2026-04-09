@@ -41,6 +41,14 @@ const DEFAULTS: PermissionRow[] = [
     visible: true,
   },
   {
+    key: 'docs',
+    label: 'Docs',
+    path: '/docs',
+    requireLogin: true,
+    minRole: 'USER',
+    visible: true,
+  },
+  {
     key: 'boards',
     label: '게시판',
     path: '/boards',

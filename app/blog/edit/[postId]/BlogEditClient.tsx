@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from 'react'
 import MarkdownEditor from '@/app/components/MarkdownEditor'
+import { BLOG_POST_TYPE_OPTIONS, type BlogPostType } from '@/app/lib/blog'
+import BlogRatingInput from '@/app/blog/BlogRatingInput'
 
 type EditPost = {
   id: string
@@ -9,6 +11,8 @@ type EditPost = {
   contentMd: string
   slug: string | null
   status: string
+  blogCategory?: BlogPostType
+  reviewRatingHalf?: number | null
 }
 
 /**
@@ -21,23 +25,61 @@ type EditPost = {
  *   Markdown content, a regenerate-slug checkbox, save/publish/delete controls,
  *   and inline status messages.
  */
-export default function BlogEditClient({ post }: { post: EditPost }) {
+export default function BlogEditClient({
+  post,
+  apiBasePath = '/api/blog/posts',
+  detailBasePath = '/blog',
+  listBasePath = '/blog',
+  showBlogMeta = false,
+}: {
+  post: EditPost
+  apiBasePath?: string
+  detailBasePath?: string
+  listBasePath?: string
+  showBlogMeta?: boolean
+}) {
   const [title, setTitle] = useState(post.title)
   const [contentMd, setContentMd] = useState(post.contentMd)
+  const [blogCategory, setBlogCategory] = useState<BlogPostType>(
+    post.blogCategory ?? 'INFO'
+  )
+  const [ratingEnabled, setRatingEnabled] = useState(
+    post.reviewRatingHalf !== null && post.reviewRatingHalf !== undefined
+  )
+  const [reviewRatingHalf, setReviewRatingHalf] = useState(
+    post.reviewRatingHalf ?? 0
+  )
   const [regenerateSlug, setRegenerateSlug] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
-  const canPublish = useMemo(() => !!title.trim(), [title])
+  const canPublish = useMemo(
+    () => !!title.trim() && !!contentMd.trim(),
+    [contentMd, title]
+  )
 
   async function save(publish: boolean) {
     setSaving(true)
     setMsg(null)
 
-    const res = await fetch(`/api/blog/posts/${post.id}`, {
+    const res = await fetch(`${apiBasePath}/${post.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, contentMd, publish, regenerateSlug }),
+      body: JSON.stringify({
+        title,
+        contentMd,
+        ...(showBlogMeta
+          ? {
+              blogCategory,
+              reviewRatingHalf:
+                blogCategory === 'REVIEW' && ratingEnabled
+                  ? reviewRatingHalf
+                  : null,
+            }
+          : {}),
+        publish,
+        regenerateSlug,
+      }),
     })
 
     const data = await res.json().catch(() => null)
@@ -48,7 +90,7 @@ export default function BlogEditClient({ post }: { post: EditPost }) {
       return
     }
 
-    window.location.href = `/blog/${encodeURIComponent(post.id)}`
+    window.location.href = `${detailBasePath}/${encodeURIComponent(post.id)}`
   }
 
   async function del() {
@@ -57,7 +99,7 @@ export default function BlogEditClient({ post }: { post: EditPost }) {
     setSaving(true)
     setMsg(null)
 
-    const res = await fetch(`/api/blog/posts/${post.id}`, { method: 'DELETE' })
+    const res = await fetch(`${apiBasePath}/${post.id}`, { method: 'DELETE' })
     const data = await res.json().catch(() => null)
     setSaving(false)
 
@@ -66,7 +108,7 @@ export default function BlogEditClient({ post }: { post: EditPost }) {
       return
     }
 
-    window.location.href = '/blog'
+    window.location.href = listBasePath
   }
 
   return (
@@ -97,6 +139,71 @@ export default function BlogEditClient({ post }: { post: EditPost }) {
           htmlMode="raw"
         />
       </div>
+
+      {showBlogMeta ? (
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,220px)_1fr]">
+          <div className="grid gap-2">
+            <label className="text-sm font-medium">글 종류</label>
+            <select
+              className="select"
+              value={blogCategory}
+              disabled={saving}
+              onChange={(e) => {
+                const next = e.target.value as BlogPostType
+                setBlogCategory(next)
+                if (next !== 'REVIEW') {
+                  setRatingEnabled(false)
+                  setReviewRatingHalf(0)
+                }
+              }}
+            >
+              {BLOG_POST_TYPE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="card card-pad card-hover-border-only space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-medium">별점</div>
+              </div>
+
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={ratingEnabled}
+                  disabled={saving || blogCategory !== 'REVIEW'}
+                  onChange={(e) => {
+                    const next = e.target.checked
+                    setRatingEnabled(next)
+                    if (!next) setReviewRatingHalf(0)
+                  }}
+                />
+                별점 사용
+              </label>
+            </div>
+
+            {blogCategory !== 'REVIEW' ? (
+              <p className="text-xs" style={{ color: 'var(--muted)' }}>
+                글 종류를 리뷰/후기로 선택하면 별점을 켤 수 있습니다.
+              </p>
+            ) : ratingEnabled ? (
+              <BlogRatingInput
+                value={reviewRatingHalf}
+                disabled={saving}
+                onChange={setReviewRatingHalf}
+              />
+            ) : (
+              <p className="text-xs" style={{ color: 'var(--muted)' }}>
+                별점 기능이 꺼져 있으면 리스트에 점수가 표시되지 않습니다.
+              </p>
+            )}
+          </div>
+        </div>
+      ) : null}
 
       <label className="inline-flex items-center gap-2 text-sm">
         <input

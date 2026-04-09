@@ -3,6 +3,8 @@
 import { useMemo, useState } from 'react'
 import MarkdownEditor from '@/app/components/MarkdownEditor'
 import { useAsyncLock } from '@/app/lib/useAsyncLock'
+import { BLOG_POST_TYPE_OPTIONS, type BlogPostType } from '@/app/lib/blog'
+import BlogRatingInput from '@/app/blog/BlogRatingInput'
 
 /**
  * Renders a blog post editor UI for the given board and handles creating/saving posts.
@@ -13,9 +15,22 @@ import { useAsyncLock } from '@/app/lib/useAsyncLock'
  * @param boardId - The identifier of the board where the post will be created
  * @returns A React element containing the blog editor UI
  */
-export default function BlogEditorClient({ boardId }: { boardId: string }) {
+export default function BlogEditorClient({
+  boardId,
+  apiBasePath = '/api/blog/posts',
+  detailBasePath = '/blog',
+  showBlogMeta = false,
+}: {
+  boardId: string
+  apiBasePath?: string
+  detailBasePath?: string
+  showBlogMeta?: boolean
+}) {
   const [title, setTitle] = useState('')
   const [contentMd, setContentMd] = useState('')
+  const [blogCategory, setBlogCategory] = useState<BlogPostType>('INFO')
+  const [ratingEnabled, setRatingEnabled] = useState(false)
+  const [reviewRatingHalf, setReviewRatingHalf] = useState(0)
   const [msg, setMsg] = useState<string | null>(null)
   const { pending: saving, run: runSave } = useAsyncLock()
 
@@ -48,13 +63,22 @@ export default function BlogEditorClient({ boardId }: { boardId: string }) {
         return
       }
 
-      const res = await fetch('/api/blog/posts', {
+      const res = await fetch(apiBasePath, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           boardId,
           title: title.trim(),
           contentMd,
+          ...(showBlogMeta
+            ? {
+                blogCategory,
+                reviewRatingHalf:
+                  blogCategory === 'REVIEW' && ratingEnabled
+                    ? reviewRatingHalf
+                    : null,
+              }
+            : {}),
           publish,
           isSecret,
           secretPassword: isSecret ? secretPassword.trim() || null : null,
@@ -74,7 +98,7 @@ export default function BlogEditorClient({ boardId }: { boardId: string }) {
         return
       }
 
-      window.location.href = `/blog/${encodeURIComponent(postId)}`
+      window.location.href = `${detailBasePath}/${encodeURIComponent(postId)}`
     })
   }
 
@@ -103,6 +127,71 @@ export default function BlogEditorClient({ boardId }: { boardId: string }) {
           disabled={saving}
         />
       </div>
+
+      {showBlogMeta ? (
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,220px)_1fr]">
+          <div className="grid gap-2">
+            <label className="text-sm font-medium">글 종류</label>
+            <select
+              className="select"
+              value={blogCategory}
+              disabled={saving}
+              onChange={(e) => {
+                const next = e.target.value as BlogPostType
+                setBlogCategory(next)
+                if (next !== 'REVIEW') {
+                  setRatingEnabled(false)
+                  setReviewRatingHalf(0)
+                }
+              }}
+            >
+              {BLOG_POST_TYPE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="card card-pad card-hover-border-only space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-medium">별점 기능</div>
+              </div>
+
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={ratingEnabled}
+                  disabled={saving || blogCategory !== 'REVIEW'}
+                  onChange={(e) => {
+                    const next = e.target.checked
+                    setRatingEnabled(next)
+                    if (!next) setReviewRatingHalf(0)
+                  }}
+                />
+                별점 사용
+              </label>
+            </div>
+
+            {blogCategory !== 'REVIEW' ? (
+              <p className="text-xs" style={{ color: 'var(--muted)' }}>
+                글 종류를 리뷰/후기로 선택하면 별점을 켤 수 있습니다.
+              </p>
+            ) : ratingEnabled ? (
+              <BlogRatingInput
+                value={reviewRatingHalf}
+                disabled={saving}
+                onChange={setReviewRatingHalf}
+              />
+            ) : (
+              <p className="text-xs" style={{ color: 'var(--muted)' }}>
+                별점 기능이 꺼져 있으면 리스트에 점수가 표시되지 않습니다.
+              </p>
+            )}
+          </div>
+        </div>
+      ) : null}
 
       <div className="card card-pad card-hover-border-only">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

@@ -33,6 +33,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     const segments = pathname.split('/').filter(Boolean)
     return segments.length === 2 && segments[0] === 'blog'
   }, [pathname])
+  const isDocsDetail = useMemo(() => {
+    if (!pathname.startsWith('/docs/')) return false
+    if (pathname.startsWith('/docs/new') || pathname.startsWith('/docs/edit'))
+      return false
+    const segments = pathname.split('/').filter(Boolean)
+    return segments.length === 2 && segments[0] === 'docs'
+  }, [pathname])
   const isBoardPostDetail = useMemo(() => {
     if (!pathname.startsWith('/boards/')) return false
     const segments = pathname.split('/').filter(Boolean)
@@ -41,11 +48,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const isWideLayout = useMemo(
     () =>
       isBlogDetail ||
+      isDocsDetail ||
       isBoardPostDetail ||
       pathname.startsWith('/calendar') ||
       pathname.startsWith('/todos'),
-    [isBlogDetail, isBoardPostDetail, pathname]
+    [isBlogDetail, isBoardPostDetail, isDocsDetail, pathname]
   )
+  const detailListHref = isBlogDetail ? '/blog' : isDocsDetail ? '/docs' : null
 
   // mobile sidebar
   const [open, setOpen] = useState(false)
@@ -130,8 +139,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             >
               ☰
             </button>
-            {isBlogDetail ? (
-              <Link href="/blog" className="btn btn-outline">
+            {detailListHref ? (
+              <Link href={detailListHref} className="btn btn-outline">
                 ← 목록
               </Link>
             ) : null}
@@ -156,8 +165,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         {/* Scroll container */}
         <div className="app-scroll-container min-w-0 flex-1 overflow-y-auto pb-[calc(72px+env(safe-area-inset-bottom))] lg:pb-0">
           <div className="min-h-full flex flex-col">
-            {/* desktop 상단 컨트롤: 사이드바 열기 + 블로그 목록 복귀 */}
-            {!desktopOpen || isBlogDetail ? (
+            {/* desktop 상단 컨트롤: 사이드바 열기 + 전용 목록 복귀 */}
+            {!desktopOpen || detailListHref ? (
               <div className="hidden lg:flex lg:items-center lg:gap-2 lg:px-4 lg:py-3">
                 {!desktopOpen ? (
                   <button
@@ -170,8 +179,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     ☰
                   </button>
                 ) : null}
-                {isBlogDetail ? (
-                  <Link href="/blog" className="btn btn-outline">
+                {detailListHref ? (
+                  <Link href={detailListHref} className="btn btn-outline">
                     ← 목록으로
                   </Link>
                 ) : null}

@@ -51,6 +51,8 @@ export default async function BlogEditPage({
       contentMd: true,
       slug: true,
       status: true,
+      blogCategory: true,
+      reviewRatingHalf: true,
       isSecret: true,
     },
   })
@@ -86,7 +88,7 @@ export default async function BlogEditPage({
       </div>
 
       <div className="surface card-pad card-hover-border-only">
-        <BlogEditClient post={post} />
+        <BlogEditClient post={post} showBlogMeta />
       </div>
     </main>
   )

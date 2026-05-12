@@ -368,7 +368,7 @@ export default function Sidebar({
                 </div>
               </div>
 
-              <div className="mt-4 grid grid-cols-2 gap-2">
+              <div className="mt-4 grid grid-cols-3 gap-2">
                 <button
                   type="button"
                   className="btn btn-outline w-full"
@@ -403,6 +403,35 @@ export default function Sidebar({
                     <circle cx="18.5" cy="14.5" r="1" fill="currentColor" stroke="none" />
                   </svg>
                 </button>
+
+                <a
+                  href="https://pengrestaurant.vercel.app/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-outline w-full inline-flex items-center justify-center"
+                  aria-label="펭 레스토랑 열기"
+                  title="펭 레스토랑"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    className="h-4 w-4"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M7 3V11M7 11C5.34315 11 4 9.65685 4 8V3M7 11C8.65685 11 10 9.65685 10 8V3M7 11V21"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M17 14V21M17 14C15.3431 14 14 12.6569 14 11V6C14 4.34315 15.3431 3 17 3C18.6569 3 20 4.34315 20 6V11C20 12.6569 18.6569 14 17 14Z"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </a>
 
                 <button
                   type="button"

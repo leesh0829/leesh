@@ -51,7 +51,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       isDocsDetail ||
       isBoardPostDetail ||
       pathname.startsWith('/calendar') ||
-      pathname.startsWith('/todos'),
+      pathname.startsWith('/todos') ||
+      pathname.startsWith('/ledger'),
     [isBlogDetail, isBoardPostDetail, isDocsDetail, pathname]
   )
   const detailListHref = isBlogDetail ? '/blog' : isDocsDetail ? '/docs' : null

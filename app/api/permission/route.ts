@@ -73,6 +73,14 @@ const DEFAULTS: PermissionRow[] = [
     visible: true,
   },
   {
+    key: 'ledger',
+    label: '가계부',
+    path: '/ledger',
+    requireLogin: true,
+    minRole: 'USER',
+    visible: true,
+  },
+  {
     key: 'help',
     label: '고객 센터',
     path: '/help',
@@ -123,6 +131,11 @@ async function seedIfEmpty() {
       minRole: 'ADMIN',
       visible: true,
     },
+  })
+
+  // 폐기된 메뉴 키 정리 (accounting → ledger 이름 변경 잔재 제거)
+  await prisma.menuPermission.deleteMany({
+    where: { key: { in: ['accounting'] } },
   })
 }
 

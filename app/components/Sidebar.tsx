@@ -33,6 +33,7 @@ const SIDEBAR_ORDER = [
   'todos',
   'boards',
   'calendar',
+  'ledger',
   'permission',
   'help',
 ] as const
@@ -160,6 +161,14 @@ export default function Sidebar({
               key: 'calendar',
               label: '캘린더',
               path: '/calendar',
+              requireLogin: true,
+              minRole: 'USER',
+              visible: true,
+            },
+            {
+              key: 'ledger',
+              label: '가계부',
+              path: '/ledger',
               requireLogin: true,
               minRole: 'USER',
               visible: true,

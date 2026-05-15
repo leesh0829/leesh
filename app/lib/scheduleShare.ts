@@ -1,6 +1,10 @@
 import { prisma } from '@/app/lib/prisma'
 
-export type ScheduleShareScope = 'CALENDAR' | 'TODO'
+export type ScheduleShareScope =
+  | 'CALENDAR'
+  | 'TODO'
+  | 'LEDGER'
+  | 'STOCK'
 
 type ScheduleShareOwnerRow = { ownerId: string }
 
@@ -25,7 +29,8 @@ export async function getReadableScheduleOwnerIds(
 }
 
 export function parseScheduleShareScope(v: unknown): ScheduleShareScope | null {
-  if (v === 'CALENDAR' || v === 'TODO') return v
+  if (v === 'CALENDAR' || v === 'TODO' || v === 'LEDGER' || v === 'STOCK')
+    return v
   return null
 }
 

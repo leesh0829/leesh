@@ -9,9 +9,9 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    // 앱 runtime용 — Neon Pooler URL
-    url: process.env["DATABASE_URL"],
-    // 마이그레이션 전용 — Neon Direct URL (없으면 url로 fallback)
-    directUrl: process.env["DIRECT_URL"] ?? process.env["DATABASE_URL"],
+    // 마이그레이션 전용 URL — Prisma 7에서는 prisma.config.ts의 datasource.url을
+    // migrate가 사용. DIRECT_URL이 있으면 direct로(pgbouncer prepared-statement 회피),
+    // 없으면 DATABASE_URL fallback. 앱 runtime은 app/lib/prisma.ts에서 어댑터로 별도 처리.
+    url: process.env["DIRECT_URL"] ?? process.env["DATABASE_URL"],
   },
 });

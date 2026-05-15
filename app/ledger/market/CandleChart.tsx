@@ -11,12 +11,23 @@ export type Candle = {
   volume: number | null
 }
 
+// 거래 마커 — 매수/매도 시점 표시
+export type TradeMarker = {
+  date: string // YYYYMMDD (캔들 date prefix와 매칭)
+  type: 'BUY' | 'SELL'
+  price?: number | null
+  quantity?: number | null
+  label?: string // 툴팁용
+}
+
 export type CandleChartProps = {
   bars: Candle[]
   decimals?: number
   showVolume?: boolean
   height?: number
   showIndicators?: boolean // MA/볼린저/RSI 등 표시 여부 (기본 true)
+  trades?: TradeMarker[] // 매수/매도 마커
+  showVolumeProfile?: boolean // 우측 거래량 프로파일 (기본 false — 토글로 켤 수 있음)
 }
 
 function formatTick(s: string): string {
@@ -131,7 +142,142 @@ function rsi(values: number[], window = 14): (number | null)[] {
   return out
 }
 
-type IndicatorKey = 'MA' | 'BB' | 'RSI' | 'VOLMA'
+// EMA (지수 이동평균) — MACD에 사용
+function ema(values: number[], window: number): (number | null)[] {
+  const out: (number | null)[] = []
+  const k = 2 / (window + 1)
+  let prev: number | null = null
+  for (let i = 0; i < values.length; i++) {
+    if (i < window - 1) {
+      out.push(null)
+      continue
+    }
+    if (i === window - 1) {
+      // SMA로 초기 시드
+      let sum = 0
+      for (let j = 0; j < window; j++) sum += values[j]
+      prev = sum / window
+      out.push(prev)
+      continue
+    }
+    const nextVal: number = values[i] * k + (prev as number) * (1 - k)
+    out.push(nextVal)
+    prev = nextVal
+  }
+  return out
+}
+
+// MACD — (EMA12 - EMA26) + signal EMA9
+function macd(
+  values: number[]
+): {
+  line: (number | null)[]
+  signal: (number | null)[]
+  hist: (number | null)[]
+} {
+  const e12 = ema(values, 12)
+  const e26 = ema(values, 26)
+  const line: (number | null)[] = values.map((_, i) => {
+    if (e12[i] === null || e26[i] === null) return null
+    return (e12[i] as number) - (e26[i] as number)
+  })
+  const lineForSignal: number[] = []
+  const startIdx: number[] = []
+  line.forEach((v, i) => {
+    if (v !== null) {
+      lineForSignal.push(v)
+      startIdx.push(i)
+    }
+  })
+  const sigSub = ema(lineForSignal, 9)
+  const signal: (number | null)[] = values.map(() => null)
+  sigSub.forEach((v, i) => {
+    if (v !== null) signal[startIdx[i]] = v
+  })
+  const hist: (number | null)[] = line.map((v, i) =>
+    v !== null && signal[i] !== null ? v - (signal[i] as number) : null
+  )
+  return { line, signal, hist }
+}
+
+// Stochastic %K (14) + %D (3-period SMA of %K)
+function stochastic(
+  bars: Candle[],
+  kPeriod = 14,
+  dPeriod = 3
+): { k: (number | null)[]; d: (number | null)[] } {
+  const k: (number | null)[] = []
+  for (let i = 0; i < bars.length; i++) {
+    if (i < kPeriod - 1) {
+      k.push(null)
+      continue
+    }
+    let hh = -Infinity
+    let ll = Infinity
+    for (let j = i - kPeriod + 1; j <= i; j++) {
+      if (bars[j].high !== null) hh = Math.max(hh, bars[j].high as number)
+      if (bars[j].low !== null) ll = Math.min(ll, bars[j].low as number)
+    }
+    const c = bars[i].close
+    if (c === null || hh === ll) {
+      k.push(null)
+      continue
+    }
+    k.push(((c - ll) / (hh - ll)) * 100)
+  }
+  // %D = SMA(K, dPeriod)
+  const d: (number | null)[] = []
+  let sum = 0
+  let count = 0
+  const recent: (number | null)[] = []
+  for (let i = 0; i < k.length; i++) {
+    const v = k[i]
+    if (v === null) {
+      recent.push(null)
+      d.push(null)
+      continue
+    }
+    recent.push(v)
+    sum += v
+    count++
+    if (recent.length > dPeriod) {
+      const popped = recent.shift()
+      if (popped !== null && popped !== undefined) {
+        sum -= popped
+        count--
+      }
+    }
+    d.push(count >= dPeriod ? sum / dPeriod : null)
+  }
+  return { k, d }
+}
+
+// 거래량 프로파일 — 가격대(20 bins)별 누적 거래량
+function volumeProfile(
+  bars: Candle[],
+  bins = 20
+): { bins: { price: number; volume: number }[]; max: number } {
+  const closes = bars.map((b) => b.close).filter((v): v is number => v !== null)
+  if (closes.length === 0) return { bins: [], max: 0 }
+  const min = Math.min(...closes)
+  const max = Math.max(...closes)
+  const range = max - min || 1
+  const step = range / bins
+  const acc = new Array(bins).fill(0) as number[]
+  for (const b of bars) {
+    if (b.close === null) continue
+    const idx = Math.min(bins - 1, Math.floor((b.close - min) / step))
+    acc[idx] += b.volume ?? 0
+  }
+  const result = acc.map((vol, i) => ({
+    price: min + (i + 0.5) * step,
+    volume: vol,
+  }))
+  const maxVol = Math.max(0, ...acc)
+  return { bins: result, max: maxVol }
+}
+
+type IndicatorKey = 'MA' | 'BB' | 'RSI' | 'VOLMA' | 'MACD' | 'STOCH' | 'VP'
 
 export default function CandleChart({
   bars,
@@ -139,6 +285,8 @@ export default function CandleChart({
   showVolume = true,
   height = 320,
   showIndicators = true,
+  trades = [],
+  showVolumeProfile: showVolumeProfileProp = false,
 }: CandleChartProps) {
   // 오래된 → 최신 정렬
   const sorted = useMemo(
@@ -150,12 +298,15 @@ export default function CandleChart({
     [bars]
   )
 
-  // 어떤 지표 보일지 (기본: MA + BB ON, RSI/VOLMA OFF)
+  // 어떤 지표 보일지 (기본: MA + BB + VOLMA ON, 나머지 OFF)
   const [enabled, setEnabled] = useState<Record<IndicatorKey, boolean>>({
     MA: true,
     BB: true,
     RSI: false,
     VOLMA: true,
+    MACD: false,
+    STOCH: false,
+    VP: showVolumeProfileProp,
   })
 
   // 호버 상태
@@ -170,6 +321,27 @@ export default function CandleChart({
   const rsiVals = useMemo(() => rsi(closes, 14), [closes])
   const volumes = useMemo(() => sorted.map((b) => b.volume ?? 0), [sorted])
   const volMa5 = useMemo(() => sma(volumes, 5), [volumes])
+  const macdData = useMemo(() => macd(closes), [closes])
+  const stochData = useMemo(() => stochastic(sorted), [sorted])
+  const vp = useMemo(() => volumeProfile(sorted), [sorted])
+
+  // 거래 마커를 캔들 인덱스에 매핑 (date prefix 매칭)
+  const tradeMarkers = useMemo(() => {
+    if (trades.length === 0 || sorted.length === 0) return []
+    const dateToIdx = new Map<string, number>()
+    sorted.forEach((b, i) => {
+      const key = b.date.slice(0, 8) // YYYYMMDD
+      // 같은 날짜의 첫 캔들만 (분봉이면 첫 분봉)
+      if (!dateToIdx.has(key)) dateToIdx.set(key, i)
+    })
+    return trades
+      .map((t) => {
+        const idx = dateToIdx.get(t.date.slice(0, 8))
+        if (idx === undefined) return null
+        return { ...t, idx }
+      })
+      .filter((t): t is TradeMarker & { idx: number } => t !== null)
+  }, [trades, sorted])
 
   if (sorted.length === 0) {
     return (
@@ -182,18 +354,23 @@ export default function CandleChart({
     )
   }
 
-  // 레이아웃 — RSI 켜진 경우 영역 분할
+  // 레이아웃 — RSI/MACD/Stoch 켜진 경우 영역 분할
   const showRsi = showIndicators && enabled.RSI
+  const showMacd = showIndicators && enabled.MACD
+  const showStoch = showIndicators && enabled.STOCH
+  const showVp = showIndicators && enabled.VP && vp.bins.length > 0
+  const subPanelCount = (showRsi ? 1 : 0) + (showMacd ? 1 : 0) + (showStoch ? 1 : 0)
   const W = 720
   const padL = 6
-  const padR = 50
+  const padR = showVp ? 90 : 50 // VP 켜진 경우 우측 더 확보
   const padT = 8
-  const rsiH = showRsi ? height * 0.18 : 0
-  const rsiGap = showRsi ? 6 : 0
-  const priceAreaH = showVolume
-    ? (height - rsiH - rsiGap) * 0.7
-    : (height - rsiH - rsiGap) * 0.92
-  const volAreaH = showVolume ? (height - rsiH - rsiGap) * 0.22 : 0
+  const subPanelH = 70 // 각 보조 차트 높이
+  const subGap = 6
+  const totalSubH = subPanelCount * subPanelH + Math.max(0, subPanelCount - 1) * subGap
+  const subAreaGap = subPanelCount > 0 ? 6 : 0
+  const mainAreaH = height - totalSubH - subAreaGap - padT - 14 // 14 = x축 라벨
+  const priceAreaH = showVolume ? mainAreaH * 0.78 : mainAreaH * 0.95
+  const volAreaH = showVolume ? mainAreaH * 0.18 : 0
 
   const innerW = W - padL - padR
   const gap = Math.max(1, Math.min(3, innerW / sorted.length / 4))
@@ -236,11 +413,35 @@ export default function CandleChart({
     return volTop + (1 - v / vMax) * volAreaH
   }
 
-  // RSI 영역
-  const rsiTop = padT + priceAreaH + volAreaH + rsiGap
+  // 보조 패널 영역 (RSI/MACD/Stoch 순서대로 적층)
+  const subAreaTop = padT + priceAreaH + volAreaH + subAreaGap
+  let panelCursor = 0
+  const rsiTop = showRsi
+    ? subAreaTop + panelCursor++ * (subPanelH + subGap)
+    : 0
+  const macdTop = showMacd
+    ? subAreaTop + panelCursor++ * (subPanelH + subGap)
+    : 0
+  const stochTop = showStoch
+    ? subAreaTop + panelCursor++ * (subPanelH + subGap)
+    : 0
   function yRsi(v: number) {
-    // 0-100 범위
-    return rsiTop + (1 - v / 100) * rsiH
+    return rsiTop + (1 - v / 100) * subPanelH
+  }
+  // MACD 범위 — line+signal 모두 포함
+  const macdAll: number[] = []
+  for (const v of macdData.line) if (v !== null) macdAll.push(v)
+  for (const v of macdData.signal) if (v !== null) macdAll.push(v)
+  for (const v of macdData.hist) if (v !== null) macdAll.push(v)
+  const macdMax = macdAll.length ? Math.max(...macdAll) : 1
+  const macdMin = macdAll.length ? Math.min(...macdAll) : -1
+  const macdAbs = Math.max(Math.abs(macdMax), Math.abs(macdMin), 1)
+  function yMacd(v: number) {
+    // 중앙 0 기준 대칭
+    return macdTop + (1 - (v + macdAbs) / (2 * macdAbs)) * subPanelH
+  }
+  function yStoch(v: number) {
+    return stochTop + (1 - v / 100) * subPanelH
   }
 
   // 가격 그리드
@@ -287,9 +488,18 @@ export default function CandleChart({
   function handleMouseMove(e: React.MouseEvent<SVGSVGElement>) {
     const svg = e.currentTarget
     const rect = svg.getBoundingClientRect()
-    // viewBox 좌표로 변환
     const scaleX = W / rect.width
     const svgX = (e.clientX - rect.left) * scaleX
+    setHoverIdx(svgPointToIdx(svgX))
+  }
+
+  function handleTouchMove(e: React.TouchEvent<SVGSVGElement>) {
+    const t = e.touches[0]
+    if (!t) return
+    const svg = e.currentTarget
+    const rect = svg.getBoundingClientRect()
+    const scaleX = W / rect.width
+    const svgX = (t.clientX - rect.left) * scaleX
     setHoverIdx(svgPointToIdx(svgX))
   }
 
@@ -310,6 +520,9 @@ export default function CandleChart({
               ['BB', '볼린저'],
               ['VOLMA', '거래량MA'],
               ['RSI', 'RSI'],
+              ['MACD', 'MACD'],
+              ['STOCH', 'Stoch'],
+              ['VP', '거래량 프로파일'],
             ] as const
           ).map(([k, label]) => (
             <button
@@ -339,6 +552,9 @@ export default function CandleChart({
         preserveAspectRatio="none"
         onMouseMove={handleMouseMove}
         onMouseLeave={() => setHoverIdx(null)}
+        onTouchStart={handleTouchMove}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={() => setHoverIdx(null)}
       >
         {/* 가격 그리드 */}
         {gridLines.map((g, i) => (
@@ -354,7 +570,7 @@ export default function CandleChart({
             <text
               x={W - padR + 4}
               y={g.y + 3}
-              fontSize={9}
+              fontSize={11}
               fill="currentColor"
               opacity={0.55}
             >
@@ -521,7 +737,7 @@ export default function CandleChart({
             <text
               x={W - padR + 4}
               y={yRsi(70) + 3}
-              fontSize={8}
+              fontSize={10}
               fill="currentColor"
               opacity={0.5}
             >
@@ -530,7 +746,7 @@ export default function CandleChart({
             <text
               x={W - padR + 4}
               y={yRsi(30) + 3}
-              fontSize={8}
+              fontSize={10}
               fill="currentColor"
               opacity={0.5}
             >
@@ -539,7 +755,7 @@ export default function CandleChart({
             <text
               x={padL}
               y={rsiTop - 2}
-              fontSize={9}
+              fontSize={11}
               fill="currentColor"
               opacity={0.5}
             >
@@ -548,13 +764,174 @@ export default function CandleChart({
           </>
         )}
 
+        {/* MACD 보조 차트 */}
+        {showMacd && (
+          <>
+            {/* 0 기준선 */}
+            <line
+              x1={padL}
+              x2={W - padR}
+              y1={macdTop + subPanelH / 2}
+              y2={macdTop + subPanelH / 2}
+              stroke="currentColor"
+              strokeOpacity={0.2}
+            />
+            {/* 히스토그램 */}
+            {macdData.hist.map((v, i) => {
+              if (v === null) return null
+              const x = padL + i * (candleW + gap)
+              const y0 = macdTop + subPanelH / 2
+              const y1 = yMacd(v)
+              const color = v >= 0 ? '#ef4444' : '#3b82f6'
+              return (
+                <rect
+                  key={`mh-${i}`}
+                  x={x}
+                  y={Math.min(y0, y1)}
+                  width={Math.max(1, candleW)}
+                  height={Math.abs(y1 - y0)}
+                  fill={color}
+                  fillOpacity={0.5}
+                />
+              )
+            })}
+            {/* MACD line / signal */}
+            <path
+              d={makeLinePath(macdData.line, yMacd)}
+              fill="none"
+              stroke="#0ea5e9"
+              strokeWidth={1.3}
+            />
+            <path
+              d={makeLinePath(macdData.signal, yMacd)}
+              fill="none"
+              stroke="#f97316"
+              strokeWidth={1.3}
+            />
+            <text
+              x={padL}
+              y={macdTop - 2}
+              fontSize={11}
+              fill="currentColor"
+              opacity={0.5}
+            >
+              MACD(12,26,9)
+            </text>
+          </>
+        )}
+
+        {/* Stochastic 보조 차트 */}
+        {showStoch && (
+          <>
+            {/* 20/80 기준선 */}
+            <line
+              x1={padL}
+              x2={W - padR}
+              y1={yStoch(80)}
+              y2={yStoch(80)}
+              stroke="#ef4444"
+              strokeOpacity={0.3}
+              strokeDasharray="2 2"
+            />
+            <line
+              x1={padL}
+              x2={W - padR}
+              y1={yStoch(20)}
+              y2={yStoch(20)}
+              stroke="#3b82f6"
+              strokeOpacity={0.3}
+              strokeDasharray="2 2"
+            />
+            <path
+              d={makeLinePath(stochData.k, yStoch)}
+              fill="none"
+              stroke="#8b5cf6"
+              strokeWidth={1.3}
+            />
+            <path
+              d={makeLinePath(stochData.d, yStoch)}
+              fill="none"
+              stroke="#f97316"
+              strokeWidth={1.1}
+              strokeDasharray="2 1"
+            />
+            <text
+              x={padL}
+              y={stochTop - 2}
+              fontSize={11}
+              fill="currentColor"
+              opacity={0.5}
+            >
+              Stoch(14,3)
+            </text>
+          </>
+        )}
+
+        {/* 거래량 프로파일 (우측 가로 막대) */}
+        {showVp && (
+          <>
+            {vp.bins.map((b, i) => {
+              if (b.volume === 0) return null
+              const y = yPrice(b.price)
+              const w = (b.volume / vp.max) * (padR - 6)
+              const barH = priceAreaH / vp.bins.length
+              return (
+                <rect
+                  key={`vp-${i}`}
+                  x={W - padR + 2}
+                  y={y - barH / 2}
+                  width={w}
+                  height={Math.max(1, barH - 1)}
+                  fill="#a855f7"
+                  fillOpacity={0.4}
+                />
+              )
+            })}
+          </>
+        )}
+
+        {/* 거래 마커 (매수=▲, 매도=▼) */}
+        {tradeMarkers.map((t, i) => {
+          const xMid = padL + t.idx * (candleW + gap) + candleW / 2
+          const isBuy = t.type === 'BUY'
+          const bar = sorted[t.idx]
+          // 매수는 저가 아래, 매도는 고가 위에
+          const anchorY = isBuy
+            ? bar.low !== null
+              ? yPrice(bar.low) + 8
+              : padT + priceAreaH - 6
+            : bar.high !== null
+              ? yPrice(bar.high) - 4
+              : padT + 6
+          const color = isBuy ? '#ef4444' : '#3b82f6'
+          // 삼각형
+          const size = 5
+          const path = isBuy
+            ? `M${xMid - size},${anchorY + size} L${xMid + size},${anchorY + size} L${xMid},${anchorY} Z`
+            : `M${xMid - size},${anchorY - size} L${xMid + size},${anchorY - size} L${xMid},${anchorY} Z`
+          return (
+            <g key={`tm-${i}`}>
+              <path d={path} fill={color} stroke="white" strokeWidth={0.8}>
+                <title>
+                  {isBuy ? '매수' : '매도'} {t.date.slice(0, 8)}
+                  {t.price !== null && t.price !== undefined
+                    ? ` · ${t.price.toLocaleString('ko-KR')}`
+                    : ''}
+                  {t.quantity ? ` × ${t.quantity}주` : ''}
+                  {t.label ? ` · ${t.label}` : ''}
+                </title>
+              </path>
+            </g>
+          )
+        })}
+
         {/* X축 라벨 */}
         {xLabels.map((l, i) => (
           <text
             key={`x-${i}`}
             x={l.x}
             y={height - 2}
-            fontSize={9}
+            fontSize={11}
             fill="currentColor"
             opacity={0.55}
             textAnchor="middle"
@@ -570,7 +947,7 @@ export default function CandleChart({
               x1={hoverX}
               x2={hoverX}
               y1={padT}
-              y2={padT + priceAreaH + volAreaH + (showRsi ? rsiGap + rsiH : 0)}
+              y2={padT + priceAreaH + volAreaH + (subPanelCount > 0 ? subAreaGap + totalSubH : 0)}
               stroke="currentColor"
               strokeOpacity={0.3}
               strokeDasharray="2 2"

@@ -38,6 +38,7 @@ export const INCOME_CATEGORIES: CategorySpec[] = [
     label: '수익',
     subcategories: ['부업 수익', '중고거래', '기타'],
   },
+  { key: '계좌이체', label: '계좌이체', subcategories: [] },
   { key: '기타', label: '기타', subcategories: [] },
 ]
 
@@ -116,6 +117,7 @@ export const EXPENSE_CATEGORIES: CategorySpec[] = [
     ],
   },
   { key: '변동비 기타', label: '변동비 기타', subcategories: [] },
+  { key: '계좌이체', label: '계좌이체', subcategories: [] },
   { key: '기타', label: '기타', subcategories: [] },
 ]
 

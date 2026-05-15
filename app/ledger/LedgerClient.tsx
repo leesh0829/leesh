@@ -230,6 +230,10 @@ export default function LedgerClient() {
   const [err, setErr] = useState<string | null>(null)
 
   // 입력 폼 상태
+  const [formMode, setFormMode] = useState<'entry' | 'transfer'>('entry')
+  const [transferFromId, setTransferFromId] = useState<string>('')
+  const [transferToId, setTransferToId] = useState<string>('')
+  const [hoTotalsAccountId, setHoTotalsAccountId] = useState<string>('ALL') // 'ALL' or accountId
   const [formType, setFormType] = useState<LedgerEntryType>('EXPENSE')
   const [formAmount, setFormAmount] = useState<string>('')
   const [formDesc, setFormDesc] = useState<string>('')
@@ -550,6 +554,54 @@ export default function LedgerClient() {
     })
   }
 
+  const createTransfer = async () => {
+    if (creating) return
+    if (!transferFromId || !transferToId) {
+      const message = '출발 계좌와 도착 계좌를 모두 선택해주세요.'
+      setErr(message)
+      toast.error(message)
+      return
+    }
+    if (transferFromId === transferToId) {
+      const message = '서로 다른 계좌를 선택해주세요.'
+      setErr(message)
+      toast.error(message)
+      return
+    }
+    const amountInt = parseInt(formAmount.replace(/,/g, ''), 10)
+    if (!Number.isFinite(amountInt) || amountInt <= 0) {
+      const message = '금액을 입력해주세요.'
+      setErr(message)
+      toast.error(message)
+      return
+    }
+    await runCreate(async () => {
+      const r = await fetch('/api/ledger/transfer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fromAccountId: transferFromId,
+          toAccountId: transferToId,
+          amount: amountInt,
+          description: formDesc.trim(),
+          occurredAt: isoFromDatetimeLocal(formOccurredAt) ?? null,
+        }),
+      })
+      if (!r.ok) {
+        const msg = await readApiErrorMessage(r)
+        const message = `${r.status} ${r.statusText} · ${msg ?? '이체 실패'}`
+        setErr(message)
+        toast.error(message)
+        return
+      }
+      setFormAmount('')
+      setFormDesc('')
+      setFormOccurredAt(dateTimeLocalNow())
+      await load()
+      toast.success('이체를 등록했습니다.')
+    })
+  }
+
   const remove = async (id: string) => {
     const target = items.find((it) => it.id === id)
     const confirmMsg = target?.linkedToHolding
@@ -761,6 +813,39 @@ export default function LedgerClient() {
     )
   }, [totalsByOwner, visibleOwnerIds])
 
+  // 계좌별 합계 — items에서 직접 계산
+  // 주의: 계좌별 잔액은 합계 제외 항목(이체 등)도 포함해야 함 (실제 cash 이동)
+  // 전체(ALL) 합계는 totalsAll/periodTotals 그대로 사용 — 합계 제외 제외
+  const accountTotalsMap = useMemo(() => {
+    const map = new Map<
+      string,
+      { income: number; expense: number; balance: number }
+    >()
+    for (const it of items) {
+      if (visibleOwnerIds.size > 0 && !visibleOwnerIds.has(it.ownerId)) continue
+      if (!it.accountId) continue
+      const entry =
+        map.get(it.accountId) ?? { income: 0, expense: 0, balance: 0 }
+      if (it.type === 'INCOME') entry.income += it.amount
+      else entry.expense += it.amount
+      entry.balance = entry.income - entry.expense
+      map.set(it.accountId, entry)
+    }
+    return map
+  }, [items, visibleOwnerIds])
+
+  // 선택된 hero 보기 — 전체 또는 특정 계좌
+  const heroTotals = useMemo<Totals>(() => {
+    if (hoTotalsAccountId === 'ALL') return totalsAll
+    return (
+      accountTotalsMap.get(hoTotalsAccountId) ?? {
+        income: 0,
+        expense: 0,
+        balance: 0,
+      }
+    )
+  }, [hoTotalsAccountId, totalsAll, accountTotalsMap])
+
   // segments 빌더 — 화면에 표시 가능한 owner 순서대로
   const buildSegments = (
     fn: (ownerId: string) => { value: number; displayValue: string }
@@ -910,38 +995,65 @@ export default function LedgerClient() {
                   </span>
                 </div>
                 <div className="mt-3">
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <div
-                      className="text-xs"
+                      className="flex flex-wrap items-center gap-2 text-xs"
                       style={{ color: 'var(--muted)' }}
                     >
-                      현재 남은 금액 (전체 누적)
+                      <span>
+                        {hoTotalsAccountId === 'ALL'
+                          ? '현재 남은 금액 (전체 누적)'
+                          : '계좌 잔액 (해당 기간)'}
+                      </span>
+                      <select
+                        className="input"
+                        style={{ height: 'auto', padding: '2px 8px', fontSize: '11px' }}
+                        value={hoTotalsAccountId}
+                        onChange={(e) => setHoTotalsAccountId(e.target.value)}
+                        aria-label="계좌 필터"
+                      >
+                        <option value="ALL">전체</option>
+                        {accounts.map((a) => (
+                          <option key={a.id} value={a.id}>
+                            {a.name}
+                            {a.bankName ? ` · ${a.bankName}` : ''}
+                          </option>
+                        ))}
+                      </select>
                     </div>
-                    {totalsByOwnerVisible.length > 1 ? (
+                    {hoTotalsAccountId === 'ALL' &&
+                    totalsByOwnerVisible.length > 1 ? (
                       <ViewModeToggle mode={viewMode} onChange={setViewMode} />
                     ) : null}
                   </div>
 
-                  {viewMode === 'combined' ? (
+                  {hoTotalsAccountId !== 'ALL' || viewMode === 'combined' ? (
                     <>
                       <div
                         className={
                           'mt-1 text-3xl font-extrabold tracking-tight sm:text-4xl ' +
-                          (totalsAll.balance < 0
+                          (heroTotals.balance < 0
                             ? 'text-red-500'
                             : 'text-emerald-500')
                         }
                       >
-                        {formatKRW(totalsAll.balance)}
+                        {formatKRW(heroTotals.balance)}
                       </div>
                       <div
                         className="mt-1 text-xs"
                         style={{ color: 'var(--muted)' }}
                       >
-                        누적 수입 {formatKRW(totalsAll.income)} · 지출{' '}
-                        {formatKRW(totalsAll.expense)}
+                        {hoTotalsAccountId === 'ALL' ? '누적 ' : ''}수입{' '}
+                        {formatKRW(heroTotals.income)} · 지출{' '}
+                        {formatKRW(heroTotals.expense)}
+                        {hoTotalsAccountId !== 'ALL' && (
+                          <span className="ml-2" style={{ opacity: 0.7 }}>
+                            (이체 포함)
+                          </span>
+                        )}
                       </div>
-                      {totalsByOwnerVisible.length > 1 ? (
+                      {hoTotalsAccountId === 'ALL' &&
+                      totalsByOwnerVisible.length > 1 ? (
                         <OwnerStackBar
                           segments={buildSegments((ownerId) => {
                             const ot = totalsByOwnerVisible.find(
@@ -1199,37 +1311,72 @@ export default function LedgerClient() {
 
           {/* 입력 폼 */}
           <div className="surface card-pad card-hover-border-only">
-            <div className="font-extrabold">항목 추가</div>
+            <div className="flex items-center justify-between gap-2">
+              <div className="font-extrabold">
+                {formMode === 'transfer' ? '계좌간 이체' : '항목 추가'}
+              </div>
+              <div className="flex gap-1 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setFormMode('entry')}
+                  className={
+                    'btn ' +
+                    (formMode === 'entry' ? 'btn-primary' : 'btn-outline')
+                  }
+                >
+                  수입/지출
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormMode('transfer')}
+                  className={
+                    'btn ' +
+                    (formMode === 'transfer' ? 'btn-primary' : 'btn-outline')
+                  }
+                >
+                  이체
+                </button>
+              </div>
+            </div>
             <form
               className="mt-4 grid gap-3"
               onSubmit={(e) => {
                 e.preventDefault()
-                void create()
+                if (formMode === 'transfer') void createTransfer()
+                else void create()
               }}
             >
-              {/* +/- 토글 + 금액 */}
-              <div className="grid gap-3 sm:grid-cols-[140px_minmax(0,1fr)]">
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={toggleFormType}
-                  aria-label="수입/지출 전환"
-                  title="클릭해서 수입/지출 전환"
-                  style={{
-                    background:
-                      formType === 'INCOME'
-                        ? 'color-mix(in srgb, #10b981 18%, var(--card))'
-                        : 'color-mix(in srgb, #ef4444 18%, var(--card))',
-                    borderColor:
-                      formType === 'INCOME'
-                        ? 'color-mix(in srgb, #10b981 55%, var(--border))'
-                        : 'color-mix(in srgb, #ef4444 55%, var(--border))',
-                    color: formType === 'INCOME' ? '#059669' : '#dc2626',
-                    fontWeight: 700,
-                  }}
-                >
-                  {formType === 'INCOME' ? '＋  수입' : '−  지출'}
-                </button>
+              {/* +/- 토글 (entry 모드만) + 금액 */}
+              <div
+                className={
+                  formMode === 'entry'
+                    ? 'grid gap-3 sm:grid-cols-[140px_minmax(0,1fr)]'
+                    : 'grid gap-3'
+                }
+              >
+                {formMode === 'entry' && (
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={toggleFormType}
+                    aria-label="수입/지출 전환"
+                    title="클릭해서 수입/지출 전환"
+                    style={{
+                      background:
+                        formType === 'INCOME'
+                          ? 'color-mix(in srgb, #10b981 18%, var(--card))'
+                          : 'color-mix(in srgb, #ef4444 18%, var(--card))',
+                      borderColor:
+                        formType === 'INCOME'
+                          ? 'color-mix(in srgb, #10b981 55%, var(--border))'
+                          : 'color-mix(in srgb, #ef4444 55%, var(--border))',
+                      color: formType === 'INCOME' ? '#059669' : '#dc2626',
+                      fontWeight: 700,
+                    }}
+                  >
+                    {formType === 'INCOME' ? '＋  수입' : '−  지출'}
+                  </button>
+                )}
 
                 <input
                   className="input"
@@ -1251,68 +1398,116 @@ export default function LedgerClient() {
 
               <input
                 className="input"
-                placeholder="항목 설명 (예: 점심 식사, 5월 월급)"
+                placeholder={
+                  formMode === 'transfer'
+                    ? '메모 (예: 월급통장에서 한투로)'
+                    : '항목 설명 (예: 점심 식사, 5월 월급)'
+                }
                 value={formDesc}
                 onChange={(e) => setFormDesc(e.target.value)}
                 disabled={creating}
               />
 
-              <div className="grid gap-3 md:grid-cols-2">
-                <select
-                  className="input"
-                  value={formCategory}
-                  onChange={(e) => changeFormCategory(e.target.value)}
-                  disabled={creating}
-                  aria-label="대분류"
-                >
-                  {currentCategoryList.map((c) => (
-                    <option key={c.key} value={c.key}>
-                      {c.label}
-                    </option>
-                  ))}
-                </select>
+              {formMode === 'entry' && (
+                <>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <select
+                      className="input"
+                      value={formCategory}
+                      onChange={(e) => changeFormCategory(e.target.value)}
+                      disabled={creating}
+                      aria-label="대분류"
+                    >
+                      {currentCategoryList.map((c) => (
+                        <option key={c.key} value={c.key}>
+                          {c.label}
+                        </option>
+                      ))}
+                    </select>
 
-                <select
-                  className="input"
-                  value={formSubcategory}
-                  onChange={(e) => setFormSubcategory(e.target.value)}
-                  disabled={
-                    creating ||
-                    !currentCategorySpec ||
-                    currentCategorySpec.subcategories.length === 0
-                  }
-                  aria-label="소분류"
-                >
-                  <option value="">
-                    {currentCategorySpec &&
-                    currentCategorySpec.subcategories.length === 0
-                      ? '(소분류 없음)'
-                      : '소분류 선택'}
-                  </option>
-                  {currentCategorySpec?.subcategories.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                    <select
+                      className="input"
+                      value={formSubcategory}
+                      onChange={(e) => setFormSubcategory(e.target.value)}
+                      disabled={
+                        creating ||
+                        !currentCategorySpec ||
+                        currentCategorySpec.subcategories.length === 0
+                      }
+                      aria-label="소분류"
+                    >
+                      <option value="">
+                        {currentCategorySpec &&
+                        currentCategorySpec.subcategories.length === 0
+                          ? '(소분류 없음)'
+                          : '소분류 선택'}
+                      </option>
+                      {currentCategorySpec?.subcategories.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-              <select
-                className="input"
-                value={formAccountId}
-                onChange={(e) => setFormAccountId(e.target.value)}
-                disabled={creating}
-                aria-label="계좌"
-              >
-                <option value="">계좌 선택 (선택사항)</option>
-                {accounts.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name}
-                    {a.bankName ? ` · ${a.bankName}` : ''}
-                    
-                  </option>
-                ))}
-              </select>
+                  <select
+                    className="input"
+                    value={formAccountId}
+                    onChange={(e) => setFormAccountId(e.target.value)}
+                    disabled={creating}
+                    aria-label="계좌"
+                  >
+                    <option value="">계좌 선택 (선택사항)</option>
+                    {accounts.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                        {a.bankName ? ` · ${a.bankName}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
+
+              {formMode === 'transfer' && (
+                <div className="grid gap-3 md:grid-cols-[1fr_auto_1fr] md:items-center">
+                  <select
+                    className="input"
+                    value={transferFromId}
+                    onChange={(e) => setTransferFromId(e.target.value)}
+                    disabled={creating}
+                    aria-label="출발 계좌"
+                  >
+                    <option value="">출발 계좌</option>
+                    {accounts.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                        {a.bankName ? ` · ${a.bankName}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <div
+                    className="text-center text-lg"
+                    style={{ color: 'var(--muted)' }}
+                  >
+                    →
+                  </div>
+                  <select
+                    className="input"
+                    value={transferToId}
+                    onChange={(e) => setTransferToId(e.target.value)}
+                    disabled={creating}
+                    aria-label="도착 계좌"
+                  >
+                    <option value="">도착 계좌</option>
+                    {accounts.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                        {a.bankName ? ` · ${a.bankName}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
                 <input
@@ -1328,27 +1523,44 @@ export default function LedgerClient() {
                   className="btn btn-primary"
                   disabled={creating}
                 >
-                  {creating ? '저장중...' : '저장'}
+                  {creating
+                    ? '저장중...'
+                    : formMode === 'transfer'
+                      ? '이체'
+                      : '저장'}
                 </button>
               </div>
 
-              <label className="grid gap-1 text-sm">
-                <span className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={formExcludeFromTotals}
-                    onChange={(e) => setFormExcludeFromTotals(e.target.checked)}
-                    disabled={creating}
-                  />
-                  <span className="font-medium">합계 제외</span>
-                </span>
-                <span
-                  className="pl-6 text-xs leading-5"
+              {formMode === 'entry' && (
+                <label className="grid gap-1 text-sm">
+                  <span className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={formExcludeFromTotals}
+                      onChange={(e) =>
+                        setFormExcludeFromTotals(e.target.checked)
+                      }
+                      disabled={creating}
+                    />
+                    <span className="font-medium">합계 제외</span>
+                  </span>
+                  <span
+                    className="pl-6 text-xs leading-5"
+                    style={{ color: 'var(--muted)' }}
+                  >
+                    카드 대금 선결제 · 통장간 이체 등 자산 변동 없는 항목
+                  </span>
+                </label>
+              )}
+              {formMode === 'transfer' && (
+                <p
+                  className="text-xs"
                   style={{ color: 'var(--muted)' }}
                 >
-                  카드 대금 선결제 · 통장간 이체 등 자산 변동 없는 항목
-                </span>
-              </label>
+                  이체는 자동으로 합계 제외 처리됩니다 — 두 계좌 사이에 출금·입금 항목이
+                  한 번에 생성돼서 전체 자산엔 영향 없고 계좌별 잔액에만 반영돼요.
+                </p>
+              )}
             </form>
           </div>
 

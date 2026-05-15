@@ -167,7 +167,7 @@ export default function OverseasDetailModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="surface w-full sm:max-w-3xl rounded-t-2xl sm:rounded-2xl p-5 max-h-[90dvh] overflow-y-auto"
+        className="surface w-full sm:max-w-3xl rounded-t-2xl sm:rounded-2xl p-3 sm:p-5 max-h-[92dvh] overflow-y-auto"
       >
         {/* 헤더 */}
         <div className="flex items-start justify-between gap-3">

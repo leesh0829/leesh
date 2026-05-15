@@ -235,6 +235,9 @@
   }
 
   /* Native select popup is OS-controlled; force readable option contrast. */
+  /* 클래스 무관하게 모든 select 옵션에 적용 — 다크모드에서 흰글+흰바탕 방지 */
+  select option,
+  select optgroup,
   .select option,
   .select optgroup {
     color: #111827;
@@ -2560,5 +2563,24 @@ html.scroll-summon-bottom-active .scroll-reactive-item {
 
   .skeleton::after {
     animation: none !important;
+  }
+}
+
+
+/* 가로 스크롤 가능 영역에 우측 그라데이션 페이드로 시각적 힌트 */
+.scrollable-fade {
+  position: relative;
+  mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
+  -webkit-mask-image: linear-gradient(
+    to right,
+    black calc(100% - 24px),
+    transparent 100%
+  );
+  scrollbar-width: thin;
+}
+@media (min-width: 640px) {
+  .scrollable-fade {
+    mask-image: none;
+    -webkit-mask-image: none;
   }
 }

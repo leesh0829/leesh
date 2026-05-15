@@ -671,6 +671,13 @@ export default function MarketClient() {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              <Link
+                href="/ledger/market/compare"
+                className="btn btn-outline text-xs"
+                title="종목 비교 차트"
+              >
+                📈 비교 차트
+              </Link>
               <LedgerNavKisSettings />
               <LedgerNavStocks />
               <LedgerNavBack />
@@ -1746,7 +1753,7 @@ export default function MarketClient() {
           >
             <div
               onClick={(e) => e.stopPropagation()}
-              className="surface w-full sm:max-w-xl rounded-t-2xl sm:rounded-2xl p-5 max-h-[80dvh] overflow-y-auto"
+              className="surface w-full sm:max-w-xl rounded-t-2xl sm:rounded-2xl p-3 sm:p-5 max-h-[88dvh] overflow-y-auto"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex flex-wrap items-center gap-2 text-xs">

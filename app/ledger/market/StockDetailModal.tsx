@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import CandleChart, { type Candle } from './CandleChart'
+import CandleChart, { type Candle, type TradeMarker } from './CandleChart'
 
 export type StockDetailTarget = {
   code: string
@@ -219,6 +219,14 @@ type Tab =
   | 'members'
   | 'fundamental'
   | 'program'
+  | 'disclosure'
+
+type Disclosure = {
+  title: string
+  filedAt: string
+  filer: string | null
+  url: string | null
+}
 
 export default function StockDetailModal({
   target,
@@ -242,6 +250,8 @@ export default function StockDetailModal({
   const [chartPeriod, setChartPeriod] = useState<'D' | 'W' | 'M' | 'Y'>('D')
   const [chartBars, setChartBars] = useState<Candle[]>([])
   const [chartLoading, setChartLoading] = useState(true)
+  const [tradeMarkers, setTradeMarkers] = useState<TradeMarker[]>([])
+  const [disclosures, setDisclosures] = useState<Disclosure[]>([])
   const [watched, setWatched] = useState(false)
   const [note, setNote] = useState('')
   const [noteSaving, setNoteSaving] = useState(false)
@@ -334,13 +344,19 @@ export default function StockDetailModal({
           setProgram(j.items)
         }
 
-        // 관심종목 / 메모 / 알람 (사용자별 데이터)
-        const [wRes, nRes, aRes] = await Promise.all([
+        // 관심종목 / 메모 / 알람 / 거래마커 / 공시 (사용자별 데이터)
+        const [wRes, nRes, aRes, tradesRes, discRes] = await Promise.all([
           fetch('/api/watchlist', { cache: 'no-store' }),
           fetch(`/api/stock-note?market=KR&symbol=${target.code}`, {
             cache: 'no-store',
           }),
           fetch(`/api/stock-alarm?market=KR&symbol=${target.code}`, {
+            cache: 'no-store',
+          }),
+          fetch(`/api/holdings/trades?symbol=${target.code}`, {
+            cache: 'no-store',
+          }),
+          fetch(`/api/disclosure/${target.code}?limit=30`, {
             cache: 'no-store',
           }),
         ])
@@ -369,6 +385,28 @@ export default function StockDetailModal({
             }>
           }
           setAlarms(j.items)
+        }
+        if (tradesRes.ok) {
+          const j = (await tradesRes.json()) as {
+            items: Array<{
+              type: 'BUY' | 'SELL'
+              quantity: number
+              unitPrice: number
+              date: string
+            }>
+          }
+          setTradeMarkers(
+            j.items.map((t) => ({
+              date: t.date,
+              type: t.type,
+              price: t.unitPrice,
+              quantity: t.quantity,
+            }))
+          )
+        }
+        if (discRes.ok) {
+          const j = (await discRes.json()) as { items: Disclosure[] }
+          setDisclosures(j.items)
         }
       } catch (e) {
         if (!cancelled) setError(String(e))
@@ -437,7 +475,7 @@ export default function StockDetailModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="surface w-full sm:max-w-3xl rounded-t-2xl sm:rounded-2xl p-5 max-h-[90dvh] overflow-y-auto"
+        className="surface w-full sm:max-w-3xl rounded-t-2xl sm:rounded-2xl p-3 sm:p-5 max-h-[92dvh] overflow-y-auto"
       >
         {/* 헤더 */}
         <div className="flex items-start justify-between gap-3">
@@ -759,7 +797,7 @@ export default function StockDetailModal({
 
         {/* 탭 */}
         <div
-          className="mt-4 flex gap-1 border-b overflow-x-auto"
+          className="mt-4 flex gap-1 border-b overflow-x-auto scrollable-fade"
           style={{ borderColor: 'var(--border)' }}
         >
           {(
@@ -771,6 +809,7 @@ export default function StockDetailModal({
               ['investor', '투자자'],
               ['program', '프로그램'],
               ['fundamental', '펀더멘털'],
+              ['disclosure', '공시'],
               ['overtime', '시간외'],
             ] as const
           ).map(([key, label]) => (
@@ -981,7 +1020,12 @@ export default function StockDetailModal({
             ) : (
               <>
                 <div className="card p-3 card-hover-border-only">
-                  <CandleChart bars={chartBars} decimals={0} height={280} />
+                  <CandleChart
+                    bars={chartBars}
+                    decimals={0}
+                    height={320}
+                    trades={tradeMarkers}
+                  />
                 </div>
                 <div className="mt-3 overflow-x-auto">
                   <table className="w-full text-sm">
@@ -1728,6 +1772,69 @@ export default function StockDetailModal({
                 </p>
               </div>
             )}
+          </div>
+        )}
+
+        {/* 공시 탭 */}
+        {!loading && tab === 'disclosure' && (
+          <div className="mt-4">
+            {disclosures.length === 0 ? (
+              <div className="text-sm" style={{ color: 'var(--muted)' }}>
+                최근 공시가 없습니다.
+              </div>
+            ) : (
+              <ul className="grid gap-1">
+                {disclosures.map((d, i) => (
+                  <li
+                    key={`disc-${i}-${d.filedAt}`}
+                    className="card p-2 card-hover-border-only"
+                  >
+                    <a
+                      href={d.url ?? '#'}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block"
+                      onClick={(e) => {
+                        if (!d.url) e.preventDefault()
+                      }}
+                    >
+                      <div className="flex items-baseline gap-2 text-sm">
+                        <span
+                          className="shrink-0 font-mono text-xs"
+                          style={{ color: 'var(--muted)' }}
+                        >
+                          {d.filedAt.length >= 10
+                            ? d.filedAt.slice(5, 16).replace('T', ' ')
+                            : d.filedAt}
+                        </span>
+                        <span className="min-w-0 flex-1 font-semibold">
+                          {d.title}
+                        </span>
+                        {d.filer && (
+                          <span
+                            className="shrink-0 text-xs"
+                            style={{ color: 'var(--muted)' }}
+                          >
+                            {d.filer}
+                          </span>
+                        )}
+                        {d.url && (
+                          <span className="shrink-0 text-xs text-blue-500">
+                            ↗
+                          </span>
+                        )}
+                      </div>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p
+              className="mt-3 text-xs"
+              style={{ color: 'var(--muted)' }}
+            >
+              출처: Naver Finance (DART 공시 원천). 항목 클릭 시 DART 원문 새 탭으로 열림.
+            </p>
           </div>
         )}
       </div>

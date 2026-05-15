@@ -11,12 +11,18 @@ type JsonError = { message: string }
 const jsonError = (status: number, message: string) =>
   NextResponse.json({ message } satisfies JsonError, { status })
 
-const scopeLabel = (scope: 'CALENDAR' | 'TODO') =>
-  scope === 'CALENDAR' ? '캘린더' : 'TODO'
+const scopeLabel = (scope: 'CALENDAR' | 'TODO' | 'LEDGER' | 'STOCK') =>
+  scope === 'CALENDAR'
+    ? '캘린더'
+    : scope === 'TODO'
+      ? 'TODO'
+      : scope === 'LEDGER'
+        ? '가계부'
+        : '주식/투자'
 
 type OutgoingShareRow = {
   id: string
-  scope: 'CALENDAR' | 'TODO'
+  scope: 'CALENDAR' | 'TODO' | 'LEDGER' | 'STOCK'
   status: 'PENDING' | 'ACCEPTED' | 'REJECTED'
   createdAt: Date
   updatedAt: Date
@@ -26,7 +32,7 @@ type OutgoingShareRow = {
 
 type IncomingShareRow = {
   id: string
-  scope: 'CALENDAR' | 'TODO'
+  scope: 'CALENDAR' | 'TODO' | 'LEDGER' | 'STOCK'
   status: 'PENDING' | 'ACCEPTED' | 'REJECTED'
   createdAt: Date
   updatedAt: Date
@@ -137,12 +143,13 @@ export async function POST(req: Request) {
 
     const body = (await req.json().catch(() => null)) as {
       targetEmail?: string
-      scope?: 'CALENDAR' | 'TODO'
+      scope?: 'CALENDAR' | 'TODO' | 'LEDGER' | 'STOCK'
     } | null
     const targetIdentity = body?.targetEmail?.trim()
     if (!targetIdentity) return jsonError(400, 'targetEmail is required')
     const scope = parseScheduleShareScope(body?.scope)
-    if (!scope) return jsonError(400, 'scope must be CALENDAR or TODO')
+    if (!scope)
+      return jsonError(400, 'scope must be CALENDAR, TODO, LEDGER or STOCK')
 
     const meMatchesIdentityByEmail =
       !!me.email && me.email.toLowerCase() === targetIdentity.toLowerCase()

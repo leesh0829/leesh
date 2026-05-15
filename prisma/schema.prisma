@@ -40,6 +40,15 @@ model User {
 
   outgoingScheduleShares ScheduleShare[] @relation("ScheduleShareRequester")
   incomingScheduleShares ScheduleShare[] @relation("ScheduleShareOwner")
+
+  ledgerEntries LedgerEntry[] @relation("LedgerEntryOwner")
+  holdings      Holding[]     @relation("HoldingOwner")
+  financialAccounts FinancialAccount[] @relation("FinancialAccountOwner")
+  kisCredential KisCredential?
+
+  watchlistItems Watchlist[]  @relation("WatchlistOwner")
+  stockNotes     StockNote[]  @relation("StockNoteOwner")
+  stockAlarms    StockAlarm[] @relation("StockAlarmOwner")
 }
 
 model Account {
@@ -180,6 +189,161 @@ enum ScheduleShareStatus {
 enum ScheduleShareScope {
   CALENDAR
   TODO
+  LEDGER
+  STOCK
+}
+
+enum LedgerEntryType {
+  INCOME
+  EXPENSE
+}
+
+model LedgerEntry {
+  id String @id @default(cuid())
+
+  ownerId String
+  owner   User   @relation("LedgerEntryOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  accountId String?
+  account   FinancialAccount? @relation("LedgerAccount", fields: [accountId], references: [id], onDelete: SetNull)
+
+  type        LedgerEntryType
+  amount      Int
+  description String
+  category    String
+  subcategory String?
+
+  excludeFromTotals Boolean @default(false)
+
+  occurredAt DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  holdingTransaction HoldingTransaction? @relation("HoldingTxLedger")
+
+  @@index([ownerId, occurredAt])
+  @@index([ownerId, type])
+  @@index([accountId])
+}
+
+enum AccountType {
+  SALARY
+  LIVING
+  CHECKING
+  SAVINGS
+  EMERGENCY
+  STOCK
+  ISA
+  PENSION
+  BUSINESS
+  SHARED
+  CORPORATE
+  FOREIGN_CURRENCY
+  SHOPPING
+  CEREMONIAL
+  CARD
+  FIXED_EXPENSE
+  TRANSPORT
+  OTHER
+}
+
+// 한국투자증권 API 자격증명 (사용자당 1개)
+// appKey/appSecret/accessToken은 AES-256-GCM 암호화된 문자열로 저장
+model KisCredential {
+  id String @id @default(cuid())
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  appKey             String
+  appSecret          String
+  accountNumber      String // CANO (앞 8자리)
+  accountProductCode String @default("01")
+  isLive             Boolean @default(true)
+
+  accessToken    String?
+  tokenExpiresAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model FinancialAccount {
+  id String @id @default(cuid())
+
+  ownerId String
+  owner   User   @relation("FinancialAccountOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  name     String
+  bankName String?
+  types    AccountType[]
+  memo     String?
+
+  ledgerEntries LedgerEntry[] @relation("LedgerAccount")
+  holdings      Holding[]     @relation("HoldingAccount")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+}
+
+enum HoldingTransactionType {
+  BUY
+  SELL
+  DIVIDEND
+  FEE
+  TAX
+}
+
+model Holding {
+  id String @id @default(cuid())
+
+  ownerId String
+  owner   User   @relation("HoldingOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  accountId String?
+  account   FinancialAccount? @relation("HoldingAccount", fields: [accountId], references: [id], onDelete: SetNull)
+
+  name           String
+  symbol         String?
+  exchange       String?
+  currency       String  @default("KRW")
+  memo           String?
+  currentPrice   Float?
+  priceUpdatedAt DateTime?
+
+  transactions HoldingTransaction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+  @@index([accountId])
+}
+
+model HoldingTransaction {
+  id String @id @default(cuid())
+
+  holdingId String
+  holding   Holding @relation(fields: [holdingId], references: [id], onDelete: Cascade)
+
+  type         HoldingTransactionType
+  quantity     Float?
+  pricePerUnit Float?
+  amount       Float
+
+  occurredAt DateTime @default(now())
+  memo       String?
+
+  ledgerEntryId String?      @unique
+  ledgerEntry   LedgerEntry? @relation("HoldingTxLedger", fields: [ledgerEntryId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([holdingId, occurredAt])
 }
 
 model ScheduleShare {
@@ -216,6 +380,67 @@ model UserMenuPermission {
   createdAt DateTime @default(now())
 
   @@unique([userId, menuKey])
+}
+
+// 종목 관심목록 — 사용자가 ☆로 즐겨찾기한 종목
+model Watchlist {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation("WatchlistOwner", fields: [userId], references: [id], onDelete: Cascade)
+
+  // 국내 종목은 code = 6자리(005930), 해외는 EXCD:SYMBOL 또는 reuters code
+  market   String // "KR", "NAS", "NYS", "AMS", "TYO" 등
+  symbol   String // KR이면 6자리 / 해외면 티커
+  name     String
+  position Int    @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, market, symbol])
+  @@index([userId, position])
+}
+
+// 종목별 사용자 메모
+model StockNote {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation("StockNoteOwner", fields: [userId], references: [id], onDelete: Cascade)
+
+  market String // "KR" / 해외 EXCD
+  symbol String
+  note   String @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, market, symbol])
+}
+
+// 가격 알람
+enum AlarmDirection {
+  ABOVE // 도달가 이상
+  BELOW // 도달가 이하
+}
+
+model StockAlarm {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation("StockAlarmOwner", fields: [userId], references: [id], onDelete: Cascade)
+
+  market    String
+  symbol    String
+  name      String
+  target    Float
+  direction AlarmDirection
+  enabled   Boolean        @default(true)
+  triggeredAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, enabled])
 }
 
 model MenuPermission {

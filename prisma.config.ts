@@ -9,6 +9,9 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
+    // 앱 runtime용 — Neon Pooler URL
     url: process.env["DATABASE_URL"],
+    // 마이그레이션 전용 — Neon Direct URL (없으면 url로 fallback)
+    directUrl: process.env["DIRECT_URL"] ?? process.env["DATABASE_URL"],
   },
 });

@@ -1,6 +1,6 @@
 'use client'
 
-import Link from 'next/link'
+import { NavEdit } from '@/app/components/PageNavIcons'
 
 export default function BlogActionsClient({
   postId,
@@ -31,9 +31,7 @@ export default function BlogActionsClient({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Link href={`${detailBasePath}/edit/${postId}`} className="btn btn-outline">
-        수정
-      </Link>
+      <NavEdit href={`${detailBasePath}/edit/${postId}`} label="글 수정" />
       <button type="button" onClick={del} className="btn">
         삭제
       </button>

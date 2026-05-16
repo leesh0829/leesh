@@ -97,6 +97,65 @@ function KeyIcon({ className }: IconProps) {
   )
 }
 
+function PortfolioIcon({ className }: IconProps) {
+  // 포트폴리오 (도넛 차트 모양)
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className={className}
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="8" />
+      <path d="M12 4 A8 8 0 0 1 19.5 14.5 L12 12 Z" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="12" r="3" fill="var(--card, white)" stroke="currentColor" />
+    </svg>
+  )
+}
+
+function CompareIcon({ className }: IconProps) {
+  // 비교 (두 라인 차트)
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M3 17L7 11L11 14L15 7L21 12" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M3 20L7 18L11 19L15 16L21 18" strokeLinecap="round" strokeLinejoin="round" strokeOpacity="0.55" />
+    </svg>
+  )
+}
+
+function CalendarIcon({ className }: IconProps) {
+  // 가계부 캘린더 (달력 모양)
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className={className}
+      aria-hidden="true"
+    >
+      <rect x="3" y="5" width="18" height="16" rx="2" />
+      <path d="M3 9H21" strokeLinecap="round" />
+      <path d="M8 3V7" strokeLinecap="round" />
+      <path d="M16 3V7" strokeLinecap="round" />
+      <circle cx="8" cy="13" r="0.8" fill="currentColor" />
+      <circle cx="12" cy="13" r="0.8" fill="currentColor" />
+      <circle cx="16" cy="13" r="0.8" fill="currentColor" />
+      <circle cx="8" cy="17" r="0.8" fill="currentColor" />
+      <circle cx="12" cy="17" r="0.8" fill="currentColor" />
+    </svg>
+  )
+}
+
 function NavButton({
   href,
   label,
@@ -131,6 +190,30 @@ export function LedgerNavStats() {
   return (
     <NavButton href="/ledger/stats" label="통계 / 분석">
       <StatsIcon className="h-4 w-4" />
+    </NavButton>
+  )
+}
+
+export function LedgerNavCalendar() {
+  return (
+    <NavButton href="/ledger/calendar" label="가계부 캘린더">
+      <CalendarIcon className="h-4 w-4" />
+    </NavButton>
+  )
+}
+
+export function LedgerNavPortfolio() {
+  return (
+    <NavButton href="/ledger/stocks/portfolio" label="포트폴리오 분석">
+      <PortfolioIcon className="h-4 w-4" />
+    </NavButton>
+  )
+}
+
+export function LedgerNavCompare() {
+  return (
+    <NavButton href="/ledger/market/compare" label="종목 비교 차트">
+      <CompareIcon className="h-4 w-4" />
     </NavButton>
   )
 }

@@ -1,10 +1,10 @@
 'use client'
 
-import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useToast } from '@/app/components/ToastProvider'
 import {
   LedgerNavBack,
+  LedgerNavCompare,
   LedgerNavKisSettings,
   LedgerNavStocks,
 } from '../LedgerNavIcons'
@@ -671,13 +671,7 @@ export default function MarketClient() {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <Link
-                href="/ledger/market/compare"
-                className="btn btn-outline text-xs"
-                title="종목 비교 차트"
-              >
-                📈 비교 차트
-              </Link>
+              <LedgerNavCompare />
               <LedgerNavKisSettings />
               <LedgerNavStocks />
               <LedgerNavBack />
@@ -1293,9 +1287,7 @@ export default function MarketClient() {
           <div className="surface card-pad card-hover-border-only">
             <div className="flex items-center justify-between">
               <div className="font-extrabold">내 자산 요약</div>
-              <Link href="/ledger/stocks" className="btn btn-outline text-xs">
-                자세히 →
-              </Link>
+              <LedgerNavStocks />
             </div>
             {loading ? (
               <div className="mt-3 h-32 rounded-md skeleton" />
@@ -1753,7 +1745,8 @@ export default function MarketClient() {
           >
             <div
               onClick={(e) => e.stopPropagation()}
-              className="surface w-full sm:max-w-xl rounded-t-2xl sm:rounded-2xl p-3 sm:p-5 max-h-[88dvh] overflow-y-auto"
+              className="surface modal-frame w-full sm:max-w-xl rounded-t-2xl sm:rounded-2xl p-3 sm:p-5 max-h-[88dvh] overflow-y-auto flex flex-col"
+              style={{ minHeight: 0 }}
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex flex-wrap items-center gap-2 text-xs">

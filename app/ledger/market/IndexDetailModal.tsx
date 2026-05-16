@@ -77,8 +77,9 @@ export default function IndexDetailModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="surface w-full sm:max-w-3xl rounded-t-2xl sm:rounded-2xl p-3 sm:p-5 max-h-[92dvh] overflow-y-auto"
+        className="surface modal-frame w-full sm:max-w-3xl rounded-t-2xl sm:rounded-2xl max-h-[92dvh] flex flex-col"
       >
+      <div className="p-3 sm:p-5 overflow-y-auto" style={{ minHeight: 0 }}>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h3 className="text-lg font-extrabold leading-snug truncate">
@@ -159,6 +160,7 @@ export default function IndexDetailModal({
         <p className="mt-3 text-xs" style={{ color: 'var(--muted)' }}>
           KIS Open API · 빨강 = 양봉 / 파랑 = 음봉 (국내 표시 관습)
         </p>
+      </div>
       </div>
     </div>
   )

@@ -2584,3 +2584,43 @@ html.scroll-summon-bottom-active .scroll-reactive-item {
     -webkit-mask-image: none;
   }
 }
+
+
+/* 모달 컨테이너 — surface 시각 베이스는 유지하되 호버 색상 변경 비활성화 */
+@media (hover: hover) and (pointer: fine) {
+  .modal-frame,
+  .modal-frame:hover {
+    transform: none !important;
+    border-color: var(--border) !important;
+    box-shadow: var(--shadow);
+  }
+  .modal-frame::after,
+  .modal-frame:hover::after {
+    opacity: 0 !important;
+    transform: none !important;
+    background: none !important;
+  }
+
+  /* 모달 내부의 모든 card/surface 호버 효과 비활성화 — 마우스 움직임만 따라 카드가
+     하이라이트되는 산만함 제거. 버튼/링크 호버는 그대로 (피드백 필요). */
+  .modal-frame .card,
+  .modal-frame .card:hover,
+  .modal-frame .surface,
+  .modal-frame .surface:hover,
+  .modal-frame .card-hover-border-only,
+  .modal-frame .card-hover-border-only:hover {
+    transform: none !important;
+    border-color: var(--border) !important;
+    box-shadow: none !important;
+  }
+  .modal-frame .card::after,
+  .modal-frame .card:hover::after,
+  .modal-frame .surface::after,
+  .modal-frame .surface:hover::after,
+  .modal-frame .card-hover-border-only::after,
+  .modal-frame .card-hover-border-only:hover::after {
+    opacity: 0 !important;
+    transform: none !important;
+    background: none !important;
+  }
+}

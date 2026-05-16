@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react'
 import DonutChart, {
   type DonutSegment,
 } from '../../market/DonutChart'
+import { LedgerNavBack, LedgerNavStocks } from '../../LedgerNavIcons'
 
 type HoldingItem = {
   id: string
@@ -183,9 +184,10 @@ export default function PortfolioClient() {
                 보유 종목 평가금액 기준 — 환율은 현재 시점으로 KRW 환산
               </p>
             </div>
-            <Link href="/ledger/stocks" className="btn btn-outline text-xs">
-              ← 보유 종목
-            </Link>
+            <div className="flex flex-wrap items-center gap-2">
+              <LedgerNavStocks />
+              <LedgerNavBack />
+            </div>
           </div>
           <div className="mt-3">
             <div className="text-xs" style={{ color: 'var(--muted)' }}>

@@ -2,6 +2,7 @@ import { prisma } from '@/app/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import Link from 'next/link'
+import { NavBack } from '@/app/components/PageNavIcons'
 import BlogEditClient from '@/app/blog/edit/[postId]/BlogEditClient'
 
 export const runtime = 'nodejs'
@@ -63,9 +64,7 @@ export default async function DocsEditPage({
             수정할 문서가 없거나 권한 없음
           </div>
           <div className="mt-2">
-            <Link className="btn btn-outline" href="/docs">
-              Docs로
-            </Link>
+            <NavBack href="/docs" label="문서 목록" />
           </div>
         </div>
       </main>
@@ -80,9 +79,7 @@ export default async function DocsEditPage({
           <h1 className="text-2xl font-semibold">문서 수정</h1>
         </div>
 
-        <Link href="/docs" className="btn btn-outline">
-          목록으로
-        </Link>
+        <NavBack href="/docs" label="문서 목록" />
       </div>
 
       <div className="surface card-pad card-hover-border-only">

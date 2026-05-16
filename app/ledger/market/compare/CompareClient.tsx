@@ -1,8 +1,8 @@
 'use client'
 
-import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import StockSearchBox from '../StockSearchBox'
+import { LedgerNavBack, LedgerNavMarket } from '../../LedgerNavIcons'
 
 type Series = {
   code: string
@@ -158,9 +158,10 @@ export default function CompareClient() {
                 최대 6개 종목을 한 그래프에 — 시작가 100 기준 정규화 (상대 수익률)
               </p>
             </div>
-            <Link href="/ledger/market" className="btn btn-outline text-xs">
-              ← 시장 대시보드
-            </Link>
+            <div className="flex flex-wrap items-center gap-2">
+              <LedgerNavMarket />
+              <LedgerNavBack />
+            </div>
           </div>
 
           {/* 종목 추가 */}

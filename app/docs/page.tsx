@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { NavCreate } from '@/app/components/PageNavIcons'
 import { prisma } from '@/app/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/options'
@@ -168,9 +169,7 @@ export default async function DocsListPage(props: {
                 오래된순
               </Link>
               {canWrite ? (
-                <Link href="/docs/new" className="btn btn-primary">
-                  문서 작성
-                </Link>
+                <NavCreate href="/docs/new" label="새 문서 작성" />
               ) : (
                 <span className="badge">로그인하면 문서 작성 가능</span>
               )}

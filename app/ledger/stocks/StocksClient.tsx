@@ -1,11 +1,11 @@
 'use client'
 
-import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   LedgerNavBack,
   LedgerNavKisSettings,
   LedgerNavMarket,
+  LedgerNavPortfolio,
 } from '../LedgerNavIcons'
 import {
   OwnerStackBar,
@@ -1101,13 +1101,7 @@ export default function StocksClient() {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <Link
-                href="/ledger/stocks/portfolio"
-                className="btn btn-outline text-xs"
-                title="포트폴리오 분석"
-              >
-                📊 포트폴리오
-              </Link>
+              <LedgerNavPortfolio />
               <LedgerNavMarket />
               <LedgerNavKisSettings />
               <LedgerNavBack />

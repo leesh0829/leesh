@@ -2,6 +2,7 @@ import { prisma } from '@/app/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import Link from 'next/link'
+import { NavBack } from '@/app/components/PageNavIcons'
 import BlogEditorClient from '@/app/blog/new/BlogEditorClient'
 
 export const runtime = 'nodejs'
@@ -57,9 +58,7 @@ export default async function DocsNewPage() {
           <h1 className="text-2xl font-semibold">새 문서 작성</h1>
         </div>
 
-        <Link href="/docs" className="btn btn-outline">
-          목록으로
-        </Link>
+        <NavBack href="/docs" label="문서 목록" />
       </div>
 
       <div className="surface card-pad card-hover-border-only">

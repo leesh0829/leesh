@@ -7,7 +7,7 @@ import remarkBreaks from 'remark-breaks'
 import rehypeHighlight from 'rehype-highlight'
 import rehypeRaw from 'rehype-raw'
 import rehypeSanitize from 'rehype-sanitize'
-import Link from 'next/link'
+import { NavBack } from '@/app/components/PageNavIcons'
 import { displayUserLabel } from '@/app/lib/userLabel'
 import { sanitizedMarkdownSchema } from '@/app/lib/markdown'
 import { useAsyncLock } from '@/app/lib/useAsyncLock'
@@ -146,9 +146,7 @@ export default function HelpDetailClient({ postId }: { postId: string }) {
     return (
       <main className="space-y-3">
         <div>
-          <Link href="/help" className="btn btn-outline">
-            ← 고객센터
-          </Link>
+          <NavBack href="/help" label="고객센터" />
         </div>
 
         <div className="surface card-pad">
@@ -164,9 +162,7 @@ export default function HelpDetailClient({ postId }: { postId: string }) {
       <section className="surface card-pad card-hover-border-only">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
-            <Link href="/help" className="btn btn-outline">
-              ← 고객센터
-            </Link>
+            <NavBack href="/help" label="고객센터" />
 
             <h1 className="mt-3 truncate text-2xl font-semibold">
               {post.title}

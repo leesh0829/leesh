@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
+import { NavBack } from '@/app/components/PageNavIcons'
 import { useRouter } from 'next/navigation'
 import MarkdownEditor from '@/app/components/MarkdownEditor'
 import { useAsyncLock } from '@/app/lib/useAsyncLock'
@@ -313,9 +314,7 @@ export default function BoardDetailClient({
   return (
     <main className="container-page py-8">
       <div className="surface card-pad card-hover-border-only">
-        <Link href={backHref} className="btn btn-outline">
-          ← {backLabel}
-        </Link>
+        <NavBack href={backHref} label={backLabel} />
 
         <header className="mt-4">
           <h1 className="text-2xl font-bold">{board.name}</h1>

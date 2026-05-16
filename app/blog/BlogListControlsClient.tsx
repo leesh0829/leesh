@@ -1,6 +1,6 @@
 'use client'
 
-import Link from 'next/link'
+import { NavCreate } from '@/app/components/PageNavIcons'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useState, useTransition } from 'react'
 import {
@@ -91,9 +91,7 @@ export default function BlogListControlsClient({
         </button>
 
         {canWrite ? (
-          <Link href="/blog/new" className="btn btn-primary">
-            글 작성
-          </Link>
+          <NavCreate href="/blog/new" label="새 글 작성" />
         ) : (
           <span className="badge">로그인하면 글 작성 가능</span>
         )}

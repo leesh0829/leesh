@@ -2,7 +2,7 @@
 
 import { memo, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
+import { NavBack } from '@/app/components/PageNavIcons'
 import { toHumanHttpError } from '@/app/lib/httpErrorText'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -607,9 +607,7 @@ export default function PostDetailClient({
         }
       >
         <div className="surface card-pad card-hover-border-only">
-        <Link href={backHref} className="btn btn-outline">
-          ← {resolvedBackLabel}
-        </Link>
+        <NavBack href={backHref} label={resolvedBackLabel} />
 
         <header className="mt-4">
           <div className="flex flex-wrap items-center gap-2">

@@ -91,9 +91,9 @@ export default function StatsClient() {
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
 
-  // 기본: 최근 6개월
+  // 기본: 이번 달 (1일 ~ 말일)
   const [periodStart, setPeriodStart] = useState<string>(() =>
-    toDateInputValue(startOfYearAgo(5))
+    toDateInputValue(startOfMonth(new Date()))
   )
   const [periodEnd, setPeriodEnd] = useState<string>(() =>
     toDateInputValue(endOfMonth(new Date()))

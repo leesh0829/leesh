@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useToast } from '@/app/components/ToastProvider'
 import { TYPE_LABEL_KR } from '@/app/lib/accountTypes'
 import { LedgerNavBack } from '../LedgerNavIcons'
+import DonutChart from '../market/DonutChart'
 
 type Totals = { income: number; expense: number; net: number; count: number }
 type AccountAgg = {
@@ -24,14 +25,57 @@ type AccountTypeAgg = {
 }
 type CategoryAgg = { category: string; total: number; count: number }
 type MonthAgg = { month: string; income: number; expense: number; net: number }
+type DayAgg = { day: string; income: number; expense: number; net: number }
+type WeekdayAgg = {
+  weekday: number
+  income: number
+  expense: number
+  count: number
+}
+type SubcategoryAgg = {
+  category: string
+  subcategories: { subcategory: string; total: number }[]
+}
+type TopTransaction = {
+  id: string
+  amount: number
+  description: string
+  category: string
+  subcategory: string | null
+  accountName: string | null
+  occurredAt: string
+}
+type CategoryDiff = {
+  category: string
+  current: number
+  prev: number
+  diff: number
+  diffPct: number | null
+}
+type TransferFlow = {
+  from: string
+  to: string
+  total: number
+  count: number
+}
 
 type StatsResponse = {
   totals: Totals
+  prevTotals: { income: number; expense: number; net: number } | null
   byAccount: AccountAgg[]
   byAccountType: AccountTypeAgg[]
   byCategoryIncome: CategoryAgg[]
   byCategoryExpense: CategoryAgg[]
+  bySubcategoryIncome: SubcategoryAgg[]
+  bySubcategoryExpense: SubcategoryAgg[]
   byMonth: MonthAgg[]
+  byDay: DayAgg[]
+  byWeekday: WeekdayAgg[]
+  topIncome: TopTransaction[]
+  topExpense: TopTransaction[]
+  categoryDiffIncome: CategoryDiff[] | null
+  categoryDiffExpense: CategoryDiff[] | null
+  transferFlows: TransferFlow[]
 }
 
 function pad2(n: number) {
@@ -163,6 +207,28 @@ export default function StatsClient() {
     [data]
   )
   const byMonth = useMemo(() => data?.byMonth ?? [], [data])
+  const byDay = useMemo(() => data?.byDay ?? [], [data])
+  const byWeekday = useMemo(() => data?.byWeekday ?? [], [data])
+  const bySubcategoryIncome = useMemo(
+    () => data?.bySubcategoryIncome ?? [],
+    [data]
+  )
+  const bySubcategoryExpense = useMemo(
+    () => data?.bySubcategoryExpense ?? [],
+    [data]
+  )
+  const topIncome = useMemo(() => data?.topIncome ?? [], [data])
+  const topExpense = useMemo(() => data?.topExpense ?? [], [data])
+  const categoryDiffIncome = useMemo(
+    () => data?.categoryDiffIncome ?? null,
+    [data]
+  )
+  const categoryDiffExpense = useMemo(
+    () => data?.categoryDiffExpense ?? null,
+    [data]
+  )
+  const transferFlows = useMemo(() => data?.transferFlows ?? [], [data])
+  const prevTotals = data?.prevTotals
 
   const incomeRate =
     totals && totals.income + totals.expense > 0
@@ -178,6 +244,51 @@ export default function StatsClient() {
     const b = byMonth[byMonth.length - 1]
     return { prev: a, curr: b }
   }, [byMonth])
+
+  // 일평균 / 월말 예측
+  const dailyAverage = useMemo(() => {
+    if (!byDay.length || !totals) return null
+    // 기간 전체 일수가 아닌 "데이터가 있는 일수" 기준
+    const days = byDay.length
+    return {
+      incomePerDay: totals.income / days,
+      expensePerDay: totals.expense / days,
+      netPerDay: totals.net / days,
+      activeDays: days,
+    }
+  }, [byDay, totals])
+
+  // 월말까지 잔여일 기준 예측 (기간 시작/종료가 이번달이라 가정 — 휴리스틱)
+  const monthEndProjection = useMemo(() => {
+    if (!periodEnd || !totals) return null
+    const end = new Date(periodEnd)
+    const today = new Date()
+    const start = new Date(periodStart)
+    if (today < start || today > end) return null // 현재가 기간 밖이면 의미 없음
+    const msPerDay = 86_400_000
+    const elapsedDays = Math.max(
+      1,
+      Math.ceil((today.getTime() - start.getTime()) / msPerDay) + 1
+    )
+    const remainingDays = Math.max(
+      0,
+      Math.ceil((end.getTime() - today.getTime()) / msPerDay)
+    )
+    const dailyExpense = totals.expense / elapsedDays
+    const dailyIncome = totals.income / elapsedDays
+    return {
+      remainingDays,
+      projectedExpense: totals.expense + dailyExpense * remainingDays,
+      projectedIncome: totals.income + dailyIncome * remainingDays,
+    }
+  }, [periodEnd, periodStart, totals])
+
+  // 카테고리 → 소분류 펼침 상태
+  const [expandedCategories, setExpandedCategories] = useState<
+    Record<string, boolean>
+  >({})
+  const toggleCategory = (cat: string) =>
+    setExpandedCategories((p) => ({ ...p, [cat]: !p[cat] }))
 
   return (
     <main className="w-full px-3 py-6 sm:px-4 lg:px-6">
@@ -362,6 +473,522 @@ export default function StatsClient() {
                 통계에서 빠집니다.
               </p>
             </div>
+
+            {/* 페이스: 일평균 + 월말 예측 + 전 기간 대비 */}
+            {(dailyAverage || monthEndProjection || prevTotals) && (
+              <div className="surface card-pad card-hover-border-only">
+                <div className="font-extrabold">페이스 / 비교</div>
+                <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                  {dailyAverage && (
+                    <div className="card p-3">
+                      <div
+                        className="text-xs"
+                        style={{ color: 'var(--muted)' }}
+                      >
+                        일평균 (활동 {dailyAverage.activeDays}일 기준)
+                      </div>
+                      <div className="mt-1 text-sm">
+                        수입{' '}
+                        <span className="font-bold text-emerald-500">
+                          +{formatKRW(dailyAverage.incomePerDay)}
+                        </span>
+                      </div>
+                      <div className="text-sm">
+                        지출{' '}
+                        <span className="font-bold text-red-500">
+                          −{formatKRW(dailyAverage.expensePerDay)}
+                        </span>
+                      </div>
+                      <div className="text-sm">
+                        순합{' '}
+                        <span
+                          className={
+                            'font-bold ' +
+                            (dailyAverage.netPerDay >= 0
+                              ? 'text-emerald-500'
+                              : 'text-red-500')
+                          }
+                        >
+                          {dailyAverage.netPerDay >= 0 ? '+' : ''}
+                          {formatKRW(dailyAverage.netPerDay)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  {monthEndProjection && (
+                    <div className="card p-3">
+                      <div
+                        className="text-xs"
+                        style={{ color: 'var(--muted)' }}
+                      >
+                        기간 종료까지 예측 ({monthEndProjection.remainingDays}일 남음)
+                      </div>
+                      <div className="mt-1 text-sm">
+                        예상 수입{' '}
+                        <span className="font-bold text-emerald-500">
+                          {formatKRW(monthEndProjection.projectedIncome)}
+                        </span>
+                      </div>
+                      <div className="text-sm">
+                        예상 지출{' '}
+                        <span className="font-bold text-red-500">
+                          {formatKRW(monthEndProjection.projectedExpense)}
+                        </span>
+                      </div>
+                      <div
+                        className="mt-1 text-[10px]"
+                        style={{ color: 'var(--muted)' }}
+                      >
+                        현재 페이스 단순 외삽
+                      </div>
+                    </div>
+                  )}
+                  {prevTotals && totals && (
+                    <div className="card p-3">
+                      <div
+                        className="text-xs"
+                        style={{ color: 'var(--muted)' }}
+                      >
+                        직전 동기간 대비
+                      </div>
+                      {(['income', 'expense', 'net'] as const).map((k) => {
+                        const cur = totals[k]
+                        const prev = prevTotals[k]
+                        const diff = cur - prev
+                        const pct = prev !== 0 ? (diff / Math.abs(prev)) * 100 : null
+                        const label = k === 'income' ? '수입' : k === 'expense' ? '지출' : '순합'
+                        // 지출은 줄어드는 게 좋음 — 색 반대
+                        const goodDir = k === 'expense' ? -1 : 1
+                        const tone = diff * goodDir > 0 ? 'text-emerald-500' : diff * goodDir < 0 ? 'text-red-500' : ''
+                        return (
+                          <div key={k} className="text-sm">
+                            {label}{' '}
+                            <span className={'font-bold ' + tone}>
+                              {diff >= 0 ? '+' : ''}
+                              {formatKRW(diff)}
+                            </span>
+                            {pct !== null && (
+                              <span
+                                className="ml-1 text-xs"
+                                style={{ color: 'var(--muted)' }}
+                              >
+                                ({pct >= 0 ? '+' : ''}
+                                {pct.toFixed(1)}%)
+                              </span>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* 일별 추이 라인 + 누적 영역 */}
+            {byDay.length > 0 && (
+              <div className="surface card-pad card-hover-border-only">
+                <div className="font-extrabold">일별 추이</div>
+                <DayLineChart data={byDay} />
+                <p
+                  className="mt-2 text-xs"
+                  style={{ color: 'var(--muted)' }}
+                >
+                  거래가 발생한 날만 표시. 누적 라인은 시작일부터 현재까지의 순합 누적.
+                </p>
+              </div>
+            )}
+
+            {/* 요일별 평균 */}
+            {byWeekday.some((w) => w.count > 0) && (
+              <div className="surface card-pad card-hover-border-only">
+                <div className="font-extrabold">요일별 평균</div>
+                <WeekdayBarChart data={byWeekday} />
+                <p
+                  className="mt-2 text-xs"
+                  style={{ color: 'var(--muted)' }}
+                >
+                  요일마다 거래 발생 횟수가 다르므로 평균(건당)으로 비교
+                </p>
+              </div>
+            )}
+
+            {/* 카테고리 도넛 (지출) */}
+            {byCategoryExpense.length > 0 && (
+              <div className="surface card-pad card-hover-border-only">
+                <div className="font-extrabold">지출 카테고리 분포</div>
+                <div className="mt-3">
+                  <DonutChart
+                    segments={byCategoryExpense.map((c, i) => ({
+                      label: c.category,
+                      value: c.total,
+                      color: colorForIndex(i),
+                    }))}
+                    centerLabel="카테고리"
+                    centerValue={`${byCategoryExpense.length}개`}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* 카테고리 도넛 (수입) */}
+            {byCategoryIncome.length > 0 && (
+              <div className="surface card-pad card-hover-border-only">
+                <div className="font-extrabold">수입 카테고리 분포</div>
+                <div className="mt-3">
+                  <DonutChart
+                    segments={byCategoryIncome.map((c, i) => ({
+                      label: c.category,
+                      value: c.total,
+                      color: colorForIndex(i),
+                    }))}
+                    centerLabel="카테고리"
+                    centerValue={`${byCategoryIncome.length}개`}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* 카테고리 × 소분류 드릴다운 (지출) */}
+            {bySubcategoryExpense.length > 0 && (
+              <div className="surface card-pad card-hover-border-only">
+                <div className="font-extrabold">지출 — 카테고리 / 소분류</div>
+                <div className="mt-3 grid gap-1.5">
+                  {byCategoryExpense.map((c) => {
+                    const sub = bySubcategoryExpense.find(
+                      (s) => s.category === c.category
+                    )
+                    const isOpen = expandedCategories[c.category] === true
+                    const max = byCategoryExpense[0].total || 1
+                    return (
+                      <div
+                        key={c.category}
+                        className="rounded-md border p-2"
+                        style={{ borderColor: 'var(--border)' }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => toggleCategory(c.category)}
+                          className="flex w-full items-center gap-2 text-left"
+                        >
+                          <span className="font-semibold">{c.category}</span>
+                          <div
+                            className="flex-1 h-2 rounded-full overflow-hidden"
+                            style={{
+                              background: 'color-mix(in srgb, var(--border) 60%, transparent)',
+                            }}
+                          >
+                            <div
+                              className="h-full"
+                              style={{
+                                width: `${(c.total / max) * 100}%`,
+                                background: '#ef4444',
+                              }}
+                            />
+                          </div>
+                          <span className="font-mono text-sm font-bold text-red-500">
+                            {formatKRW(c.total)}
+                          </span>
+                          <span
+                            className="text-xs w-3 text-center"
+                            style={{ color: 'var(--muted)' }}
+                          >
+                            {isOpen ? '▼' : '▶'}
+                          </span>
+                        </button>
+                        {isOpen && sub && (
+                          <ul className="mt-2 grid gap-1 pl-3 border-l text-sm" style={{ borderColor: 'var(--border)' }}>
+                            {sub.subcategories.map((s) => (
+                              <li
+                                key={s.subcategory}
+                                className="flex items-center justify-between"
+                              >
+                                <span
+                                  className="truncate"
+                                  style={{ color: 'var(--muted)' }}
+                                >
+                                  {s.subcategory}
+                                </span>
+                                <span className="font-mono">
+                                  {formatKRW(s.total)}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* 카테고리 × 소분류 드릴다운 (수입) */}
+            {bySubcategoryIncome.length > 0 && (
+              <div className="surface card-pad card-hover-border-only">
+                <div className="font-extrabold">수입 — 카테고리 / 소분류</div>
+                <div className="mt-3 grid gap-1.5">
+                  {byCategoryIncome.map((c) => {
+                    const sub = bySubcategoryIncome.find(
+                      (s) => s.category === c.category
+                    )
+                    const key = `inc_${c.category}`
+                    const isOpen = expandedCategories[key] === true
+                    const max = byCategoryIncome[0].total || 1
+                    return (
+                      <div
+                        key={key}
+                        className="rounded-md border p-2"
+                        style={{ borderColor: 'var(--border)' }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => toggleCategory(key)}
+                          className="flex w-full items-center gap-2 text-left"
+                        >
+                          <span className="font-semibold">{c.category}</span>
+                          <div
+                            className="flex-1 h-2 rounded-full overflow-hidden"
+                            style={{
+                              background: 'color-mix(in srgb, var(--border) 60%, transparent)',
+                            }}
+                          >
+                            <div
+                              className="h-full"
+                              style={{
+                                width: `${(c.total / max) * 100}%`,
+                                background: '#10b981',
+                              }}
+                            />
+                          </div>
+                          <span className="font-mono text-sm font-bold text-emerald-500">
+                            {formatKRW(c.total)}
+                          </span>
+                          <span
+                            className="text-xs w-3 text-center"
+                            style={{ color: 'var(--muted)' }}
+                          >
+                            {isOpen ? '▼' : '▶'}
+                          </span>
+                        </button>
+                        {isOpen && sub && (
+                          <ul className="mt-2 grid gap-1 pl-3 border-l text-sm" style={{ borderColor: 'var(--border)' }}>
+                            {sub.subcategories.map((s) => (
+                              <li
+                                key={s.subcategory}
+                                className="flex items-center justify-between"
+                              >
+                                <span
+                                  className="truncate"
+                                  style={{ color: 'var(--muted)' }}
+                                >
+                                  {s.subcategory}
+                                </span>
+                                <span className="font-mono">
+                                  {formatKRW(s.total)}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* 카테고리 변동 hot list */}
+            {(categoryDiffExpense || categoryDiffIncome) && (
+              <div className="surface card-pad card-hover-border-only">
+                <div className="font-extrabold">직전 기간 대비 카테고리 변동</div>
+                <div className="mt-3 grid gap-4 sm:grid-cols-2">
+                  {categoryDiffExpense && categoryDiffExpense.length > 0 && (
+                    <div>
+                      <div className="text-xs font-semibold" style={{ color: 'var(--muted)' }}>
+                        지출
+                      </div>
+                      <ul className="mt-1 grid gap-1 text-sm">
+                        {categoryDiffExpense.slice(0, 8).map((d) => (
+                          <li key={d.category} className="flex items-center justify-between">
+                            <span className="truncate">{d.category}</span>
+                            <span
+                              className={
+                                'font-mono ' +
+                                (d.diff > 0 ? 'text-red-500' : d.diff < 0 ? 'text-emerald-500' : '')
+                              }
+                            >
+                              {d.diff > 0 ? '+' : ''}
+                              {formatKRW(d.diff)}
+                              {d.diffPct !== null && (
+                                <span className="ml-1 text-xs opacity-70">
+                                  ({d.diffPct >= 0 ? '+' : ''}
+                                  {d.diffPct.toFixed(0)}%)
+                                </span>
+                              )}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {categoryDiffIncome && categoryDiffIncome.length > 0 && (
+                    <div>
+                      <div className="text-xs font-semibold" style={{ color: 'var(--muted)' }}>
+                        수입
+                      </div>
+                      <ul className="mt-1 grid gap-1 text-sm">
+                        {categoryDiffIncome.slice(0, 8).map((d) => (
+                          <li key={d.category} className="flex items-center justify-between">
+                            <span className="truncate">{d.category}</span>
+                            <span
+                              className={
+                                'font-mono ' +
+                                (d.diff > 0 ? 'text-emerald-500' : d.diff < 0 ? 'text-red-500' : '')
+                              }
+                            >
+                              {d.diff > 0 ? '+' : ''}
+                              {formatKRW(d.diff)}
+                              {d.diffPct !== null && (
+                                <span className="ml-1 text-xs opacity-70">
+                                  ({d.diffPct >= 0 ? '+' : ''}
+                                  {d.diffPct.toFixed(0)}%)
+                                </span>
+                              )}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+                <p className="mt-3 text-xs" style={{ color: 'var(--muted)' }}>
+                  기간 길이가 같은 직전 구간과 비교. 지출은 −가 좋음(초록), +가 나쁨(빨강).
+                </p>
+              </div>
+            )}
+
+            {/* Top 단건 거래 */}
+            {(topExpense.length > 0 || topIncome.length > 0) && (
+              <div className="surface card-pad card-hover-border-only">
+                <div className="font-extrabold">Top 단건 거래</div>
+                <div className="mt-3 grid gap-4 sm:grid-cols-2">
+                  {topExpense.length > 0 && (
+                    <div>
+                      <div className="text-xs font-semibold text-red-500">
+                        지출 TOP 5
+                      </div>
+                      <ul className="mt-1 grid gap-1 text-sm">
+                        {topExpense.map((t) => (
+                          <li key={t.id} className="flex items-baseline justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate font-semibold">
+                                {t.description || t.category}
+                              </div>
+                              <div
+                                className="text-[11px]"
+                                style={{ color: 'var(--muted)' }}
+                              >
+                                {t.occurredAt.slice(0, 10)}
+                                {t.accountName ? ` · ${t.accountName}` : ''}
+                                {' · ' + t.category}
+                              </div>
+                            </div>
+                            <div className="font-bold text-red-500 shrink-0">
+                              −{formatKRW(t.amount)}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {topIncome.length > 0 && (
+                    <div>
+                      <div className="text-xs font-semibold text-emerald-500">
+                        수입 TOP 5
+                      </div>
+                      <ul className="mt-1 grid gap-1 text-sm">
+                        {topIncome.map((t) => (
+                          <li key={t.id} className="flex items-baseline justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate font-semibold">
+                                {t.description || t.category}
+                              </div>
+                              <div
+                                className="text-[11px]"
+                                style={{ color: 'var(--muted)' }}
+                              >
+                                {t.occurredAt.slice(0, 10)}
+                                {t.accountName ? ` · ${t.accountName}` : ''}
+                                {' · ' + t.category}
+                              </div>
+                            </div>
+                            <div className="font-bold text-emerald-500 shrink-0">
+                              +{formatKRW(t.amount)}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* 계좌간 이체 흐름 */}
+            {transferFlows.length > 0 && (
+              <div className="surface card-pad card-hover-border-only">
+                <div className="font-extrabold">계좌간 이체 흐름</div>
+                <ul className="mt-3 grid gap-1.5">
+                  {transferFlows.map((f, i) => {
+                    const max = transferFlows[0].total || 1
+                    return (
+                      <li
+                        key={`${f.from}->${f.to}-${i}`}
+                        className="rounded-md border p-2"
+                        style={{ borderColor: 'var(--border)' }}
+                      >
+                        <div className="flex items-center justify-between gap-2 text-sm">
+                          <div className="truncate">
+                            <span className="font-semibold">{f.from}</span>
+                            <span className="mx-1" style={{ color: 'var(--muted)' }}>
+                              →
+                            </span>
+                            <span className="font-semibold">{f.to}</span>
+                          </div>
+                          <div className="shrink-0 font-mono font-bold">
+                            {formatKRW(f.total)}
+                          </div>
+                        </div>
+                        <div
+                          className="mt-1 h-1.5 rounded-full overflow-hidden"
+                          style={{
+                            background: 'color-mix(in srgb, var(--border) 60%, transparent)',
+                          }}
+                        >
+                          <div
+                            className="h-full"
+                            style={{
+                              width: `${(f.total / max) * 100}%`,
+                              background: '#8b5cf6',
+                            }}
+                          />
+                        </div>
+                        <div
+                          className="mt-0.5 text-[10px]"
+                          style={{ color: 'var(--muted)' }}
+                        >
+                          {f.count}건
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
+                <p className="mt-3 text-xs" style={{ color: 'var(--muted)' }}>
+                  합계 제외 + 카테고리 &quot;계좌이체&quot;인 항목을 시각+금액 기준으로 출금/입금 페어로 묶음
+                </p>
+              </div>
+            )}
 
             {/* 월별 추이 */}
             {byMonth.length > 0 ? (
@@ -830,5 +1457,253 @@ function AccountRow({ item }: { item: AccountAgg }) {
         </div>
       ) : null}
     </div>
+  )
+}
+
+
+function DayLineChart({ data }: { data: DayAgg[] }) {
+  if (data.length === 0) return null
+  const W = 720
+  const H = 220
+  const padL = 8
+  const padR = 50
+  const padT = 12
+  const padB = 22
+  const innerW = W - padL - padR
+  const innerH = H - padT - padB
+  // 누적 net
+  const cumulative: number[] = []
+  let acc = 0
+  for (const d of data) {
+    acc += d.net
+    cumulative.push(acc)
+  }
+  const allVals = [
+    ...data.map((d) => d.income),
+    ...data.map((d) => d.expense),
+    ...cumulative,
+    0,
+  ]
+  const max = Math.max(...allVals)
+  const min = Math.min(...allVals)
+  const range = max - min || 1
+  function y(v: number) {
+    return padT + (1 - (v - min) / range) * innerH
+  }
+  function x(i: number) {
+    return data.length <= 1
+      ? padL
+      : padL + (i / (data.length - 1)) * innerW
+  }
+  function makePath(values: number[]) {
+    return values
+      .map((v, i) => (i === 0 ? `M${x(i)},${y(v)}` : `L${x(i)},${y(v)}`))
+      .join(' ')
+  }
+  // x축 라벨 5개
+  const labels: { x: number; text: string }[] = []
+  const n = Math.min(5, data.length)
+  for (let i = 0; i < n; i++) {
+    const idx = Math.round(((data.length - 1) * i) / Math.max(1, n - 1))
+    labels.push({
+      x: x(idx),
+      text: data[idx].day.slice(5), // MM-DD
+    })
+  }
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} className="block">
+      {/* 0 라인 */}
+      <line
+        x1={padL}
+        x2={W - padR}
+        y1={y(0)}
+        y2={y(0)}
+        stroke="currentColor"
+        strokeOpacity={0.2}
+        strokeDasharray="2 2"
+      />
+      {/* 수입 영역 */}
+      <path
+        d={
+          makePath(data.map((d) => d.income)) +
+          ` L${x(data.length - 1)},${y(0)} L${x(0)},${y(0)} Z`
+        }
+        fill="#10b981"
+        fillOpacity={0.12}
+        stroke="#10b981"
+        strokeWidth={1.2}
+      />
+      {/* 지출 영역 */}
+      <path
+        d={
+          makePath(data.map((d) => -d.expense)) +
+          ` L${x(data.length - 1)},${y(0)} L${x(0)},${y(0)} Z`
+        }
+        fill="#ef4444"
+        fillOpacity={0.12}
+        stroke="#ef4444"
+        strokeWidth={1.2}
+      />
+      {/* 누적 순합 */}
+      <path
+        d={makePath(cumulative)}
+        fill="none"
+        stroke="#8b5cf6"
+        strokeWidth={1.6}
+      />
+      {/* y축 라벨 */}
+      <text
+        x={W - padR + 4}
+        y={y(max) + 4}
+        fontSize={10}
+        fill="currentColor"
+        opacity={0.55}
+      >
+        {Math.round(max / 10000)}만
+      </text>
+      <text
+        x={W - padR + 4}
+        y={y(min) + 4}
+        fontSize={10}
+        fill="currentColor"
+        opacity={0.55}
+      >
+        {Math.round(min / 10000)}만
+      </text>
+      {/* x축 라벨 */}
+      {labels.map((l, i) => (
+        <text
+          key={i}
+          x={l.x}
+          y={H - 4}
+          fontSize={10}
+          fill="currentColor"
+          opacity={0.55}
+          textAnchor="middle"
+        >
+          {l.text}
+        </text>
+      ))}
+      {/* 범례 */}
+      <g transform={`translate(${padL}, ${padT})`}>
+        <rect x={0} y={0} width={8} height={8} fill="#10b981" />
+        <text x={12} y={8} fontSize={10} fill="currentColor" opacity={0.7}>
+          수입
+        </text>
+        <rect x={50} y={0} width={8} height={8} fill="#ef4444" />
+        <text x={62} y={8} fontSize={10} fill="currentColor" opacity={0.7}>
+          지출
+        </text>
+        <rect x={100} y={0} width={8} height={8} fill="#8b5cf6" />
+        <text x={112} y={8} fontSize={10} fill="currentColor" opacity={0.7}>
+          누적 순합
+        </text>
+      </g>
+    </svg>
+  )
+}
+
+function WeekdayBarChart({ data }: { data: WeekdayAgg[] }) {
+  const wdays = ['일', '월', '화', '수', '목', '금', '토']
+  // 건당 평균
+  const stats = data.map((d) => ({
+    weekday: d.weekday,
+    incomeAvg: d.count > 0 ? d.income / d.count : 0,
+    expenseAvg: d.count > 0 ? d.expense / d.count : 0,
+    count: d.count,
+  }))
+  const max = Math.max(
+    ...stats.map((s) => Math.max(s.incomeAvg, s.expenseAvg)),
+    1
+  )
+  const W = 720
+  const H = 200
+  const padL = 30
+  const padR = 8
+  const padT = 12
+  const padB = 24
+  const innerW = W - padL - padR
+  const innerH = H - padT - padB
+  const slot = innerW / 7
+  const barW = (slot - 8) / 2
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} className="block">
+      {stats.map((s, i) => {
+        const cx = padL + slot * i + slot / 2
+        const incH = (s.incomeAvg / max) * innerH
+        const expH = (s.expenseAvg / max) * innerH
+        const baseY = padT + innerH
+        return (
+          <g key={i}>
+            {/* income bar */}
+            <rect
+              x={cx - barW - 1}
+              y={baseY - incH}
+              width={barW}
+              height={incH}
+              fill="#10b981"
+            />
+            {/* expense bar */}
+            <rect
+              x={cx + 1}
+              y={baseY - expH}
+              width={barW}
+              height={expH}
+              fill="#ef4444"
+            />
+            {/* weekday label */}
+            <text
+              x={cx}
+              y={H - 6}
+              fontSize={11}
+              fill={
+                i === 0
+                  ? '#ef4444'
+                  : i === 6
+                    ? '#3b82f6'
+                    : 'currentColor'
+              }
+              opacity={i === 0 || i === 6 ? 1 : 0.7}
+              fontWeight={700}
+              textAnchor="middle"
+            >
+              {wdays[i]}
+            </text>
+            {/* count */}
+            <text
+              x={cx}
+              y={padT + 10}
+              fontSize={9}
+              fill="currentColor"
+              opacity={0.5}
+              textAnchor="middle"
+            >
+              {s.count}건
+            </text>
+          </g>
+        )
+      })}
+      {/* y axis labels */}
+      <text
+        x={padL - 4}
+        y={padT + 12}
+        fontSize={10}
+        fill="currentColor"
+        opacity={0.55}
+        textAnchor="end"
+      >
+        {Math.round(max / 10000)}만
+      </text>
+      <text
+        x={padL - 4}
+        y={padT + innerH - 2}
+        fontSize={10}
+        fill="currentColor"
+        opacity={0.55}
+        textAnchor="end"
+      >
+        0
+      </text>
+    </svg>
   )
 }

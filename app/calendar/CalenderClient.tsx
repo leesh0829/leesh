@@ -936,8 +936,20 @@ export default function CalendarClient() {
                   marginBottom: 8,
                 }}
               >
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((w) => (
-                  <div key={w} style={{ fontWeight: 700, opacity: 0.7 }}>
+                {['일', '월', '화', '수', '목', '금', '토'].map((w, i) => (
+                  <div
+                    key={w}
+                    style={{
+                      fontWeight: 700,
+                      color:
+                        i === 0
+                          ? '#ef4444'
+                          : i === 6
+                            ? '#3b82f6'
+                            : 'var(--fg)',
+                      opacity: i === 0 || i === 6 ? 1 : 0.7,
+                    }}
+                  >
                     {w}
                   </div>
                 ))}
@@ -1182,13 +1194,28 @@ export default function CalendarClient() {
                             }
                             const hiddenCount = hiddenUniq.size
 
+                            // 요일/공휴일 색상 (오늘은 별도 처리)
+                            const hasHoliday = dayItems.some(
+                              (it) => it.kind === 'HOLIDAY'
+                            )
+                            const dayDow = d.getDay()
+                            const baseDayColor =
+                              hasHoliday || dayDow === 0
+                                ? '#ef4444' // 일요일/공휴일 빨강
+                                : dayDow === 6
+                                  ? '#3b82f6' // 토요일 파랑
+                                  : 'var(--fg)'
                             return (
                               <div
                                 key={key}
                                 data-scroll-physics-include="true"
                                 style={{
-                                  border: '1px solid var(--border)',
-                                  background: 'transparent',
+                                  border: isToday
+                                    ? '1px solid color-mix(in srgb, var(--accent) 55%, var(--border))'
+                                    : '1px solid var(--border)',
+                                  background: isToday
+                                    ? 'color-mix(in srgb, var(--accent) 12%, var(--card))'
+                                    : 'transparent',
                                   borderRadius: 8,
                                   position: 'relative',
                                   minHeight: minCellHeight,
@@ -1202,7 +1229,7 @@ export default function CalendarClient() {
                                     fontWeight: isToday ? 1000 : 700,
                                     color: isToday
                                       ? 'var(--accent)'
-                                      : 'var(--fg)',
+                                      : baseDayColor,
                                     position: 'absolute',
                                     top: 6,
                                     left: 8,
@@ -1269,12 +1296,45 @@ export default function CalendarClient() {
 
                     const visible = dayItems.slice(0, 5)
                     const hidden = Math.max(0, dayItems.length - visible.length)
+                    const isMobileToday = key === todayKey
+                    const hasHoliday = dayItems.some(
+                      (it) => it.kind === 'HOLIDAY'
+                    )
+                    const dow = d.getDay()
+                    const dayColor =
+                      hasHoliday || dow === 0
+                        ? '#ef4444'
+                        : dow === 6
+                          ? '#3b82f6'
+                          : undefined
+                    const wdays = ['일', '월', '화', '수', '목', '금', '토']
 
                     return (
-                      <div key={key} className="surface card-pad">
+                      <div
+                        key={key}
+                        className="surface card-pad"
+                        style={
+                          isMobileToday
+                            ? {
+                                background:
+                                  'color-mix(in srgb, var(--accent) 12%, var(--card))',
+                                borderColor:
+                                  'color-mix(in srgb, var(--accent) 55%, var(--border))',
+                              }
+                            : undefined
+                        }
+                      >
                         <div className="flex items-center justify-between">
-                          <div className="text-sm font-semibold">
-                            {dayNum}일
+                          <div
+                            className="text-sm font-semibold"
+                            style={{
+                              color: isMobileToday
+                                ? 'var(--accent)'
+                                : dayColor,
+                              fontWeight: isMobileToday ? 1000 : 600,
+                            }}
+                          >
+                            {dayNum}일 ({wdays[dow]})
                           </div>
                           {hidden > 0 ? (
                             <button

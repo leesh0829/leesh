@@ -231,10 +231,13 @@ type Disclosure = {
 export default function StockDetailModal({
   target,
   onClose,
+  variant = 'modal',
 }: {
   target: StockDetailTarget
   onClose: () => void
+  variant?: 'modal' | 'page'
 }) {
+  const isPage = variant === 'page'
   const [tab, setTab] = useState<Tab>('orderbook')
   const [orderbook, setOrderbook] = useState<Orderbook | null>(null)
   const [investor, setInvestor] = useState<InvestorRow[]>([])
@@ -468,16 +471,15 @@ export default function StockDetailModal({
     return Math.max(1, ...qs)
   }, [orderbook])
 
-  return (
+  const body = (
     <div
-      onClick={onClose}
-      className="fixed inset-0 z-55 bg-black/40 flex items-end sm:items-center justify-center p-2 sm:p-4"
+      className={
+        isPage
+          ? 'p-3 sm:p-5'
+          : 'p-3 sm:p-5 overflow-y-auto'
+      }
+      style={isPage ? undefined : { minHeight: 0 }}
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="surface modal-frame w-full sm:max-w-3xl rounded-t-2xl sm:rounded-2xl max-h-[92dvh] flex flex-col"
-      >
-      <div className="p-3 sm:p-5 overflow-y-auto" style={{ minHeight: 0 }}>
         {/* 헤더 */}
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -526,12 +528,21 @@ export default function StockDetailModal({
             >
               {watched ? '★ 관심' : '☆ 관심'}
             </button>
+            {!isPage && (
+              <a
+                href={`/ledger/market/stock/${encodeURIComponent(target.code)}?name=${encodeURIComponent(target.name)}`}
+                className="btn btn-outline text-xs"
+                title="페이지로 확대 보기"
+              >
+                ↗ 확대
+              </a>
+            )}
             <button
               type="button"
               onClick={onClose}
               className="btn btn-outline text-xs"
             >
-              닫기
+              {isPage ? '← 시장' : '닫기'}
             </button>
           </div>
         </div>
@@ -1839,6 +1850,24 @@ export default function StockDetailModal({
           </div>
         )}
       </div>
+  )
+
+  if (isPage) {
+    return (
+      <div className="surface card-pad card-hover-border-only">{body}</div>
+    )
+  }
+
+  return (
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-55 bg-black/40 flex items-end sm:items-center justify-center p-2 sm:p-4"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="surface modal-frame w-full sm:max-w-3xl rounded-t-2xl sm:rounded-2xl max-h-[92dvh] flex flex-col"
+      >
+        {body}
       </div>
     </div>
   )

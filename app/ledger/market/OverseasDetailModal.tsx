@@ -87,10 +87,13 @@ type OverseasMinute = {
 export default function OverseasDetailModal({
   target,
   onClose,
+  variant = 'modal',
 }: {
   target: OverseasDetailTarget
   onClose: () => void
+  variant?: 'modal' | 'page'
 }) {
+  const isPage = variant === 'page'
   const [quote, setQuote] = useState<OverseasQuote | null>(null)
   const [daily, setDaily] = useState<OverseasDaily | null>(null)
   const [minute, setMinute] = useState<OverseasMinute | null>(null)
@@ -160,34 +163,40 @@ export default function OverseasDetailModal({
     [quote, daily]
   )
 
-  return (
+  const body = (
     <div
-      onClick={onClose}
-      className="fixed inset-0 z-55 bg-black/40 flex items-end sm:items-center justify-center p-2 sm:p-4"
+      className={isPage ? 'p-3 sm:p-5' : 'p-3 sm:p-5 overflow-y-auto'}
+      style={isPage ? undefined : { minHeight: 0 }}
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="surface modal-frame w-full sm:max-w-3xl rounded-t-2xl sm:rounded-2xl max-h-[92dvh] flex flex-col"
-      >
-      <div className="p-3 sm:p-5 overflow-y-auto" style={{ minHeight: 0 }}>
-        {/* 헤더 */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className="text-lg font-extrabold leading-snug truncate">
-              {target.name}
-            </h3>
-            <div className="text-xs" style={{ color: 'var(--muted)' }}>
-              {target.exchange} · {target.symbol}
-            </div>
+      {/* 헤더 */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="text-lg font-extrabold leading-snug truncate">
+            {target.name}
+          </h3>
+          <div className="text-xs" style={{ color: 'var(--muted)' }}>
+            {target.exchange} · {target.symbol}
           </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {!isPage && (
+            <a
+              href={`/ledger/market/overseas/${encodeURIComponent(target.exchange)}/${encodeURIComponent(target.symbol)}?name=${encodeURIComponent(target.name)}`}
+              className="btn btn-outline text-xs"
+              title="페이지로 확대 보기"
+            >
+              ↗ 확대
+            </a>
+          )}
           <button
             type="button"
             onClick={onClose}
-            className="btn btn-outline text-xs shrink-0"
+            className="btn btn-outline text-xs"
           >
-            닫기
+            {isPage ? '← 시장' : '닫기'}
           </button>
         </div>
+      </div>
 
         {/* 현재가 요약 */}
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
@@ -431,6 +440,24 @@ export default function OverseasDetailModal({
           해외 종목에 제공되지 않습니다.
         </p>
       </div>
+  )
+
+  if (isPage) {
+    return (
+      <div className="surface card-pad card-hover-border-only">{body}</div>
+    )
+  }
+
+  return (
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-55 bg-black/40 flex items-end sm:items-center justify-center p-2 sm:p-4"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="surface modal-frame w-full sm:max-w-3xl rounded-t-2xl sm:rounded-2xl max-h-[92dvh] flex flex-col"
+      >
+        {body}
       </div>
     </div>
   )

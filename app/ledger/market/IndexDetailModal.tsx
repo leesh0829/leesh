@@ -11,7 +11,17 @@ export type IndexDetailTarget = {
   changeRate: number | null
 }
 
-type Period = 'D' | 'W' | 'M' | 'Y'
+type Period = 'MIN' | 'D' | 'W' | 'M' | 'Y'
+
+type IndexMinuteRow = {
+  date: string
+  time: string
+  open: number | null
+  high: number | null
+  low: number | null
+  close: number | null
+  volume: number | null
+}
 
 function fmtIndex(n: number | null) {
   if (n === null) return '—'
@@ -39,6 +49,7 @@ export default function IndexDetailModal({
   onClose: () => void
 }) {
   const [period, setPeriod] = useState<Period>('D')
+  const [gap, setGap] = useState<60 | 600 | 3600>(60)
   const [bars, setBars] = useState<Candle[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -47,14 +58,32 @@ export default function IndexDetailModal({
     async function load() {
       setLoading(true)
       try {
+        const isMin = period === 'MIN'
         const r = await fetch(
-          `/api/kis/index-history?code=${target.code}&period=${period}`,
+          isMin
+            ? `/api/kis/index-minutes?code=${target.code}&gap=${gap}`
+            : `/api/kis/index-history?code=${target.code}&period=${period}`,
           { cache: 'no-store' }
         )
         if (cancelled) return
         if (r.ok) {
-          const j = (await r.json()) as { items: Candle[] }
-          setBars(j.items)
+          if (isMin) {
+            const j = (await r.json()) as { items: IndexMinuteRow[] }
+            // CandleChart는 date를 YYYYMMDDHHMMSS 형식으로 받음
+            setBars(
+              j.items.map((b) => ({
+                date: `${b.date}${b.time}`,
+                open: b.open,
+                high: b.high,
+                low: b.low,
+                close: b.close,
+                volume: b.volume,
+              }))
+            )
+          } else {
+            const j = (await r.json()) as { items: Candle[] }
+            setBars(j.items)
+          }
         } else {
           setBars([])
         }
@@ -68,7 +97,7 @@ export default function IndexDetailModal({
     return () => {
       cancelled = true
     }
-  }, [target.code, period])
+  }, [target.code, period, gap])
 
   return (
     <div
@@ -123,6 +152,7 @@ export default function IndexDetailModal({
         >
           {(
             [
+              ['MIN', '분봉'],
               ['D', '일봉'],
               ['W', '주봉'],
               ['M', '월봉'],
@@ -144,6 +174,36 @@ export default function IndexDetailModal({
             </button>
           ))}
         </div>
+
+        {/* 분봉 간격 선택 */}
+        {period === 'MIN' && (
+          <div className="mt-3 flex flex-wrap items-center gap-1 text-xs">
+            <span style={{ color: 'var(--muted)' }} className="mr-1">
+              간격
+            </span>
+            {(
+              [
+                [60, '1분'],
+                [600, '10분'],
+                [3600, '1시간'],
+              ] as const
+            ).map(([sec, label]) => (
+              <button
+                key={sec}
+                type="button"
+                onClick={() => setGap(sec)}
+                className={
+                  'rounded-md px-2 py-1 font-semibold ' +
+                  (gap === sec
+                    ? 'bg-current/10 ring-1 ring-current'
+                    : 'opacity-60 hover:opacity-100')
+                }
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {loading ? (
           <div className="mt-4 h-64 rounded-md skeleton" />

@@ -115,6 +115,34 @@
     border-color: var(--border);
   }
 
+  /* 모바일 가로 스크롤 방지 — 긴 콘텐츠(계좌명/큰 숫자/표·이미지 등)가
+     컨테이너를 밀어 페이지 전체가 늘어나는 현상 차단.
+     clip은 hidden과 달리 새 scroll container를 만들지 않아 sticky 호환.
+     iOS Safari 15.x 등 clip 미지원 환경엔 hidden으로 폴백. */
+  html,
+  body {
+    overflow-x: hidden;
+    overflow-x: clip;
+    max-width: 100vw;
+  }
+
+  /* AppShell의 실제 스크롤 컨테이너 — 자식이 wide content를 만들어도
+     여기서 한 번 더 클립 (overflow-y-auto + overflow-x-visible 조합이
+     수평 overflow를 부모로 전파하는 케이스 방지) */
+  .app-scroll-container {
+    overflow-x: hidden;
+    overflow-x: clip;
+    max-width: 100%;
+  }
+
+  /* Tailwind grid/flex 자식의 기본 min-width:auto 때문에 긴 콘텐츠(뉴스 제목,
+     URL, 모노 숫자)가 트랙/아이템을 부풀리는 truncation gotcha 광범위 차단.
+     :where() 사용해 specificity 0 — 명시 클래스가 항상 우선. */
+  :where(.grid) > *,
+  :where([class*='flex']) > * {
+    min-width: 0;
+  }
+
   body {
     @apply min-h-dvh antialiased;
     color: var(--fg);
@@ -169,6 +197,9 @@
     border-radius: var(--radius);
     box-shadow: var(--shadow);
     backdrop-filter: blur(10px);
+    /* 모바일 가로 늘어남 방지 — 카드가 자식 콘텐츠 때문에 부모를 넘기지 못하게. */
+    min-width: 0;
+    max-width: 100%;
   }
 
   .card {
@@ -177,6 +208,8 @@
     border-radius: var(--radius);
     box-shadow: var(--shadow);
     backdrop-filter: blur(10px);
+    min-width: 0;
+    max-width: 100%;
   }
 
   .card-pad {

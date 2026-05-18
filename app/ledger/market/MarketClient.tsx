@@ -1176,7 +1176,7 @@ export default function MarketClient() {
                   {!kisEnabled ? ' KIS 자격증명 등록이 필요합니다.' : ''}
                 </div>
               ) : (
-                <div className="mt-3 grid gap-1">
+                <div className="mt-3 flex flex-col gap-1 min-w-0">
                   {powerRank.map((row) => (
                     <button
                       key={`p-${row.code}-${row.rank}`}
@@ -1239,7 +1239,7 @@ export default function MarketClient() {
                   : ' KIS API 응답을 확인하세요.'}
               </div>
             ) : (
-              <div className="mt-3 grid gap-1">
+              <div className="mt-3 flex flex-col gap-1 min-w-0">
                 {ranking.map((row) => (
                   <button
                     key={`${row.code}-${row.rank}`}
@@ -1387,7 +1387,7 @@ export default function MarketClient() {
                 현재 VI 발동된 종목이 없습니다.
               </div>
             ) : (
-              <ul className="mt-3 grid gap-1">
+              <ul className="mt-3 flex flex-col gap-1 min-w-0">
                 {viItems.slice(0, 12).map((v, idx) => (
                   <li key={`${v.code}-${v.triggerTime}-${idx}`}>
                     <button
@@ -1627,7 +1627,7 @@ export default function MarketClient() {
               현재 예상체결 데이터가 없습니다. (동시호가 시간대 — 08:30~09:00, 15:20~15:30 — 에 활성)
             </div>
           ) : (
-            <div className="mt-3 grid gap-1">
+            <div className="mt-3 flex flex-col gap-1 min-w-0">
               {(expectedTab === 'rise'
                 ? expectedRiseRank
                 : expectedFallRank
@@ -1702,7 +1702,7 @@ export default function MarketClient() {
               {!kisEnabled ? ' KIS 자격증명 등록이 필요합니다.' : ''}
             </div>
           ) : (
-            <ul className="mt-3 grid gap-1">
+            <ul className="mt-3 flex flex-col gap-1 min-w-0">
               {news.map((item, idx) => (
                 <li
                   key={item.key ?? `${item.date}-${item.time}-${idx}`}

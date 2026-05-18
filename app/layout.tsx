@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
 import Script from 'next/script'
@@ -27,6 +27,14 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'Leesh',
   description: 'helping people find their way',
+}
+
+// 모바일에서 viewport meta가 없으면 브라우저가 페이지를 980px로 가정 후
+// 축소 렌더링 → 콘텐츠가 그보다 넓어지면 가로 스크롤 발생. 명시 필수.
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
 }
 
 const THEME_COOKIE_KEY = 'leesh-theme'

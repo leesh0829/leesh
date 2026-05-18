@@ -27,14 +27,25 @@ type ToastApi = {
 
 const ToastContext = createContext<ToastApi | null>(null)
 
+// 라이트 모드: 톤 배경 + 진한 글자색 (흰 surface 위 가독성 확보)
+// 다크 모드: 기존처럼 어두운 surface 위 밝은 글자색
 function toneClass(tone: ToastTone) {
   if (tone === 'success') {
-    return 'border-emerald-400/45 text-emerald-100'
+    return [
+      'border-emerald-600/40 bg-emerald-50/95 text-emerald-900',
+      'dark:border-emerald-400/45 dark:bg-emerald-950/60 dark:text-emerald-100',
+    ].join(' ')
   }
   if (tone === 'error') {
-    return 'border-rose-400/45 text-rose-100'
+    return [
+      'border-rose-600/40 bg-rose-50/95 text-rose-900',
+      'dark:border-rose-400/45 dark:bg-rose-950/60 dark:text-rose-100',
+    ].join(' ')
   }
-  return 'border-sky-400/45 text-sky-100'
+  return [
+    'border-sky-600/40 bg-sky-50/95 text-sky-900',
+    'dark:border-sky-400/45 dark:bg-sky-950/60 dark:text-sky-100',
+  ].join(' ')
 }
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {

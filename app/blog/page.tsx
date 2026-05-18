@@ -36,6 +36,7 @@ type BlogPostRow = {
   createdAt: Date
   blogCategory: BlogPostType
   reviewRatingHalf: number | null
+  isSpoiler: boolean
   author: { name: string | null; email: string | null }
 }
 
@@ -104,6 +105,7 @@ export default async function BlogListPage(props: {
           createdAt: true,
           blogCategory: true,
           reviewRatingHalf: true,
+          isSpoiler: true,
           author: { select: { name: true, email: true } },
         },
       })
@@ -267,6 +269,19 @@ export default async function BlogListPage(props: {
                           <span>
                             {formatReviewRatingHalf(p.reviewRatingHalf)}
                           </span>
+                        </span>
+                      ) : null}
+                      {p.isSpoiler ? (
+                        <span
+                          className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold"
+                          style={{
+                            borderColor: 'rgba(220, 38, 38, 0.4)',
+                            background: 'rgba(220, 38, 38, 0.12)',
+                            color: '#dc2626',
+                          }}
+                          title="열람 주의 — 스포일러/민감 콘텐츠/기밀 정보 등 포함 가능"
+                        >
+                          ⚠️ 열람 주의
                         </span>
                       ) : null}
                     </div>

@@ -21,6 +21,7 @@ const createBlogPostSchema = z
     publish: z.boolean().optional().default(false),
     isSecret: z.boolean().optional().default(false),
     secretPassword: z.union([z.string(), z.null()]).optional(),
+    isSpoiler: z.boolean().optional().default(false),
   })
   .strict()
   .superRefine((value, ctx) => {
@@ -100,6 +101,7 @@ export async function POST(req: Request) {
     typeof parsed.data.secretPassword === 'string'
       ? parsed.data.secretPassword.trim()
       : null
+  const isSpoiler = parsed.data.isSpoiler
 
   const secretPasswordHash = isSecret
     ? await bcrypt.hash(secretPassword!.trim(), 10)
@@ -137,6 +139,7 @@ export async function POST(req: Request) {
       status: publish ? 'DONE' : 'DOING',
       isSecret,
       secretPasswordHash,
+      isSpoiler,
       priority: 0,
       allDay: false,
     },

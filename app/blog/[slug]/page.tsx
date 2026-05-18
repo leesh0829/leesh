@@ -9,6 +9,10 @@ import rehypeRaw from 'rehype-raw'
 import BlogCommentsClient from './BlogCommentsClient'
 import BlogActionsClient from './BlogActionsClient'
 import BlogSecretGateClient from './BlogSecretGateClient'
+import BlogSpoilerGateClient, {
+  BlogSpoilerSideBlur,
+  SpoilerGateProvider,
+} from './BlogSpoilerGateClient'
 import BlogTocClient from './BlogTocClient'
 import { cookies } from 'next/headers'
 import { readUnlockedPostIds, UNLOCK_COOKIE_NAME } from '@/app/lib/unlockCookie'
@@ -106,6 +110,7 @@ export default async function BlogDetailPage({
     reviewRatingHalf: true,
     authorId: true,
     isSecret: true,
+    isSpoiler: true,
     board: { select: { ownerId: true } },
   } as const
 
@@ -160,6 +165,7 @@ export default async function BlogDetailPage({
   const unlockedByPassword = unlocked.includes(post.id)
 
   const locked = post.isSecret && !isPrivileged && !unlockedByPassword
+  const spoilerGated = post.isSpoiler && !isPrivileged
   const tocHeadings = extractMarkdownHeadings(post.contentMd ?? '')
   const headingIdQueue = [...tocHeadings.map((h) => h.id)]
   const nextHeadingId = () => headingIdQueue.shift() ?? undefined
@@ -181,6 +187,7 @@ export default async function BlogDetailPage({
 
   return (
     <main className="py-8">
+      <SpoilerGateProvider active={spoilerGated}>
       <div className="relative lg:pr-[320px]">
         <div className="surface card-pad card-hover-border-only">
           <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -189,6 +196,19 @@ export default async function BlogDetailPage({
                 <span className="wrap-break-word">{post.title}</span>{' '}
                 {post.isSecret ? (
                   <span className="badge align-middle">SECRET</span>
+                ) : null}
+                {post.isSpoiler ? (
+                  <span
+                    className="ml-1 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold align-middle"
+                    style={{
+                      borderColor: 'rgba(220, 38, 38, 0.4)',
+                      background: 'rgba(220, 38, 38, 0.12)',
+                      color: '#dc2626',
+                    }}
+                    title="열람 주의 — 스포일러/민감 콘텐츠/기밀 정보 등이 포함될 수 있습니다."
+                  >
+                    ⚠️ 열람 주의
+                  </span>
                 ) : null}
               </h1>
               <div className="mt-2 text-sm" style={{ color: 'var(--muted)' }}>
@@ -222,45 +242,59 @@ export default async function BlogDetailPage({
               </div>
             ) : (
               <>
-                <article className="card card-pad min-w-0 card-hover-border-only">
-                  <div className="markdown-body">
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      rehypePlugins={[rehypeRaw, rehypeHighlight]}
-                      components={{
-                        h1: headingComponent('h1'),
-                        h2: headingComponent('h2'),
-                        h3: headingComponent('h3'),
-                        h4: headingComponent('h4'),
-                        h5: headingComponent('h5'),
-                        h6: headingComponent('h6'),
-                        img: ({ alt, src, ...props }) => {
-                          const safeSrc =
-                            typeof src === 'string' ? src.trim() : ''
-                          if (!safeSrc) return null
-                          return (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              {...props}
-                              src={safeSrc}
-                              alt={alt ?? ''}
-                              style={{
-                                maxWidth: '100%',
-                                height: 'auto',
-                                borderRadius: 12,
-                              }}
-                            />
-                          )
-                        },
-                      }}
-                    >
-                      {post.contentMd ?? ''}
-                    </ReactMarkdown>
-                  </div>
-                </article>
+                {(() => {
+                  const article = (
+                    <article className="card card-pad min-w-0 card-hover-border-only">
+                      <div className="markdown-body">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          rehypePlugins={[rehypeRaw, rehypeHighlight]}
+                          components={{
+                            h1: headingComponent('h1'),
+                            h2: headingComponent('h2'),
+                            h3: headingComponent('h3'),
+                            h4: headingComponent('h4'),
+                            h5: headingComponent('h5'),
+                            h6: headingComponent('h6'),
+                            img: ({ alt, src, ...props }) => {
+                              const safeSrc =
+                                typeof src === 'string' ? src.trim() : ''
+                              if (!safeSrc) return null
+                              return (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  {...props}
+                                  src={safeSrc}
+                                  alt={alt ?? ''}
+                                  style={{
+                                    maxWidth: '100%',
+                                    height: 'auto',
+                                    borderRadius: 12,
+                                  }}
+                                />
+                              )
+                            },
+                          }}
+                        >
+                          {post.contentMd ?? ''}
+                        </ReactMarkdown>
+                      </div>
+                    </article>
+                  )
+                  return spoilerGated ? (
+                    <BlogSpoilerGateClient>{article}</BlogSpoilerGateClient>
+                  ) : (
+                    article
+                  )
+                })()}
 
                 <div className="mt-6">
-                  <BlogCommentsClient boardId={post.boardId} postId={post.id} />
+                  <BlogSpoilerSideBlur>
+                    <BlogCommentsClient
+                      boardId={post.boardId}
+                      postId={post.id}
+                    />
+                  </BlogSpoilerSideBlur>
                 </div>
               </>
             )}
@@ -269,10 +303,13 @@ export default async function BlogDetailPage({
 
         {!locked ? (
           <div className="hidden lg:fixed lg:right-6 lg:top-1/2 lg:block lg:w-[280px] lg:-translate-y-1/2">
-            <BlogTocClient headings={tocHeadings} />
+            <BlogSpoilerSideBlur>
+              <BlogTocClient headings={tocHeadings} />
+            </BlogSpoilerSideBlur>
           </div>
         ) : null}
       </div>
+      </SpoilerGateProvider>
     </main>
   )
 }

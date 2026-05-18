@@ -21,6 +21,7 @@ const updateBlogPostSchema = z
     regenerateSlug: z.boolean().optional().default(false),
     isSecret: z.boolean().optional(),
     secretPassword: z.union([z.string(), z.null()]).optional(),
+    isSpoiler: z.boolean().optional(),
   })
   .strict()
   .superRefine((value, ctx) => {
@@ -96,6 +97,7 @@ export async function PUT(
     typeof parsed.data.secretPassword === 'string'
       ? parsed.data.secretPassword.trim()
       : null
+  const isSpoiler = parsed.data.isSpoiler
 
   if (
     isSecret === true &&
@@ -152,6 +154,10 @@ export async function PUT(
       // 비밀글 유지 + 비번 입력한 경우만 갱신
       data.secretPasswordHash = await bcrypt.hash(secretPassword, 10)
     }
+  }
+
+  if (typeof isSpoiler === 'boolean') {
+    data.isSpoiler = isSpoiler
   }
 
   const updated = await prisma.post.update({

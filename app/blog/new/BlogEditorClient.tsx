@@ -36,6 +36,7 @@ export default function BlogEditorClient({
 
   const [isSecret, setIsSecret] = useState(false)
   const [secretPassword, setSecretPassword] = useState('')
+  const [isSpoiler, setIsSpoiler] = useState(false)
 
   const canPublish = useMemo(() => {
     if (!title.trim()) return false
@@ -82,6 +83,7 @@ export default function BlogEditorClient({
           publish,
           isSecret,
           secretPassword: isSecret ? secretPassword.trim() || null : null,
+          isSpoiler,
         }),
       })
 
@@ -223,6 +225,23 @@ export default function BlogEditorClient({
           ) : (
             <span className="badge">일반 글</span>
           )}
+        </div>
+
+        <div className="mt-3 flex flex-col gap-1 border-t pt-3" style={{ borderColor: 'var(--border)' }}>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={isSpoiler}
+              onChange={(e) => setIsSpoiler(e.target.checked)}
+              disabled={saving}
+            />
+            열람 주의 (스포일러 · 민감 콘텐츠 · 기밀 정보 등)
+          </label>
+          <p className="text-xs" style={{ color: 'var(--muted)' }}>
+            본문이 흐리게 표시되고, 독자가 경고문에 동의해야 열람할 수 있습니다.
+            스포일러뿐 아니라 잔인/선정적 묘사, 트라우마 유발 요소, 보안·개인정보 등
+            여러 사유를 한 번에 안내합니다. (작성자/보드 소유자는 자동 표시)
+          </p>
         </div>
       </div>
 

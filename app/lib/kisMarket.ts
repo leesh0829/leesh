@@ -372,6 +372,209 @@ export async function getIndexHistory(
   )
 }
 
+// ---------- 국내 업종 분봉 (FHKUP03500200) ----------
+// KOSPI(0001), KOSDAQ(1001), KOSPI200(2001) 등 업종 지수의 분봉
+// FID_INPUT_HOUR_1: 30/60(1분), 600(10분), 3600(1시간)
+
+export type IndexMinuteBar = {
+  time: string // HHMMSS
+  date: string // YYYYMMDD
+  open: number | null
+  high: number | null
+  low: number | null
+  close: number | null
+  volume: number | null
+}
+
+type IndexMinuteResponse = {
+  rt_cd?: string
+  msg1?: string
+  output1?: Record<string, string>
+  output2?: Array<Record<string, string>>
+}
+
+async function getIndexMinutesImpl(
+  userId: string,
+  code: string,
+  gapSeconds: number
+): Promise<IndexMinuteBar[]> {
+  try {
+    const ctx = await getKisContext(userId)
+    const url = new URL(
+      `${ctx.baseUrl}/uapi/domestic-stock/v1/quotations/inquire-time-indexchartprice`
+    )
+    url.searchParams.set('FID_COND_MRKT_DIV_CODE', 'U')
+    url.searchParams.set('FID_ETC_CLS_CODE', '0')
+    url.searchParams.set('FID_INPUT_ISCD', code)
+    url.searchParams.set('FID_INPUT_HOUR_1', String(gapSeconds))
+    url.searchParams.set('FID_PW_DATA_INCU_YN', 'Y')
+
+    let r: Response | null = null
+    let data: IndexMinuteResponse = {}
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      await kisRateLimit(userId)
+      r = await fetch(url.toString(), {
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+          authorization: `Bearer ${ctx.accessToken}`,
+          appkey: ctx.appKey,
+          appsecret: ctx.appSecret,
+          tr_id: 'FHKUP03500200',
+          custtype: 'P',
+        },
+        cache: 'no-store',
+      })
+      data = (await r.json()) as IndexMinuteResponse
+      if (isRateLimitedResponse(data) && attempt < MAX_RETRIES) {
+        await rateLimitBackoff(attempt)
+        continue
+      }
+      break
+    }
+    if (!r || !r.ok || data.rt_cd !== '0' || !Array.isArray(data.output2)) {
+      if (r && data.rt_cd !== '0') {
+        console.error(
+          `[KIS_IDX_MIN] code=${code} gap=${gapSeconds} rt_cd=${data.rt_cd} msg=${data.msg1}`
+        )
+      }
+      return []
+    }
+    const toN = (s: string | undefined) => {
+      if (!s) return null
+      const n = parseFloat(s)
+      return Number.isFinite(n) ? n : null
+    }
+    // 응답은 최신 → 과거 순. 차트가 오래된 → 최신 순서를 기대하므로 reverse.
+    return data.output2
+      .map((row) => ({
+        date: row.stck_bsop_date ?? '',
+        time: row.stck_cntg_hour ?? '',
+        open: toN(row.bstp_nmix_oprc),
+        high: toN(row.bstp_nmix_hgpr),
+        low: toN(row.bstp_nmix_lwpr),
+        close: toN(row.bstp_nmix_prpr),
+        volume: toN(row.cntg_vol),
+      }))
+      .reverse()
+  } catch (e) {
+    console.error('[KIS_IDX_MIN_ERROR]', e)
+    return []
+  }
+}
+
+export async function getIndexMinutes(
+  userId: string,
+  code: string,
+  gapSeconds = 60
+): Promise<IndexMinuteBar[]> {
+  return cached(
+    `idxmin:${userId}:${code}:${gapSeconds}`,
+    30_000,
+    () => getIndexMinutesImpl(userId, code, gapSeconds)
+  )
+}
+
+// ---------- 해외지수/환율 분봉 (FHKST03030200) ----------
+// FID_COND_MRKT_DIV_CODE: N(해외지수) / X(환율) / KX(원화환율)
+// 환율 예: FX@KRW(USD/KRW), FX@JPY(JPY/KRW) — KX 분류 사용
+
+export type FxMinuteBar = {
+  time: string // HHMMSS
+  date: string // YYYYMMDD
+  open: number | null
+  high: number | null
+  low: number | null
+  close: number | null
+  volume: number | null
+}
+
+type FxMinuteResponse = {
+  rt_cd?: string
+  msg1?: string
+  output1?: Record<string, string>
+  output2?: Array<Record<string, string>>
+}
+
+async function getFxMinutesImpl(
+  userId: string,
+  marketDiv: 'N' | 'X' | 'KX',
+  symbol: string
+): Promise<FxMinuteBar[]> {
+  try {
+    const ctx = await getKisContext(userId)
+    const url = new URL(
+      `${ctx.baseUrl}/uapi/overseas-price/v1/quotations/inquire-time-indexchartprice`
+    )
+    url.searchParams.set('FID_COND_MRKT_DIV_CODE', marketDiv)
+    url.searchParams.set('FID_INPUT_ISCD', symbol)
+    url.searchParams.set('FID_HOUR_CLS_CODE', '0')
+    url.searchParams.set('FID_PW_DATA_INCU_YN', 'Y')
+
+    let r: Response | null = null
+    let data: FxMinuteResponse = {}
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      await kisRateLimit(userId)
+      r = await fetch(url.toString(), {
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+          authorization: `Bearer ${ctx.accessToken}`,
+          appkey: ctx.appKey,
+          appsecret: ctx.appSecret,
+          tr_id: 'FHKST03030200',
+          custtype: 'P',
+        },
+        cache: 'no-store',
+      })
+      data = (await r.json()) as FxMinuteResponse
+      if (isRateLimitedResponse(data) && attempt < MAX_RETRIES) {
+        await rateLimitBackoff(attempt)
+        continue
+      }
+      break
+    }
+    if (!r || !r.ok || data.rt_cd !== '0' || !Array.isArray(data.output2)) {
+      if (r && data.rt_cd !== '0') {
+        console.error(
+          `[KIS_FX_MIN] div=${marketDiv} sym=${symbol} rt_cd=${data.rt_cd} msg=${data.msg1}`
+        )
+      }
+      return []
+    }
+    const toN = (s: string | undefined) => {
+      if (!s) return null
+      const n = parseFloat(s)
+      return Number.isFinite(n) ? n : null
+    }
+    // 응답은 최신 → 과거 순. 차트가 오래된 → 최신 순서를 기대하므로 reverse.
+    return data.output2
+      .map((row) => ({
+        date: row.stck_bsop_date ?? '',
+        time: row.stck_cntg_hour ?? '',
+        open: toN(row.optn_oprc),
+        high: toN(row.optn_hgpr),
+        low: toN(row.optn_lwpr),
+        close: toN(row.optn_prpr),
+        volume: toN(row.cntg_vol),
+      }))
+      .reverse()
+  } catch (e) {
+    console.error('[KIS_FX_MIN_ERROR]', e)
+    return []
+  }
+}
+
+export async function getFxMinutes(
+  userId: string,
+  marketDiv: 'N' | 'X' | 'KX',
+  symbol: string
+): Promise<FxMinuteBar[]> {
+  return cached(
+    `fxmin:${userId}:${marketDiv}:${symbol}`,
+    30_000,
+    () => getFxMinutesImpl(userId, marketDiv, symbol)
+  )
+}
+
 // ---------- 거래량/거래대금 순위 ----------
 // FID_BLNG_CLS_CODE: 0=평균거래량 1=거래증가율 2=평균거래회전율 3=거래금액순 4=평균거래금액회전율
 

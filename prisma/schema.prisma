@@ -126,6 +126,8 @@ model Post {
   isSecret           Boolean @default(false)
   secretPasswordHash String?
 
+  isSpoiler          Boolean @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

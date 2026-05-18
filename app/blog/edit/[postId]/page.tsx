@@ -55,6 +55,7 @@ export default async function BlogEditPage({
       blogCategory: true,
       reviewRatingHalf: true,
       isSecret: true,
+      isSpoiler: true,
     },
   })
 

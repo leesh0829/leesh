@@ -13,6 +13,7 @@ type EditPost = {
   status: string
   blogCategory?: BlogPostType
   reviewRatingHalf?: number | null
+  isSpoiler?: boolean
 }
 
 /**
@@ -50,6 +51,7 @@ export default function BlogEditClient({
     post.reviewRatingHalf ?? 0
   )
   const [regenerateSlug, setRegenerateSlug] = useState(false)
+  const [isSpoiler, setIsSpoiler] = useState(post.isSpoiler ?? false)
   const [msg, setMsg] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -79,6 +81,7 @@ export default function BlogEditClient({
           : {}),
         publish,
         regenerateSlug,
+        isSpoiler,
       }),
     })
 
@@ -213,6 +216,23 @@ export default function BlogEditClient({
         />
         제목 기준으로 slug 다시 생성
       </label>
+
+      <div className="card card-pad card-hover-border-only flex flex-col gap-1">
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={isSpoiler}
+            onChange={(e) => setIsSpoiler(e.target.checked)}
+            disabled={saving}
+          />
+          열람 주의 (스포일러 · 민감 콘텐츠 · 기밀 정보 등)
+        </label>
+        <p className="text-xs" style={{ color: 'var(--muted)' }}>
+          본문이 흐리게 표시되고, 독자가 경고문에 동의해야 열람할 수 있습니다.
+          스포일러뿐 아니라 잔인/선정적 묘사, 트라우마 유발 요소, 보안·개인정보 등
+          여러 사유를 한 번에 안내합니다. (작성자/보드 소유자는 자동 표시)
+        </p>
+      </div>
 
       <div className="flex flex-wrap items-center gap-2">
         <button

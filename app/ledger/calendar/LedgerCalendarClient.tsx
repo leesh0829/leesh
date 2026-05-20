@@ -301,8 +301,9 @@ export default function LedgerCalendarClient() {
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-7 gap-1 sm:gap-2">
-              {cells.map((c) => {
+            (() => {
+              // 셀 1개 렌더 — 주별 묶음 안에서 재사용
+              const renderCell = (c: DayCell) => {
                 const dayColor =
                   c.isHoliday || (c.isWeekend && c.date.getDay() === 0)
                     ? 'text-red-500'
@@ -336,9 +337,7 @@ export default function LedgerCalendarClient() {
                       >
                         {c.dayNum}
                       </span>
-                      {c.hasStock && (
-                        <span className="text-[9px]">📈</span>
-                      )}
+                      {c.hasStock && <span className="text-[9px]">📈</span>}
                     </div>
                     {c.holidayName && c.isInMonth && (
                       <div
@@ -348,7 +347,6 @@ export default function LedgerCalendarClient() {
                         {c.holidayName}
                       </div>
                     )}
-                    {/* 순액 — 일자/공휴일 바로 아래, 합계보다 크게 */}
                     {c.count > 0 && (c.income > 0 || c.expense > 0) && (
                       <div
                         className={
@@ -365,7 +363,6 @@ export default function LedgerCalendarClient() {
                         {fmtKRW(c.balance)}
                       </div>
                     )}
-                    {/* 수입/지출 합계 — 셀 하단, 순액과 명확히 분리 */}
                     {c.count > 0 && (
                       <div className="mt-auto grid gap-0.5 text-[10px] leading-tight">
                         {c.income > 0 && (
@@ -382,8 +379,59 @@ export default function LedgerCalendarClient() {
                     )}
                   </button>
                 )
-              })}
-            </div>
+              }
+
+              // 7개씩 주차별로 묶기 + 주간 income/expense 집계
+              const weeks: DayCell[][] = []
+              for (let i = 0; i < cells.length; i += 7) {
+                weeks.push(cells.slice(i, i + 7))
+              }
+              return (
+                <div className="grid gap-1 sm:gap-2">
+                  {weeks.map((week, wIdx) => {
+                    let wIncome = 0
+                    let wExpense = 0
+                    for (const c of week) {
+                      wIncome += c.income
+                      wExpense += c.expense
+                    }
+                    const wBal = wIncome - wExpense
+                    return (
+                      <div key={`week-${wIdx}`} className="grid gap-0.5">
+                        <div className="grid grid-cols-7 gap-1 sm:gap-2">
+                          {week.map(renderCell)}
+                        </div>
+                        {(wIncome > 0 || wExpense > 0) && (
+                          <div className="flex justify-end items-baseline gap-3 pr-1 text-[11px] sm:text-xs font-semibold">
+                            {wIncome > 0 && (
+                              <span className="text-emerald-500">
+                                +{fmtKRW(wIncome)}원
+                              </span>
+                            )}
+                            {wExpense > 0 && (
+                              <span className="text-red-500">
+                                −{fmtKRW(wExpense)}원
+                              </span>
+                            )}
+                            {wIncome > 0 && wExpense > 0 && (
+                              <span
+                                className={
+                                  wBal >= 0 ? 'text-emerald-500' : 'text-red-500'
+                                }
+                                title="주간 순액"
+                              >
+                                ({wBal >= 0 ? '+' : '−'}
+                                {fmtKRW(wBal)})
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            })()
           )}
 
           <p className="mt-3 text-xs" style={{ color: 'var(--muted)' }}>

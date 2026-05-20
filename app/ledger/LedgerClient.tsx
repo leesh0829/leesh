@@ -1031,6 +1031,28 @@ export default function LedgerClient() {
                           </option>
                         ))}
                       </select>
+                      {hoTotalsAccountId !== 'ALL' ? (
+                        <button
+                          type="button"
+                          className="btn btn-outline"
+                          style={{ padding: '2px 6px', fontSize: '11px', lineHeight: 1.2 }}
+                          onClick={() => {
+                            setFilterAccount(hoTotalsAccountId)
+                            setFilterOpen(true)
+                            // 내역 영역으로 부드럽게 스크롤
+                            window.requestAnimationFrame(() => {
+                              const el = document.getElementById(
+                                'ledger-entries-list'
+                              )
+                              el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                            })
+                          }}
+                          title="이 계좌로 아래 내역 필터를 동기화"
+                          aria-label="이 계좌로 내역 필터 동기화"
+                        >
+                          🔗
+                        </button>
+                      ) : null}
                     </div>
                     {hoTotalsAccountId === 'ALL' &&
                     totalsByOwnerVisible.length > 1 ? (
@@ -1681,7 +1703,10 @@ export default function LedgerClient() {
           </div>
 
           {/* 목록 */}
-          <div className="surface card-pad card-hover-border-only">
+          <div
+            id="ledger-entries-list"
+            className="surface card-pad card-hover-border-only scroll-mt-20"
+          >
             <div className="flex items-center justify-between">
               <div className="font-extrabold">내역</div>
               <span className="badge">{displayedItems.length}건</span>

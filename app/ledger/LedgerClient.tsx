@@ -272,6 +272,7 @@ export default function LedgerClient() {
   const [filterType, setFilterType] = useState<'ALL' | LedgerEntryType>('ALL')
   const [filterCategory, setFilterCategory] = useState<string>('ALL')
   const [filterSubcategory, setFilterSubcategory] = useState<string>('ALL')
+  const [filterAccount, setFilterAccount] = useState<string>('ALL') // 'ALL' | 'NONE' | accountId
   const [searchText, setSearchText] = useState<string>('')
 
   // 공유
@@ -881,6 +882,13 @@ export default function LedgerClient() {
       arr = arr.filter((it) => it.category === filterCategory)
     if (filterSubcategory !== 'ALL')
       arr = arr.filter((it) => (it.subcategory ?? '') === filterSubcategory)
+    if (filterAccount !== 'ALL') {
+      if (filterAccount === 'NONE') {
+        arr = arr.filter((it) => !it.accountId)
+      } else {
+        arr = arr.filter((it) => it.accountId === filterAccount)
+      }
+    }
     if (search)
       arr = arr.filter((it) => it.description.toLowerCase().includes(search))
     arr = [...arr].sort((a, b) => {
@@ -896,6 +904,7 @@ export default function LedgerClient() {
     filterType,
     filterCategory,
     filterSubcategory,
+    filterAccount,
     searchText,
   ])
 
@@ -1603,7 +1612,7 @@ export default function LedgerClient() {
             </div>
 
             {filterOpen ? (
-              <div className="mt-3 grid gap-2 md:grid-cols-3">
+              <div className="mt-3 grid gap-2 md:grid-cols-2 lg:grid-cols-4">
                 <select
                   className="input"
                   value={filterType}
@@ -1648,6 +1657,22 @@ export default function LedgerClient() {
                   {filterSubcategoryList.map((s) => (
                     <option key={s} value={s}>
                       {s}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  className="input"
+                  value={filterAccount}
+                  onChange={(e) => setFilterAccount(e.target.value)}
+                  aria-label="계좌 필터"
+                >
+                  <option value="ALL">전체 계좌</option>
+                  <option value="NONE">(계좌 미연결)</option>
+                  {accounts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.bankName ? `${a.bankName} · ` : ''}
+                      {a.name}
                     </option>
                   ))}
                 </select>

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   LedgerNavAccounts,
+  LedgerNavBudgets,
   LedgerNavCalendar,
   LedgerNavMarket,
   LedgerNavStats,
@@ -1090,6 +1091,7 @@ export default function LedgerClient() {
               <div className="flex shrink-0 flex-wrap items-center gap-2">
                 <LedgerNavCalendar />
                 <LedgerNavStats />
+                <LedgerNavBudgets />
                 <LedgerNavAccounts />
                 <LedgerNavMarket />
                 <LedgerNavStocks />

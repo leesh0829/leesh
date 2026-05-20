@@ -284,6 +284,9 @@ model FinancialAccount {
   types    AccountType[]
   memo     String?
 
+  // 가계부 시작 시점의 잔액 (수입에 잡히지 않고 계좌 잔액·내역 누적의 출발점)
+  initialBalance Int @default(0)
+
   ledgerEntries LedgerEntry[] @relation("LedgerAccount")
   holdings      Holding[]     @relation("HoldingAccount")
   budgetTargets BudgetTarget[] @relation("BudgetTargetAccount")

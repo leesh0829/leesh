@@ -25,6 +25,13 @@ const accountCreateSchema = z
       .union([z.string().trim().max(500), z.null()])
       .optional()
       .transform((v) => (v ? v : null)),
+    initialBalance: z
+      .number()
+      .int()
+      .min(-2_000_000_000)
+      .max(2_000_000_000)
+      .optional()
+      .default(0),
   })
   .strict()
 
@@ -43,6 +50,7 @@ type AccountRow = {
   bankName: string | null
   types: AccountType[]
   memo: string | null
+  initialBalance: number
   createdAt: Date
   updatedAt: Date
   _count: { ledgerEntries: number; holdings: number }
@@ -62,6 +70,7 @@ export async function GET() {
       bankName: true,
       types: true,
       memo: true,
+      initialBalance: true,
       createdAt: true,
       updatedAt: true,
       _count: { select: { ledgerEntries: true, holdings: true } },
@@ -75,6 +84,7 @@ export async function GET() {
       bankName: row.bankName,
       types: row.types,
       memo: row.memo,
+      initialBalance: row.initialBalance,
       entryCount: row._count.ledgerEntries,
       holdingCount: row._count.holdings,
       createdAt: toISOStringSafe(row.createdAt),
@@ -91,7 +101,7 @@ export async function POST(req: Request) {
   const parsed = await parseJsonWithSchema(req, accountCreateSchema)
   if (!parsed.success) return badRequestFromZod(parsed.error, 'invalid body')
 
-  const { name, bankName, memo } = parsed.data
+  const { name, bankName, memo, initialBalance } = parsed.data
   const types = parsed.data.types as AccountType[]
 
   const validationError = validateAccountTypes(types)
@@ -105,6 +115,7 @@ export async function POST(req: Request) {
       bankName,
       types,
       memo,
+      initialBalance,
     },
     select: { id: true },
   })

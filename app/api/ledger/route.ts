@@ -138,14 +138,26 @@ export async function GET(req: Request) {
   })
 
   // 계좌별 누적 잔액(runningBalance) 계산 — 각 항목 시점에 그 계좌가 얼마였는지.
-  // 1) 기간 시작 이전 항목들의 합 = carry balance (전 기간 잔액)
-  // 2) 기간 내 항목을 occurredAt 오름차순으로 순회하며 누적
-  // excludeFromTotals=true 항목은 잔액 변동에 미포함 (변동 없는 표시값으로 유지)
+  // 1) 계좌의 initialBalance (가계부 시작 시점 금액) → carry 시작값
+  // 2) 기간 시작 이전 항목들의 합을 더함 → 기간 시작 직전 잔액
+  // 3) 기간 내 항목을 occurredAt 오름차순으로 순회하며 누적
+  // excludeFromTotals=true 항목은 잔액 변동에 미포함
   const accountIdSet = new Set<string>()
   for (const r of rows) {
     if (r.accountId) accountIdSet.add(r.accountId)
   }
+  const accountInitialMap = new Map<string, number>()
+  if (accountIdSet.size > 0) {
+    const accRows = await prisma.financialAccount.findMany({
+      where: { id: { in: Array.from(accountIdSet) } },
+      select: { id: true, initialBalance: true },
+    })
+    for (const a of accRows) accountInitialMap.set(a.id, a.initialBalance)
+  }
   const carryBalances = new Map<string, number>()
+  for (const accId of accountIdSet) {
+    carryBalances.set(accId, accountInitialMap.get(accId) ?? 0)
+  }
   if (accountIdSet.size > 0 && occurredAtFilter.gte) {
     const carryRows = await prisma.ledgerEntry.findMany({
       where: {
@@ -226,22 +238,38 @@ export async function GET(req: Request) {
   let totalExpense = 0
   const ownerTotalsMap = new Map<
     string,
-    { income: number; expense: number }
+    { income: number; expense: number; initial: number }
   >()
   for (const r of allRows) {
     if (r.type === 'INCOME') totalIncome += r.amount
     else totalExpense += r.amount
-    const entry = ownerTotalsMap.get(r.ownerId) ?? { income: 0, expense: 0 }
+    const entry =
+      ownerTotalsMap.get(r.ownerId) ?? { income: 0, expense: 0, initial: 0 }
     if (r.type === 'INCOME') entry.income += r.amount
     else entry.expense += r.amount
     ownerTotalsMap.set(r.ownerId, entry)
   }
+
+  // 계좌 초기 잔액 합산 — 잔액에는 더해지지만 income/expense에는 미포함
+  const allAccounts = await prisma.financialAccount.findMany({
+    where: { ownerId: { in: effectiveOwnerIds } },
+    select: { ownerId: true, initialBalance: true },
+  })
+  let totalInitial = 0
+  for (const a of allAccounts) {
+    totalInitial += a.initialBalance
+    const entry =
+      ownerTotalsMap.get(a.ownerId) ?? { income: 0, expense: 0, initial: 0 }
+    entry.initial += a.initialBalance
+    ownerTotalsMap.set(a.ownerId, entry)
+  }
+
   const totalsByOwner = Array.from(ownerTotalsMap.entries()).map(
     ([ownerId, v]) => ({
       ownerId,
       income: v.income,
       expense: v.expense,
-      balance: v.income - v.expense,
+      balance: v.income - v.expense + v.initial,
     })
   )
 
@@ -250,7 +278,7 @@ export async function GET(req: Request) {
     totals: {
       income: totalIncome,
       expense: totalExpense,
-      balance: totalIncome - totalExpense,
+      balance: totalIncome - totalExpense + totalInitial,
     },
     totalsByOwner,
   })

@@ -18,6 +18,7 @@ type AccountItem = {
   bankName: string | null
   types: AccountType[]
   memo: string | null
+  initialBalance: number
   entryCount: number
   holdingCount: number
   createdAt: string
@@ -106,6 +107,7 @@ export default function AccountsClient() {
   const [newBank, setNewBank] = useState('')
   const [newTypes, setNewTypes] = useState<AccountType[]>([])
   const [newMemo, setNewMemo] = useState('')
+  const [newInitial, setNewInitial] = useState('') // 빈문자열 = 0
   const { pending: creating, run: runCreate } = useAsyncLock()
 
   // 인라인 수정
@@ -114,6 +116,7 @@ export default function AccountsClient() {
   const [editBank, setEditBank] = useState('')
   const [editTypes, setEditTypes] = useState<AccountType[]>([])
   const [editMemo, setEditMemo] = useState('')
+  const [editInitial, setEditInitial] = useState('')
   const [editSaving, setEditSaving] = useState(false)
 
   const load = useCallback(async () => {
@@ -152,6 +155,12 @@ export default function AccountsClient() {
         toast.error(err)
         return
       }
+      const initRaw = newInitial.trim()
+      const initialBalance = initRaw === '' ? 0 : parseInt(initRaw, 10)
+      if (initRaw !== '' && !Number.isFinite(initialBalance)) {
+        toast.error('초기 잔액은 숫자여야 합니다.')
+        return
+      }
       const r = await fetch('/api/accounts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -160,6 +169,7 @@ export default function AccountsClient() {
           bankName: newBank.trim() || null,
           types: newTypes,
           memo: newMemo.trim() || null,
+          initialBalance,
         }),
       })
       if (!r.ok) {
@@ -171,6 +181,7 @@ export default function AccountsClient() {
       setNewBank('')
       setNewTypes([])
       setNewMemo('')
+      setNewInitial('')
       await load()
       toast.success('계좌를 추가했습니다.')
     })
@@ -182,6 +193,7 @@ export default function AccountsClient() {
     setEditBank(a.bankName ?? '')
     setEditTypes(a.types)
     setEditMemo(a.memo ?? '')
+    setEditInitial(String(a.initialBalance ?? 0))
   }
 
   const cancelEdit = () => setEditingId(null)
@@ -198,6 +210,12 @@ export default function AccountsClient() {
       toast.error(verr)
       return
     }
+    const initRaw = editInitial.trim()
+    const initialBalance = initRaw === '' ? 0 : parseInt(initRaw, 10)
+    if (initRaw !== '' && !Number.isFinite(initialBalance)) {
+      toast.error('초기 잔액은 숫자여야 합니다.')
+      return
+    }
     setEditSaving(true)
     const r = await fetch(`/api/accounts/${editingId}`, {
       method: 'PATCH',
@@ -207,6 +225,7 @@ export default function AccountsClient() {
         bankName: editBank.trim() || null,
         types: editTypes,
         memo: editMemo.trim() || null,
+        initialBalance,
       }),
     })
     setEditSaving(false)
@@ -308,6 +327,21 @@ export default function AccountsClient() {
               onChange={(e) => setNewMemo(e.target.value)}
               disabled={creating}
             />
+            <div className="grid gap-1">
+              <span className="text-xs" style={{ color: 'var(--muted)' }}>
+                초기 잔액 (가계부 시작 시점 금액 · 수입에 잡히지 않습니다)
+              </span>
+              <input
+                className="input"
+                type="number"
+                inputMode="numeric"
+                step={1}
+                placeholder="0"
+                value={newInitial}
+                onChange={(e) => setNewInitial(e.target.value)}
+                disabled={creating}
+              />
+            </div>
             <div className="flex justify-end">
               <button
                 type="submit"
@@ -403,6 +437,20 @@ export default function AccountsClient() {
                               종목 {a.holdingCount}개
                             </span>
                           ) : null}
+                          {a.initialBalance !== 0 ? (
+                            <span
+                              className="badge"
+                              title="가계부 시작 시점 금액 (수입 통계에 포함되지 않음)"
+                              style={{
+                                background:
+                                  'color-mix(in srgb, #0ea5e9 12%, var(--card))',
+                                borderColor:
+                                  'color-mix(in srgb, #0ea5e9 50%, var(--border))',
+                              }}
+                            >
+                              초기 ₩{a.initialBalance.toLocaleString('ko-KR')}
+                            </span>
+                          ) : null}
                         </div>
                         {a.memo ? (
                           <div
@@ -480,6 +528,24 @@ export default function AccountsClient() {
                           onChange={(e) => setEditMemo(e.target.value)}
                           disabled={editSaving}
                         />
+                        <div className="grid gap-1">
+                          <span
+                            className="text-xs"
+                            style={{ color: 'var(--muted)' }}
+                          >
+                            초기 잔액 (시작 시점 금액)
+                          </span>
+                          <input
+                            className="input"
+                            type="number"
+                            inputMode="numeric"
+                            step={1}
+                            placeholder="0"
+                            value={editInitial}
+                            onChange={(e) => setEditInitial(e.target.value)}
+                            disabled={editSaving}
+                          />
+                        </div>
                         <div className="flex flex-wrap gap-2">
                           <button
                             type="button"

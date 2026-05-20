@@ -41,6 +41,7 @@ type LedgerItem = {
   subcategory: string | null
   excludeFromTotals: boolean
   linkedToHolding?: boolean
+  runningBalance: number | null // 등록 계좌의 이 시점 누적 잔액 (계좌 미연결이면 null)
   occurredAt: string
   createdAt: string
   updatedAt: string
@@ -1905,6 +1906,15 @@ export default function LedgerClient() {
                             {sign}
                             {formatKRW(it.amount).replace('-', '')}
                           </div>
+                          {it.runningBalance !== null && (
+                            <div
+                              className="text-[10px] whitespace-nowrap font-mono"
+                              style={{ color: 'var(--muted)' }}
+                              title={`${it.accountName ?? '계좌'} 잔액 (이 거래 적용 후)`}
+                            >
+                              잔액 {formatKRW(it.runningBalance)}
+                            </div>
+                          )}
                           {it.canEdit ? (
                             <div className="flex flex-wrap items-center justify-end gap-1">
                               <button

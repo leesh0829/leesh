@@ -137,6 +137,53 @@ export async function GET(req: Request) {
     },
   })
 
+  // 계좌별 누적 잔액(runningBalance) 계산 — 각 항목 시점에 그 계좌가 얼마였는지.
+  // 1) 기간 시작 이전 항목들의 합 = carry balance (전 기간 잔액)
+  // 2) 기간 내 항목을 occurredAt 오름차순으로 순회하며 누적
+  // excludeFromTotals=true 항목은 잔액 변동에 미포함 (변동 없는 표시값으로 유지)
+  const accountIdSet = new Set<string>()
+  for (const r of rows) {
+    if (r.accountId) accountIdSet.add(r.accountId)
+  }
+  const carryBalances = new Map<string, number>()
+  if (accountIdSet.size > 0 && occurredAtFilter.gte) {
+    const carryRows = await prisma.ledgerEntry.findMany({
+      where: {
+        ownerId: { in: effectiveOwnerIds },
+        accountId: { in: Array.from(accountIdSet) },
+        excludeFromTotals: false,
+        occurredAt: { lt: occurredAtFilter.gte },
+      },
+      select: { accountId: true, type: true, amount: true },
+    })
+    for (const r of carryRows) {
+      if (!r.accountId) continue
+      const prev = carryBalances.get(r.accountId) ?? 0
+      const delta = r.type === 'INCOME' ? r.amount : -r.amount
+      carryBalances.set(r.accountId, prev + delta)
+    }
+  }
+  // occurredAt 오름차순 (동률은 createdAt 오름차순) — 시간순 누적
+  const asc = [...rows].sort((a, b) => {
+    const da = a.occurredAt.getTime() - b.occurredAt.getTime()
+    if (da !== 0) return da
+    return a.createdAt.getTime() - b.createdAt.getTime()
+  })
+  const running = new Map<string, number>(carryBalances)
+  const balanceById = new Map<string, number>()
+  for (const r of asc) {
+    if (!r.accountId) continue
+    const prev = running.get(r.accountId) ?? 0
+    const delta = r.excludeFromTotals
+      ? 0
+      : r.type === 'INCOME'
+        ? r.amount
+        : -r.amount
+    const next = prev + delta
+    running.set(r.accountId, next)
+    balanceById.set(r.id, next)
+  }
+
   const items = rows.map((row) => ({
     id: row.id,
     ownerId: row.ownerId,
@@ -154,6 +201,9 @@ export async function GET(req: Request) {
     subcategory: row.subcategory,
     excludeFromTotals: row.excludeFromTotals,
     linkedToHolding: !!row.holdingTransaction,
+    runningBalance: row.accountId
+      ? (balanceById.get(row.id) ?? null)
+      : null,
     occurredAt: toISOStringSafe(row.occurredAt),
     createdAt: toISOStringSafe(row.createdAt),
     updatedAt: toISOStringSafe(row.updatedAt),

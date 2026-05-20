@@ -273,6 +273,9 @@ export default function LedgerClient() {
   const [filterCategory, setFilterCategory] = useState<string>('ALL')
   const [filterSubcategory, setFilterSubcategory] = useState<string>('ALL')
   const [filterAccount, setFilterAccount] = useState<string>('ALL') // 'ALL' | 'NONE' | accountId
+  // 필터용 날짜 범위 — 상단 기간(periodStart/End)와 별개로, 가져온 데이터를 클라이언트에서 추가 좁히기
+  const [filterDateStart, setFilterDateStart] = useState<string>('')
+  const [filterDateEnd, setFilterDateEnd] = useState<string>('')
   const [searchText, setSearchText] = useState<string>('')
 
   // 공유
@@ -889,6 +892,20 @@ export default function LedgerClient() {
         arr = arr.filter((it) => it.accountId === filterAccount)
       }
     }
+    if (filterDateStart) {
+      const [y, m, d] = filterDateStart.split('-').map(Number)
+      if (y && m && d) {
+        const startMs = new Date(y, m - 1, d, 0, 0, 0, 0).getTime()
+        arr = arr.filter((it) => new Date(it.occurredAt).getTime() >= startMs)
+      }
+    }
+    if (filterDateEnd) {
+      const [y, m, d] = filterDateEnd.split('-').map(Number)
+      if (y && m && d) {
+        const endMs = new Date(y, m - 1, d, 23, 59, 59, 999).getTime()
+        arr = arr.filter((it) => new Date(it.occurredAt).getTime() <= endMs)
+      }
+    }
     if (search)
       arr = arr.filter((it) => it.description.toLowerCase().includes(search))
     arr = [...arr].sort((a, b) => {
@@ -905,6 +922,8 @@ export default function LedgerClient() {
     filterCategory,
     filterSubcategory,
     filterAccount,
+    filterDateStart,
+    filterDateEnd,
     searchText,
   ])
 
@@ -1698,6 +1717,42 @@ export default function LedgerClient() {
                     </option>
                   ))}
                 </select>
+
+                <div className="md:col-span-2 lg:col-span-4 flex flex-wrap items-center gap-2">
+                  <span className="text-xs" style={{ color: 'var(--muted)' }}>
+                    날짜
+                  </span>
+                  <input
+                    type="date"
+                    className="input"
+                    style={{ minWidth: 0, flex: '1 1 140px' }}
+                    value={filterDateStart}
+                    onChange={(e) => setFilterDateStart(e.target.value)}
+                    aria-label="시작 날짜"
+                  />
+                  <span style={{ color: 'var(--muted)' }}>~</span>
+                  <input
+                    type="date"
+                    className="input"
+                    style={{ minWidth: 0, flex: '1 1 140px' }}
+                    value={filterDateEnd}
+                    onChange={(e) => setFilterDateEnd(e.target.value)}
+                    aria-label="종료 날짜"
+                  />
+                  {(filterDateStart || filterDateEnd) && (
+                    <button
+                      type="button"
+                      className="btn btn-outline text-xs"
+                      onClick={() => {
+                        setFilterDateStart('')
+                        setFilterDateEnd('')
+                      }}
+                      title="날짜 전체로 초기화"
+                    >
+                      전체
+                    </button>
+                  )}
+                </div>
               </div>
             ) : null}
           </div>

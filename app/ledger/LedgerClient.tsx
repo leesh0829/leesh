@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   LedgerNavAccounts,
+  LedgerNavBudgets,
   LedgerNavCalendar,
   LedgerNavMarket,
   LedgerNavStats,
@@ -40,6 +41,7 @@ type LedgerItem = {
   subcategory: string | null
   excludeFromTotals: boolean
   linkedToHolding?: boolean
+  runningBalance: number | null // 등록 계좌의 이 시점 누적 잔액 (계좌 미연결이면 null)
   occurredAt: string
   createdAt: string
   updatedAt: string
@@ -271,6 +273,10 @@ export default function LedgerClient() {
   const [filterType, setFilterType] = useState<'ALL' | LedgerEntryType>('ALL')
   const [filterCategory, setFilterCategory] = useState<string>('ALL')
   const [filterSubcategory, setFilterSubcategory] = useState<string>('ALL')
+  const [filterAccount, setFilterAccount] = useState<string>('ALL') // 'ALL' | 'NONE' | accountId
+  // 필터용 날짜 범위 — 상단 기간(periodStart/End)와 별개로, 가져온 데이터를 클라이언트에서 추가 좁히기
+  const [filterDateStart, setFilterDateStart] = useState<string>('')
+  const [filterDateEnd, setFilterDateEnd] = useState<string>('')
   const [searchText, setSearchText] = useState<string>('')
 
   // 공유
@@ -817,11 +823,13 @@ export default function LedgerClient() {
   // 계좌별 합계 — items에서 직접 계산
   // 주의: 계좌별 잔액은 합계 제외 항목(이체 등)도 포함해야 함 (실제 cash 이동)
   // 전체(ALL) 합계는 totalsAll/periodTotals 그대로 사용 — 합계 제외 제외
+  // 표시되는 "계좌 잔액"은 마지막 내역의 runningBalance를 사용 (전체 누적 + initialBalance 반영)
   const accountTotalsMap = useMemo(() => {
     const map = new Map<
       string,
       { income: number; expense: number; balance: number }
     >()
+    // 1) 기간 income/expense 합산
     for (const it of items) {
       if (visibleOwnerIds.size > 0 && !visibleOwnerIds.has(it.ownerId)) continue
       if (!it.accountId) continue
@@ -829,9 +837,25 @@ export default function LedgerClient() {
         map.get(it.accountId) ?? { income: 0, expense: 0, balance: 0 }
       if (it.type === 'INCOME') entry.income += it.amount
       else entry.expense += it.amount
-      entry.balance = entry.income - entry.expense
       map.set(it.accountId, entry)
     }
+    // 2) 계좌별 마지막 internal runningBalance를 잔액으로 (initialBalance + 전체 누적 반영됨)
+    const lastBalance = new Map<string, { time: number; bal: number }>()
+    for (const it of items) {
+      if (!it.accountId) continue
+      if (it.runningBalance === null) continue
+      const t = new Date(it.occurredAt).getTime()
+      const prev = lastBalance.get(it.accountId)
+      if (!prev || t > prev.time) {
+        lastBalance.set(it.accountId, { time: t, bal: it.runningBalance })
+      }
+    }
+    for (const [accId, v] of lastBalance) {
+      const entry = map.get(accId) ?? { income: 0, expense: 0, balance: 0 }
+      entry.balance = v.bal
+      map.set(accId, entry)
+    }
+    // 3) 기간 내 내역이 전혀 없는 계좌는 잔액 0으로 유지 (initialBalance 별도 조회는 추후)
     return map
   }, [items, visibleOwnerIds])
 
@@ -880,6 +904,27 @@ export default function LedgerClient() {
       arr = arr.filter((it) => it.category === filterCategory)
     if (filterSubcategory !== 'ALL')
       arr = arr.filter((it) => (it.subcategory ?? '') === filterSubcategory)
+    if (filterAccount !== 'ALL') {
+      if (filterAccount === 'NONE') {
+        arr = arr.filter((it) => !it.accountId)
+      } else {
+        arr = arr.filter((it) => it.accountId === filterAccount)
+      }
+    }
+    if (filterDateStart) {
+      const [y, m, d] = filterDateStart.split('-').map(Number)
+      if (y && m && d) {
+        const startMs = new Date(y, m - 1, d, 0, 0, 0, 0).getTime()
+        arr = arr.filter((it) => new Date(it.occurredAt).getTime() >= startMs)
+      }
+    }
+    if (filterDateEnd) {
+      const [y, m, d] = filterDateEnd.split('-').map(Number)
+      if (y && m && d) {
+        const endMs = new Date(y, m - 1, d, 23, 59, 59, 999).getTime()
+        arr = arr.filter((it) => new Date(it.occurredAt).getTime() <= endMs)
+      }
+    }
     if (search)
       arr = arr.filter((it) => it.description.toLowerCase().includes(search))
     arr = [...arr].sort((a, b) => {
@@ -895,6 +940,9 @@ export default function LedgerClient() {
     filterType,
     filterCategory,
     filterSubcategory,
+    filterAccount,
+    filterDateStart,
+    filterDateEnd,
     searchText,
   ])
 
@@ -1021,6 +1069,28 @@ export default function LedgerClient() {
                           </option>
                         ))}
                       </select>
+                      {hoTotalsAccountId !== 'ALL' ? (
+                        <button
+                          type="button"
+                          className="btn btn-outline"
+                          style={{ padding: '2px 6px', fontSize: '11px', lineHeight: 1.2 }}
+                          onClick={() => {
+                            setFilterAccount(hoTotalsAccountId)
+                            setFilterOpen(true)
+                            // 내역 영역으로 부드럽게 스크롤
+                            window.requestAnimationFrame(() => {
+                              const el = document.getElementById(
+                                'ledger-entries-list'
+                              )
+                              el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                            })
+                          }}
+                          title="이 계좌로 아래 내역 필터를 동기화"
+                          aria-label="이 계좌로 내역 필터 동기화"
+                        >
+                          🔗
+                        </button>
+                      ) : null}
                     </div>
                     {hoTotalsAccountId === 'ALL' &&
                     totalsByOwnerVisible.length > 1 ? (
@@ -1090,6 +1160,7 @@ export default function LedgerClient() {
               <div className="flex shrink-0 flex-wrap items-center gap-2">
                 <LedgerNavCalendar />
                 <LedgerNavStats />
+                <LedgerNavBudgets />
                 <LedgerNavAccounts />
                 <LedgerNavMarket />
                 <LedgerNavStocks />
@@ -1601,7 +1672,7 @@ export default function LedgerClient() {
             </div>
 
             {filterOpen ? (
-              <div className="mt-3 grid gap-2 md:grid-cols-3">
+              <div className="mt-3 grid gap-2 md:grid-cols-2 lg:grid-cols-4">
                 <select
                   className="input"
                   value={filterType}
@@ -1649,12 +1720,67 @@ export default function LedgerClient() {
                     </option>
                   ))}
                 </select>
+
+                <select
+                  className="input"
+                  value={filterAccount}
+                  onChange={(e) => setFilterAccount(e.target.value)}
+                  aria-label="계좌 필터"
+                >
+                  <option value="ALL">전체 계좌</option>
+                  <option value="NONE">(계좌 미연결)</option>
+                  {accounts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.bankName ? `${a.bankName} · ` : ''}
+                      {a.name}
+                    </option>
+                  ))}
+                </select>
+
+                <div className="md:col-span-2 lg:col-span-4 flex flex-wrap items-center gap-2">
+                  <span className="text-xs" style={{ color: 'var(--muted)' }}>
+                    날짜
+                  </span>
+                  <input
+                    type="date"
+                    className="input"
+                    style={{ minWidth: 0, flex: '1 1 140px' }}
+                    value={filterDateStart}
+                    onChange={(e) => setFilterDateStart(e.target.value)}
+                    aria-label="시작 날짜"
+                  />
+                  <span style={{ color: 'var(--muted)' }}>~</span>
+                  <input
+                    type="date"
+                    className="input"
+                    style={{ minWidth: 0, flex: '1 1 140px' }}
+                    value={filterDateEnd}
+                    onChange={(e) => setFilterDateEnd(e.target.value)}
+                    aria-label="종료 날짜"
+                  />
+                  {(filterDateStart || filterDateEnd) && (
+                    <button
+                      type="button"
+                      className="btn btn-outline text-xs"
+                      onClick={() => {
+                        setFilterDateStart('')
+                        setFilterDateEnd('')
+                      }}
+                      title="날짜 전체로 초기화"
+                    >
+                      전체
+                    </button>
+                  )}
+                </div>
               </div>
             ) : null}
           </div>
 
           {/* 목록 */}
-          <div className="surface card-pad card-hover-border-only">
+          <div
+            id="ledger-entries-list"
+            className="surface card-pad card-hover-border-only scroll-mt-20"
+          >
             <div className="flex items-center justify-between">
               <div className="font-extrabold">내역</div>
               <span className="badge">{displayedItems.length}건</span>
@@ -1798,6 +1924,15 @@ export default function LedgerClient() {
                             {sign}
                             {formatKRW(it.amount).replace('-', '')}
                           </div>
+                          {it.runningBalance !== null && (
+                            <div
+                              className="text-[10px] whitespace-nowrap font-mono"
+                              style={{ color: 'var(--muted)' }}
+                              title={`${it.accountName ?? '계좌'} 잔액 (이 거래 적용 후)`}
+                            >
+                              잔액 {formatKRW(it.runningBalance)}
+                            </div>
+                          )}
                           {it.canEdit ? (
                             <div className="flex flex-wrap items-center justify-end gap-1">
                               <button

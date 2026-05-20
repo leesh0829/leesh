@@ -1,5 +1,7 @@
 'use client'
 
+import { ChartTooltip, useChartHover } from '@/app/components/ChartTooltip'
+
 export type DonutSegment = {
   label: string
   value: number
@@ -50,6 +52,16 @@ export default function DonutChart({
   centerLabel?: string
   centerValue?: string
 }) {
+  type ArcInfo = {
+    d: string
+    color: string
+    label: string
+    value: number
+    pct: number
+  }
+  // hook은 early return 위에서 호출 (rules-of-hooks)
+  const { ref, pos, hovered, onMove, onLeave, show } =
+    useChartHover<ArcInfo>()
   const total = segments.reduce((s, x) => s + Math.max(0, x.value), 0)
   if (total === 0) {
     return (
@@ -71,8 +83,8 @@ export default function DonutChart({
     running += Math.max(0, s.value)
     cumulative.push(running)
   }
-  const arcs = segments
-    .map((s, i) => {
+  const arcs: ArcInfo[] = segments
+    .map<ArcInfo | null>((s, i) => {
       const v = Math.max(0, s.value)
       if (v <= 0) return null
       const prev = i === 0 ? 0 : cumulative[i - 1]
@@ -87,9 +99,15 @@ export default function DonutChart({
         pct: (v / total) * 100,
       }
     })
-    .filter((a): a is NonNullable<typeof a> => a !== null)
+    .filter((a): a is ArcInfo => a !== null)
   return (
     <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-start">
+      <div
+        ref={ref}
+        className="relative"
+        onMouseMove={onMove}
+        onMouseLeave={onLeave}
+      >
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
         {arcs.map((a, i) => (
           <path
@@ -99,6 +117,7 @@ export default function DonutChart({
             stroke={a.color}
             strokeWidth={thickness}
             strokeLinecap="butt"
+            onMouseEnter={() => show(a)}
           >
             <title>
               {a.label} · {a.pct.toFixed(1)}%
@@ -134,6 +153,24 @@ export default function DonutChart({
           </g>
         )}
       </svg>
+      <ChartTooltip pos={pos} visible={!!hovered}>
+        {hovered && (
+          <>
+            <div className="flex items-center gap-2 font-bold mb-0.5">
+              <span
+                className="inline-block h-2 w-2 rounded-sm"
+                style={{ background: hovered.color }}
+              />
+              {hovered.label}
+            </div>
+            <div>값 {hovered.value.toLocaleString('ko-KR')}</div>
+            <div style={{ color: 'var(--muted)' }}>
+              비율 {hovered.pct.toFixed(1)}%
+            </div>
+          </>
+        )}
+      </ChartTooltip>
+      </div>
       <ul className="grid gap-1 text-xs sm:flex-1 min-w-0">
         {arcs
           .slice()

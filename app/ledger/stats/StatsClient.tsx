@@ -5,6 +5,7 @@ import { useToast } from '@/app/components/ToastProvider'
 import { TYPE_LABEL_KR } from '@/app/lib/accountTypes'
 import { LedgerNavBack } from '../LedgerNavIcons'
 import DonutChart from '../market/DonutChart'
+import { ChartTooltip, useChartHover } from '@/app/components/ChartTooltip'
 
 type Totals = { income: number; expense: number; net: number; count: number }
 type AccountAgg = {
@@ -1150,8 +1151,18 @@ function MonthBarChart({ data }: { data: MonthAgg[] }) {
   const groupW = innerW / data.length
   const barW = Math.max(4, (groupW - 6) / 2)
 
+  const { ref, pos, hovered, onMove, onLeave, show } = useChartHover<{
+    item: MonthAgg
+    side: 'income' | 'expense' | 'group'
+  }>()
+
   return (
-    <div className="mt-3 overflow-x-auto">
+    <div
+      ref={ref}
+      className="mt-3 overflow-x-auto relative"
+      onMouseMove={onMove}
+      onMouseLeave={onLeave}
+    >
       <svg
         viewBox={`0 0 ${W} ${H}`}
         className="w-full"
@@ -1178,6 +1189,15 @@ function MonthBarChart({ data }: { data: MonthAgg[] }) {
           const expenseH = (d.expense / maxVal) * innerH
           return (
             <g key={d.month}>
+              {/* 그룹 영역 호버용 투명 박스 — 막대 사이 빈 공간도 잡아줌 */}
+              <rect
+                x={padding.left + groupW * i}
+                y={padding.top}
+                width={groupW}
+                height={innerH}
+                fill="transparent"
+                onMouseEnter={() => show({ item: d, side: 'group' })}
+              />
               <rect
                 x={x - barW - 2}
                 y={padding.top + innerH - incomeH}
@@ -1185,6 +1205,7 @@ function MonthBarChart({ data }: { data: MonthAgg[] }) {
                 height={incomeH}
                 fill="#10b981"
                 rx="2"
+                onMouseEnter={() => show({ item: d, side: 'income' })}
               >
                 <title>
                   {d.month} 수입: {formatKRW(d.income)}
@@ -1197,6 +1218,7 @@ function MonthBarChart({ data }: { data: MonthAgg[] }) {
                 height={expenseH}
                 fill="#ef4444"
                 rx="2"
+                onMouseEnter={() => show({ item: d, side: 'expense' })}
               >
                 <title>
                   {d.month} 지출: {formatKRW(d.expense)}
@@ -1215,6 +1237,28 @@ function MonthBarChart({ data }: { data: MonthAgg[] }) {
           )
         })}
       </svg>
+      <ChartTooltip pos={pos} visible={!!hovered}>
+        {hovered && (
+          <>
+            <div className="font-bold mb-0.5">{hovered.item.month}</div>
+            <div className="text-emerald-500">
+              수입 {formatKRW(hovered.item.income)}
+            </div>
+            <div className="text-red-500">
+              지출 {formatKRW(hovered.item.expense)}
+            </div>
+            <div
+              className={
+                'mt-0.5 ' +
+                (hovered.item.net >= 0 ? 'text-emerald-500' : 'text-red-500')
+              }
+            >
+              순액 {hovered.item.net >= 0 ? '+' : ''}
+              {formatKRW(hovered.item.net)}
+            </div>
+          </>
+        )}
+      </ChartTooltip>
       <div className="mt-1 flex justify-end gap-3 text-xs">
         <span className="flex items-center gap-1">
           <span
@@ -1237,6 +1281,10 @@ function MonthBarChart({ data }: { data: MonthAgg[] }) {
 
 function Donut({ data }: { data: CategoryAgg[] }) {
   const total = data.reduce((s, d) => s + d.total, 0)
+  const { ref, pos, hovered, onMove, onLeave, show } = useChartHover<{
+    item: CategoryAgg
+    pct: number
+  }>()
   if (total === 0) return null
   const W = 200
   const R = 80
@@ -1248,7 +1296,12 @@ function Donut({ data }: { data: CategoryAgg[] }) {
     return acc
   }, [])
   return (
-    <div className="mt-3 flex justify-center">
+    <div
+      ref={ref}
+      className="mt-3 flex justify-center relative"
+      onMouseMove={onMove}
+      onMouseLeave={onLeave}
+    >
       <svg viewBox={`0 0 ${W} ${W}`} className="w-44 h-44">
         {data.map((d, i) => {
           const value = d.total
@@ -1273,15 +1326,32 @@ function Donut({ data }: { data: CategoryAgg[] }) {
             `A ${r} ${r} 0 ${large} 0 ${xi0} ${yi0}`,
             'Z',
           ].join(' ')
+          const pct = (value / total) * 100
           return (
-            <path key={d.category} d={path} fill={colorForIndex(i)}>
+            <path
+              key={d.category}
+              d={path}
+              fill={colorForIndex(i)}
+              onMouseEnter={() => show({ item: d, pct })}
+            >
               <title>
-                {d.category}: {formatKRW(d.total)} ({((value / total) * 100).toFixed(1)}%)
+                {d.category}: {formatKRW(d.total)} ({pct.toFixed(1)}%)
               </title>
             </path>
           )
         })}
       </svg>
+      <ChartTooltip pos={pos} visible={!!hovered}>
+        {hovered && (
+          <>
+            <div className="font-bold mb-0.5">{hovered.item.category}</div>
+            <div>금액 {formatKRW(hovered.item.total)}</div>
+            <div style={{ color: 'var(--muted)' }}>
+              비율 {hovered.pct.toFixed(1)}% · {hovered.item.count}건
+            </div>
+          </>
+        )}
+      </ChartTooltip>
     </div>
   )
 }
@@ -1462,6 +1532,10 @@ function AccountRow({ item }: { item: AccountAgg }) {
 
 
 function DayLineChart({ data }: { data: DayAgg[] }) {
+  const { ref, pos, hovered, onMove, onLeave, show } = useChartHover<{
+    item: DayAgg
+    cumulative: number
+  }>()
   if (data.length === 0) return null
   const W = 720
   const H = 220
@@ -1495,6 +1569,8 @@ function DayLineChart({ data }: { data: DayAgg[] }) {
       ? padL
       : padL + (i / (data.length - 1)) * innerW
   }
+  // 데이터 인덱스별 hover-strip 폭
+  const stripW = data.length <= 1 ? innerW : innerW / data.length
   function makePath(values: number[]) {
     return values
       .map((v, i) => (i === 0 ? `M${x(i)},${y(v)}` : `L${x(i)},${y(v)}`))
@@ -1511,6 +1587,12 @@ function DayLineChart({ data }: { data: DayAgg[] }) {
     })
   }
   return (
+    <div
+      ref={ref}
+      className="relative"
+      onMouseMove={onMove}
+      onMouseLeave={onLeave}
+    >
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} className="block">
       {/* 0 라인 */}
       <line
@@ -1599,7 +1681,63 @@ function DayLineChart({ data }: { data: DayAgg[] }) {
           누적 순합
         </text>
       </g>
+      {/* 호버 잡이용 투명 strip + 호버 시 세로 가이드 */}
+      {data.map((d, i) => {
+        const cx = x(i)
+        const isHover =
+          hovered && hovered.item.day === d.day
+        return (
+          <g key={`hov-${d.day}`}>
+            {isHover && (
+              <line
+                x1={cx}
+                x2={cx}
+                y1={padT}
+                y2={padT + innerH}
+                stroke="currentColor"
+                strokeOpacity={0.35}
+                strokeDasharray="2 2"
+                strokeWidth={1}
+              />
+            )}
+            <rect
+              x={cx - stripW / 2}
+              y={padT}
+              width={stripW}
+              height={innerH}
+              fill="transparent"
+              onMouseEnter={() => show({ item: d, cumulative: cumulative[i] })}
+            />
+          </g>
+        )
+      })}
     </svg>
+    <ChartTooltip pos={pos} visible={!!hovered}>
+      {hovered && (
+        <>
+          <div className="font-bold mb-0.5">{hovered.item.day}</div>
+          <div className="text-emerald-500">
+            수입 {formatKRW(hovered.item.income)}
+          </div>
+          <div className="text-red-500">
+            지출 {formatKRW(hovered.item.expense)}
+          </div>
+          <div
+            className={
+              hovered.item.net >= 0 ? 'text-emerald-500' : 'text-red-500'
+            }
+          >
+            순액 {hovered.item.net >= 0 ? '+' : ''}
+            {formatKRW(hovered.item.net)}
+          </div>
+          <div className="mt-0.5" style={{ color: '#8b5cf6' }}>
+            누적 {hovered.cumulative >= 0 ? '+' : ''}
+            {formatKRW(hovered.cumulative)}
+          </div>
+        </>
+      )}
+    </ChartTooltip>
+    </div>
   )
 }
 
@@ -1608,6 +1746,8 @@ function WeekdayBarChart({ data }: { data: WeekdayAgg[] }) {
   // 건당 평균
   const stats = data.map((d) => ({
     weekday: d.weekday,
+    income: d.income,
+    expense: d.expense,
     incomeAvg: d.count > 0 ? d.income / d.count : 0,
     expenseAvg: d.count > 0 ? d.expense / d.count : 0,
     count: d.count,
@@ -1626,7 +1766,16 @@ function WeekdayBarChart({ data }: { data: WeekdayAgg[] }) {
   const innerH = H - padT - padB
   const slot = innerW / 7
   const barW = (slot - 8) / 2
+  const { ref, pos, hovered, onMove, onLeave, show } = useChartHover<
+    (typeof stats)[number]
+  >()
   return (
+    <div
+      ref={ref}
+      className="relative"
+      onMouseMove={onMove}
+      onMouseLeave={onLeave}
+    >
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} className="block">
       {stats.map((s, i) => {
         const cx = padL + slot * i + slot / 2
@@ -1635,6 +1784,15 @@ function WeekdayBarChart({ data }: { data: WeekdayAgg[] }) {
         const baseY = padT + innerH
         return (
           <g key={i}>
+            {/* 호버 잡이용 슬롯 전체 투명 박스 */}
+            <rect
+              x={padL + slot * i}
+              y={padT}
+              width={slot}
+              height={innerH}
+              fill="transparent"
+              onMouseEnter={() => show(s)}
+            />
             {/* income bar */}
             <rect
               x={cx - barW - 1}
@@ -1705,5 +1863,26 @@ function WeekdayBarChart({ data }: { data: WeekdayAgg[] }) {
         0
       </text>
     </svg>
+    <ChartTooltip pos={pos} visible={!!hovered}>
+      {hovered && (
+        <>
+          <div className="font-bold mb-0.5">{wdays[hovered.weekday]}요일</div>
+          <div style={{ color: 'var(--muted)' }}>{hovered.count}건</div>
+          <div className="text-emerald-500">
+            수입 평균 {formatKRW(hovered.incomeAvg)}
+            <span className="ml-1" style={{ color: 'var(--muted)' }}>
+              (합 {formatKRW(hovered.income)})
+            </span>
+          </div>
+          <div className="text-red-500">
+            지출 평균 {formatKRW(hovered.expenseAvg)}
+            <span className="ml-1" style={{ color: 'var(--muted)' }}>
+              (합 {formatKRW(hovered.expense)})
+            </span>
+          </div>
+        </>
+      )}
+    </ChartTooltip>
+    </div>
   )
 }

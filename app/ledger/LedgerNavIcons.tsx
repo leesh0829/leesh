@@ -262,6 +262,32 @@ export function LedgerNavMarket() {
   )
 }
 
+function ChallengeIcon({ className }: IconProps) {
+  // 머니 챌린지 (타겟/과녁)
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className={className}
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="5.5" />
+      <circle cx="12" cy="12" r="2" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
+export function LedgerNavBudgets() {
+  return (
+    <NavButton href="/ledger/budgets" label="머니 챌린지">
+      <ChallengeIcon className="h-4 w-4" />
+    </NavButton>
+  )
+}
+
 export function LedgerNavKisSettings() {
   return (
     <NavButton href="/ledger/kis-settings" label="KIS API 설정">

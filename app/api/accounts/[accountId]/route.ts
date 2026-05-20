@@ -24,6 +24,12 @@ const accountPatchSchema = z
       .union([z.string().trim().max(500), z.null()])
       .optional()
       .transform((v) => (v === undefined ? undefined : v ? v : null)),
+    initialBalance: z
+      .number()
+      .int()
+      .min(-2_000_000_000)
+      .max(2_000_000_000)
+      .optional(),
   })
   .strict()
 
@@ -76,6 +82,9 @@ export async function PATCH(
         ? { types: parsed.data.types as AccountType[] }
         : {}),
       ...(parsed.data.memo !== undefined ? { memo: parsed.data.memo } : {}),
+      ...(parsed.data.initialBalance !== undefined
+        ? { initialBalance: parsed.data.initialBalance }
+        : {}),
     },
   })
 

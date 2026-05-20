@@ -49,6 +49,8 @@ model User {
   watchlistItems Watchlist[]  @relation("WatchlistOwner")
   stockNotes     StockNote[]  @relation("StockNoteOwner")
   stockAlarms    StockAlarm[] @relation("StockAlarmOwner")
+
+  budgetTargets BudgetTarget[] @relation("BudgetTargetOwner")
 }
 
 model Account {
@@ -282,8 +284,12 @@ model FinancialAccount {
   types    AccountType[]
   memo     String?
 
+  // 가계부 시작 시점의 잔액 (수입에 잡히지 않고 계좌 잔액·내역 누적의 출발점)
+  initialBalance Int @default(0)
+
   ledgerEntries LedgerEntry[] @relation("LedgerAccount")
   holdings      Holding[]     @relation("HoldingAccount")
+  budgetTargets BudgetTarget[] @relation("BudgetTargetAccount")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -443,6 +449,42 @@ model StockAlarm {
   createdAt DateTime @default(now())
 
   @@index([userId, enabled])
+}
+
+// 머니 챌린지 — 카테고리/소분류/계좌별 월간 지출 목표
+enum BudgetScope {
+  CATEGORY
+  SUBCATEGORY
+  ACCOUNT
+}
+
+model BudgetTarget {
+  id String @id @default(cuid())
+
+  ownerId String
+  owner   User   @relation("BudgetTargetOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  scope BudgetScope
+
+  // scope=CATEGORY → category 필수
+  // scope=SUBCATEGORY → category + subcategory 필수
+  // scope=ACCOUNT → accountId 필수
+  category    String?
+  subcategory String?
+
+  accountId String?
+  account   FinancialAccount? @relation("BudgetTargetAccount", fields: [accountId], references: [id], onDelete: Cascade)
+
+  amount Int // 월간 목표 (원)
+  memo   String?
+
+  enabled Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId, enabled])
+  @@index([accountId])
 }
 
 model MenuPermission {

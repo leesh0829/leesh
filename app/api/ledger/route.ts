@@ -141,7 +141,10 @@ export async function GET(req: Request) {
   // 1) 계좌의 initialBalance (가계부 시작 시점 금액) → carry 시작값
   // 2) 기간 시작 이전 항목들의 합을 더함 → 기간 시작 직전 잔액
   // 3) 기간 내 항목을 occurredAt 오름차순으로 순회하며 누적
-  // excludeFromTotals=true 항목은 잔액 변동에 미포함
+  //
+  // 주의: excludeFromTotals=true(이체 등)도 실제 현금 이동이므로 잔액에 반영해야 함.
+  //   - 이체: A계좌 EXPENSE + B계좌 INCOME (둘 다 excludeFromTotals=true)
+  //   - 통계(totals.income/expense)에선 제외되지만, 계좌 잔액 변동은 정상 반영됨.
   const accountIdSet = new Set<string>()
   for (const r of rows) {
     if (r.accountId) accountIdSet.add(r.accountId)
@@ -163,7 +166,6 @@ export async function GET(req: Request) {
       where: {
         ownerId: { in: effectiveOwnerIds },
         accountId: { in: Array.from(accountIdSet) },
-        excludeFromTotals: false,
         occurredAt: { lt: occurredAtFilter.gte },
       },
       select: { accountId: true, type: true, amount: true },
@@ -186,11 +188,7 @@ export async function GET(req: Request) {
   for (const r of asc) {
     if (!r.accountId) continue
     const prev = running.get(r.accountId) ?? 0
-    const delta = r.excludeFromTotals
-      ? 0
-      : r.type === 'INCOME'
-        ? r.amount
-        : -r.amount
+    const delta = r.type === 'INCOME' ? r.amount : -r.amount
     const next = prev + delta
     running.set(r.accountId, next)
     balanceById.set(r.id, next)

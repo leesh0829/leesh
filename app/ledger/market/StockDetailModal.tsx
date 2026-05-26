@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import CandleChart, { type Candle, type TradeMarker } from './CandleChart'
 
 export type StockDetailTarget = {
@@ -210,6 +210,18 @@ function fmtVolume(n: number | null): string {
   return n.toLocaleString('ko-KR')
 }
 
+// 마지막 자동 갱신 시각 → "X초/분/시간 전"
+function relativeTimeFromIso(iso: string | null): string {
+  if (!iso) return '—'
+  const t = new Date(iso).getTime()
+  if (Number.isNaN(t)) return '—'
+  const diffSec = Math.round((Date.now() - t) / 1000)
+  if (diffSec < 60) return '방금 전'
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}분 전`
+  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}시간 전`
+  return `${Math.floor(diffSec / 86400)}일 전`
+}
+
 type Tab =
   | 'orderbook'
   | 'minute'
@@ -270,11 +282,17 @@ export default function StockDetailModal({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    let cancelled = false
-    async function load() {
-      setLoading(true)
-      setError(null)
+  // 자동 갱신 (15초, 페이지 visible일 때만) — /ledger/market 과 동일 패턴
+  const [autoRefresh, setAutoRefresh] = useState(true)
+  const [autoTick, setAutoTick] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
+
+  // 전체 데이터 로드 — silent=true 면 스켈레톤 없이 조용히 갱신
+  const loadAll = useCallback(
+    async (silent: boolean) => {
+      if (silent) setRefreshing(true)
+      else setLoading(true)
+      if (!silent) setError(null)
       try {
         const [
           obRes,
@@ -301,7 +319,6 @@ export default function StockDetailModal({
           fetch(`/api/kis/stock/${target.code}/profit`, { cache: 'no-store' }),
           fetch(`/api/kis/stock/${target.code}/program`, { cache: 'no-store' }),
         ])
-        if (cancelled) return
         if (obRes.ok) {
           const j = (await obRes.json()) as { data: Orderbook }
           setOrderbook(j.data)
@@ -363,7 +380,6 @@ export default function StockDetailModal({
             cache: 'no-store',
           }),
         ])
-        if (cancelled) return
         if (wRes.ok) {
           const j = (await wRes.json()) as {
             items: Array<{ market: string; symbol: string }>
@@ -412,45 +428,66 @@ export default function StockDetailModal({
           setDisclosures(j.items)
         }
       } catch (e) {
-        if (!cancelled) setError(String(e))
+        if (!silent) setError(String(e))
       } finally {
-        if (!cancelled) setLoading(false)
+        if (silent) setRefreshing(false)
+        else setLoading(false)
       }
-    }
-    void load()
-    return () => {
-      cancelled = true
-    }
-  }, [target.code])
+    },
+    [target.code]
+  )
 
-  // 차트 기간 변경 시 별도 fetch
-  useEffect(() => {
-    let cancelled = false
-    async function loadChart() {
-      setChartLoading(true)
+  // 차트 로드 — silent=true 면 스켈레톤 없이
+  const loadChart = useCallback(
+    async (silent: boolean) => {
+      if (!silent) setChartLoading(true)
       try {
         const r = await fetch(
           `/api/kis/stock/${target.code}/history?period=${chartPeriod}`,
           { cache: 'no-store' }
         )
-        if (cancelled) return
         if (r.ok) {
           const j = (await r.json()) as { items: Candle[] }
           setChartBars(j.items)
-        } else {
+        } else if (!silent) {
           setChartBars([])
         }
       } catch {
-        setChartBars([])
+        if (!silent) setChartBars([])
       } finally {
-        if (!cancelled) setChartLoading(false)
+        if (!silent) setChartLoading(false)
       }
-    }
-    void loadChart()
-    return () => {
-      cancelled = true
-    }
-  }, [target.code, chartPeriod])
+    },
+    [target.code, chartPeriod]
+  )
+
+  // 초기/종목 변경 시 로드 (스켈레톤 표시)
+  useEffect(() => {
+    void loadAll(false)
+  }, [loadAll])
+
+  // 차트 기간 변경 시 차트만 로드
+  useEffect(() => {
+    void loadChart(false)
+  }, [loadChart])
+
+  // 자동 갱신 인터벌 — ref로 최신 함수 참조
+  const fnRef = useRef({ loadAll, loadChart })
+  useEffect(() => {
+    fnRef.current = { loadAll, loadChart }
+  })
+
+  useEffect(() => {
+    if (!autoRefresh) return
+    const id = window.setInterval(() => {
+      if (document.visibilityState !== 'visible') return
+      void Promise.allSettled([
+        fnRef.current.loadAll(true),
+        fnRef.current.loadChart(true),
+      ]).then(() => setAutoTick(new Date().toISOString()))
+    }, 15_000)
+    return () => window.clearInterval(id)
+  }, [autoRefresh])
 
   const cur = orderbook?.current
   const change = useMemo(() => {
@@ -545,6 +582,39 @@ export default function StockDetailModal({
               {isPage ? '← 시장' : '닫기'}
             </button>
           </div>
+        </div>
+
+        {/* 자동 갱신 컨트롤 */}
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+          <label
+            className="flex items-center gap-1"
+            title="15초마다 자동으로 갱신합니다 (탭이 활성 상태일 때만)."
+          >
+            <input
+              type="checkbox"
+              checked={autoRefresh}
+              onChange={(e) => setAutoRefresh(e.target.checked)}
+            />
+            자동 갱신 (15초)
+            {autoTick ? (
+              <span style={{ color: 'var(--muted)' }}>
+                · {relativeTimeFromIso(autoTick)}
+              </span>
+            ) : null}
+          </label>
+          <button
+            type="button"
+            className="btn btn-outline text-xs"
+            onClick={() =>
+              void Promise.allSettled([loadAll(true), loadChart(true)]).then(() =>
+                setAutoTick(new Date().toISOString())
+              )
+            }
+            disabled={refreshing}
+            title="지금 새로 가져오기"
+          >
+            {refreshing ? '갱신중...' : '↻ 지금 갱신'}
+          </button>
         </div>
 
         {/* 현재가 요약 */}

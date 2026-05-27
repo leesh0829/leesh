@@ -73,7 +73,9 @@ export async function POST(
       ? new Date(parsed.data.occurredAt)
       : new Date()
 
-  // BUY/SELL: quantity & pricePerUnit 필수, amount = qty * price
+  // BUY/SELL: quantity & pricePerUnit 필수.
+  //   기본 amount = qty * price 이지만, 클라이언트가 명시적으로 amount를 보내면
+  //   그 값을 우선 사용 (소수점매수/매도 — 실제 결제금액 보존, 부동소수점 오차 방지).
   // DIVIDEND/FEE/TAX: amount 필수
   let quantity: number | null = null
   let pricePerUnit: number | null = null
@@ -92,7 +94,10 @@ export async function POST(
         { status: 400 }
       )
     }
-    amount = quantity * pricePerUnit
+    amount =
+      typeof parsed.data.amount === 'number' && parsed.data.amount > 0
+        ? parsed.data.amount
+        : quantity * pricePerUnit
   } else {
     if (
       parsed.data.amount === undefined ||

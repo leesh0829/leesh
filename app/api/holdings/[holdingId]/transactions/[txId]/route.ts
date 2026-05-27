@@ -102,7 +102,11 @@ export async function PATCH(
         { status: 400 }
       )
     }
-    nextAmount = nextQuantity * nextPrice
+    // 클라이언트가 amount를 명시적으로 보냈으면 그 값 우선 (소수점매수/매도)
+    nextAmount =
+      parsed.data.amount !== undefined && parsed.data.amount > 0
+        ? parsed.data.amount
+        : nextQuantity * nextPrice
   } else {
     if (parsed.data.amount !== undefined) {
       nextAmount = parsed.data.amount

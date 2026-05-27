@@ -367,6 +367,11 @@ export default function StocksClient() {
 
   // 트랜잭션 추가 폼
   const [txType, setTxType] = useState<HoldingTxItem['type']>('BUY')
+  // BUY/SELL 입력 방식: 'qtyPrice'(수량+단가, 자동 amount) 또는 'amountPrice'(금액+단가, 자동 qty)
+  // 후자는 소수점매수/매도 — 실제 결제 금액 그대로 보존
+  const [txInputMode, setTxInputMode] = useState<'qtyPrice' | 'amountPrice'>(
+    'qtyPrice'
+  )
   const [txQty, setTxQty] = useState('')
   const [txPrice, setTxPrice] = useState('')
   const [txAmount, setTxAmount] = useState('')
@@ -879,18 +884,36 @@ export default function StocksClient() {
       }
 
       if (txType === 'BUY' || txType === 'SELL') {
-        const qty = parseFloatInput(txQty)
         const price = parseFloatInput(txPrice)
-        if (!qty || qty <= 0) {
-          toast.error('수량을 입력해 주세요.')
-          return
-        }
         if (price === null || price < 0) {
           toast.error('단가를 입력해 주세요.')
           return
         }
-        payload.quantity = qty
-        payload.pricePerUnit = price
+        if (txInputMode === 'amountPrice') {
+          // 소수점매수/매도: 금액 + 단가 → 수량 자동 계산
+          const amt = parseFloatInput(txAmount)
+          if (amt === null || amt <= 0) {
+            toast.error('금액을 입력해 주세요.')
+            return
+          }
+          if (price === 0) {
+            toast.error('단가는 0보다 커야 합니다.')
+            return
+          }
+          const qty = amt / price
+          payload.quantity = qty
+          payload.pricePerUnit = price
+          payload.amount = amt // 결제 금액 그대로 서버로 — 소수점매수 결제금 보존
+        } else {
+          // 기본: 수량 + 단가
+          const qty = parseFloatInput(txQty)
+          if (!qty || qty <= 0) {
+            toast.error('수량을 입력해 주세요.')
+            return
+          }
+          payload.quantity = qty
+          payload.pricePerUnit = price
+        }
       } else {
         const amount = parseFloatInput(txAmount)
         if (amount === null || amount <= 0) {
@@ -940,6 +963,30 @@ export default function StocksClient() {
     }
     await Promise.all([loadHoldings(), loadDetail(detail.id)])
     toast.success('거래를 삭제했습니다.')
+  }
+
+  // 거래 인라인 수정 — TransactionRow에서 호출. 성공 시 true 반환.
+  const editTx = async (
+    txId: string,
+    payload: Record<string, unknown>
+  ): Promise<boolean> => {
+    if (!detail) return false
+    const r = await fetch(
+      `/api/holdings/${detail.id}/transactions/${txId}`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      }
+    )
+    if (!r.ok) {
+      const msg = await readApiErrorMessage(r)
+      toast.error(`${r.status} · ${msg ?? '수정 실패'}`)
+      return false
+    }
+    await Promise.all([loadHoldings(), loadDetail(detail.id)])
+    toast.success('거래를 수정했습니다.')
+    return true
   }
 
   // 공유 계정 정보
@@ -2064,6 +2111,8 @@ export default function StocksClient() {
                           currency={h.currency}
                           txType={txType}
                           setTxType={setTxType}
+                          txInputMode={txInputMode}
+                          setTxInputMode={setTxInputMode}
                           txQty={txQty}
                           setTxQty={setTxQty}
                           txPrice={txPrice}
@@ -2106,8 +2155,9 @@ export default function StocksClient() {
                                   key={tx.id}
                                   tx={tx}
                                   currency={h.currency}
-                                  canDelete={h.canEdit}
+                                  canEdit={h.canEdit}
                                   onDelete={() => void deleteTx(tx.id)}
+                                  onEdit={(payload) => editTx(tx.id, payload)}
                                 />
                               ))}
                             </div>
@@ -2325,16 +2375,112 @@ function SummaryCard({
 function TransactionRow({
   tx,
   currency,
-  canDelete,
+  canEdit,
   onDelete,
+  onEdit,
 }: {
   tx: HoldingTxItem
   currency: string
-  canDelete: boolean
+  canEdit: boolean
   onDelete: () => void
+  onEdit: (payload: Record<string, unknown>) => Promise<boolean>
 }) {
   const color = TX_TYPE_COLOR[tx.type]
   const label = TX_TYPE_LABEL[tx.type]
+  const isBuySell = tx.type === 'BUY' || tx.type === 'SELL'
+  const curSym = CURRENCY_SYMBOL[currency.toUpperCase()] ?? currency
+  const allowDecimal = fractionDigits(currency) > 0
+
+  // 원래 거래가 소수점매수/매도(amount ≠ qty*price)였는지 감지 → 편집 시 같은 모드로
+  const wasFractional = (() => {
+    if (!isBuySell) return false
+    const q = tx.quantity ?? 0
+    const p = tx.pricePerUnit ?? 0
+    if (q <= 0 || p <= 0) return false
+    return Math.abs(tx.amount - q * p) > Math.max(1, q * p * 0.0001)
+  })()
+
+  const [editing, setEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [eInputMode, setEInputMode] = useState<'qtyPrice' | 'amountPrice'>(
+    wasFractional ? 'amountPrice' : 'qtyPrice'
+  )
+  const [eQty, setEQty] = useState(String(tx.quantity ?? ''))
+  const [ePrice, setEPrice] = useState(String(tx.pricePerUnit ?? ''))
+  const [eAmount, setEAmount] = useState(String(tx.amount))
+  const [eAt, setEAt] = useState(() => {
+    const d = new Date(tx.occurredAt)
+    if (Number.isNaN(d.getTime())) return datetimeLocalNow()
+    return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`
+  })
+  const [eMemo, setEMemo] = useState(tx.memo ?? '')
+
+  const startEdit = () => {
+    setEInputMode(wasFractional ? 'amountPrice' : 'qtyPrice')
+    setEQty(String(tx.quantity ?? ''))
+    setEPrice(String(tx.pricePerUnit ?? ''))
+    setEAmount(String(tx.amount))
+    const d = new Date(tx.occurredAt)
+    if (!Number.isNaN(d.getTime())) {
+      setEAt(
+        `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`
+      )
+    }
+    setEMemo(tx.memo ?? '')
+    setEditing(true)
+  }
+
+  const cancelEdit = () => setEditing(false)
+
+  const saveEdit = async () => {
+    const payload: Record<string, unknown> = {
+      memo: eMemo.trim() || null,
+    }
+    const iso = isoFromDatetimeLocal(eAt)
+    if (iso) payload.occurredAt = iso
+    if (isBuySell) {
+      const p = parseFloatInput(ePrice)
+      if (p === null || p < 0) return
+      if (eInputMode === 'amountPrice') {
+        const a = parseFloatInput(eAmount)
+        if (a === null || a <= 0 || p === 0) return
+        payload.quantity = a / p
+        payload.pricePerUnit = p
+        payload.amount = a // 결제 금액 보존 (서버가 우선 사용)
+      } else {
+        const q = parseFloatInput(eQty)
+        if (q === null || q <= 0) return
+        payload.quantity = q
+        payload.pricePerUnit = p
+        // amount는 보내지 않음 — 서버가 qty * price 로 자동 계산
+      }
+    } else {
+      const a = parseFloatInput(eAmount)
+      if (a === null || a < 0) return
+      payload.amount = a
+    }
+    setSaving(true)
+    const ok = await onEdit(payload)
+    setSaving(false)
+    if (ok) setEditing(false)
+  }
+
+  // 미리보기
+  const ePreviewQty = (() => {
+    if (!isBuySell || eInputMode !== 'amountPrice') return null
+    const a = parseFloatInput(eAmount)
+    const p = parseFloatInput(ePrice)
+    if (a === null || p === null || p <= 0) return null
+    return a / p
+  })()
+  const ePreviewAmount = (() => {
+    if (!isBuySell || eInputMode !== 'qtyPrice') return null
+    const q = parseFloatInput(eQty)
+    const p = parseFloatInput(ePrice)
+    if (q === null || p === null) return null
+    return q * p
+  })()
+
   return (
     <div
       className="card p-2 card-hover-border-only"
@@ -2343,68 +2489,233 @@ function TransactionRow({
         borderColor: `color-mix(in srgb, ${color} 35%, var(--border))`,
       }}
     >
-      <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <span
-            className="badge"
-            style={{
-              background: `color-mix(in srgb, ${color} 25%, var(--card))`,
-              borderColor: `color-mix(in srgb, ${color} 55%, var(--border))`,
-              fontWeight: 700,
-            }}
-          >
-            {label}
-          </span>
-          {tx.type === 'BUY' || tx.type === 'SELL' ? (
-            <span className="font-medium">
-              {formatQty(tx.quantity ?? 0)}주 ×{' '}
-              {formatMoney(tx.pricePerUnit ?? 0, currency)}
-            </span>
-          ) : null}
-          <span className="font-bold">
-            {formatMoney(tx.amount, currency)}
-          </span>
-          {tx.memo ? (
+      {editing ? (
+        <div className="grid gap-2 text-sm">
+          <div className="flex items-center gap-2">
             <span
-              className="truncate text-xs"
-              style={{ color: 'var(--muted)' }}
+              className="badge"
+              style={{
+                background: `color-mix(in srgb, ${color} 25%, var(--card))`,
+                borderColor: `color-mix(in srgb, ${color} 55%, var(--border))`,
+                fontWeight: 700,
+              }}
             >
-              · {tx.memo}
+              {label}
             </span>
-          ) : null}
-          {tx.linked ? (
-            <span
-              className="badge text-xs"
-              title="가계부에 연동된 항목"
+            <span className="text-xs" style={{ color: 'var(--muted)' }}>
+              수정 모드 — 유형은 변경 불가, 다시 만들고 싶으면 삭제 후 추가
+            </span>
+          </div>
+
+          {isBuySell ? (
+            <>
+              <div className="flex flex-wrap items-center gap-1 text-xs">
+                <span style={{ color: 'var(--muted)' }} className="mr-1">
+                  입력 방식
+                </span>
+                <button
+                  type="button"
+                  className={
+                    'btn text-xs ' +
+                    (eInputMode === 'qtyPrice' ? 'btn-primary' : 'btn-outline')
+                  }
+                  onClick={() => setEInputMode('qtyPrice')}
+                  disabled={saving}
+                >
+                  수량 + 단가
+                </button>
+                <button
+                  type="button"
+                  className={
+                    'btn text-xs ' +
+                    (eInputMode === 'amountPrice'
+                      ? 'btn-primary'
+                      : 'btn-outline')
+                  }
+                  onClick={() => setEInputMode('amountPrice')}
+                  disabled={saving}
+                >
+                  금액 + 단가 (소수점)
+                </button>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {eInputMode === 'amountPrice' ? (
+                  <input
+                    className="input"
+                    inputMode={allowDecimal ? 'decimal' : 'numeric'}
+                    placeholder={`결제 금액 (${curSym})`}
+                    value={eAmount}
+                    onChange={(e) => {
+                      const pattern = allowDecimal ? /[^0-9.]/g : /[^0-9]/g
+                      setEAmount(e.target.value.replace(pattern, ''))
+                    }}
+                    disabled={saving}
+                  />
+                ) : (
+                  <input
+                    className="input"
+                    inputMode="decimal"
+                    placeholder="수량"
+                    value={eQty}
+                    onChange={(e) => setEQty(e.target.value)}
+                    disabled={saving}
+                  />
+                )}
+                <input
+                  className="input"
+                  inputMode={allowDecimal ? 'decimal' : 'numeric'}
+                  placeholder={`단가 (${curSym})`}
+                  value={ePrice}
+                  onChange={(e) => {
+                    const pattern = allowDecimal ? /[^0-9.]/g : /[^0-9]/g
+                    setEPrice(e.target.value.replace(pattern, ''))
+                  }}
+                  disabled={saving}
+                />
+              </div>
+              {(ePreviewQty !== null || ePreviewAmount !== null) && (
+                <div
+                  className="text-xs"
+                  style={{ color: 'var(--muted)' }}
+                >
+                  {ePreviewQty !== null
+                    ? `→ 수량 ${formatQty(ePreviewQty)}주`
+                    : `→ 금액 ${formatMoney(ePreviewAmount ?? 0, currency)}`}
+                </div>
+              )}
+            </>
+          ) : (
+            <input
+              className="input"
+              inputMode={allowDecimal ? 'decimal' : 'numeric'}
+              placeholder={`금액 (${curSym})`}
+              value={eAmount}
+              onChange={(e) => {
+                const pattern = allowDecimal ? /[^0-9.]/g : /[^0-9]/g
+                setEAmount(e.target.value.replace(pattern, ''))
+              }}
+              disabled={saving}
+            />
+          )}
+
+          <input
+            type="datetime-local"
+            className="input"
+            value={eAt}
+            onChange={(e) => setEAt(e.target.value)}
+            disabled={saving}
+          />
+
+          <input
+            className="input"
+            placeholder="메모 (선택)"
+            value={eMemo}
+            onChange={(e) => setEMemo(e.target.value)}
+            disabled={saving}
+          />
+
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="btn btn-primary text-xs"
+              onClick={() => void saveEdit()}
+              disabled={saving}
             >
-              가계부 연동
-            </span>
-          ) : null}
-        </div>
-        <div className="flex items-center gap-2">
-          <span
-            className="text-xs whitespace-nowrap"
-            style={{ color: 'var(--muted)' }}
-          >
-            {new Date(tx.occurredAt).toLocaleString('ko-KR', {
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-          </span>
-          {canDelete ? (
+              {saving ? '저장중...' : '저장'}
+            </button>
             <button
               type="button"
               className="btn btn-outline text-xs"
-              onClick={onDelete}
+              onClick={cancelEdit}
+              disabled={saving}
             >
-              삭제
+              취소
             </button>
-          ) : null}
+            {tx.linked ? (
+              <span
+                className="ml-auto self-center text-xs"
+                style={{ color: 'var(--muted)' }}
+                title="가계부 연동 항목 — 수정 시 가계부에도 자동 반영됩니다"
+              >
+                가계부 연동
+              </span>
+            ) : null}
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <span
+              className="badge"
+              style={{
+                background: `color-mix(in srgb, ${color} 25%, var(--card))`,
+                borderColor: `color-mix(in srgb, ${color} 55%, var(--border))`,
+                fontWeight: 700,
+              }}
+            >
+              {label}
+            </span>
+            {isBuySell ? (
+              <span className="font-medium">
+                {formatQty(tx.quantity ?? 0)}주 ×{' '}
+                {formatMoney(tx.pricePerUnit ?? 0, currency)}
+              </span>
+            ) : null}
+            <span className="font-bold">
+              {formatMoney(tx.amount, currency)}
+            </span>
+            {tx.memo ? (
+              <span
+                className="truncate text-xs"
+                style={{ color: 'var(--muted)' }}
+              >
+                · {tx.memo}
+              </span>
+            ) : null}
+            {tx.linked ? (
+              <span
+                className="badge text-xs"
+                title="가계부에 연동된 항목"
+              >
+                가계부 연동
+              </span>
+            ) : null}
+          </div>
+          <div className="flex items-center gap-2">
+            <span
+              className="text-xs whitespace-nowrap"
+              style={{ color: 'var(--muted)' }}
+            >
+              {new Date(tx.occurredAt).toLocaleString('ko-KR', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </span>
+            {canEdit ? (
+              <>
+                <button
+                  type="button"
+                  className="btn btn-outline text-xs"
+                  onClick={startEdit}
+                  title="이 거래 수정"
+                >
+                  수정
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline text-xs"
+                  onClick={onDelete}
+                >
+                  삭제
+                </button>
+              </>
+            ) : null}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -2413,6 +2724,8 @@ function TransactionForm({
   currency,
   txType,
   setTxType,
+  txInputMode,
+  setTxInputMode,
   txQty,
   setTxQty,
   txPrice,
@@ -2431,6 +2744,8 @@ function TransactionForm({
   currency: string
   txType: HoldingTxItem['type']
   setTxType: (t: HoldingTxItem['type']) => void
+  txInputMode: 'qtyPrice' | 'amountPrice'
+  setTxInputMode: (m: 'qtyPrice' | 'amountPrice') => void
   txQty: string
   setTxQty: (v: string) => void
   txPrice: string
@@ -2446,10 +2761,29 @@ function TransactionForm({
   onSubmit: () => void
   creating: boolean
 }) {
-  const isQtyMode = txType === 'BUY' || txType === 'SELL'
+  const isBuySell = txType === 'BUY' || txType === 'SELL'
   const curSym =
     CURRENCY_SYMBOL[currency.toUpperCase()] ?? `${currency} `
   const allowDecimal = fractionDigits(currency) > 0
+
+  // BUY/SELL일 때만 모드 토글 노출. 기타(배당/수수료/세금)은 amount 단일 입력.
+  const useAmountFirst = isBuySell && txInputMode === 'amountPrice'
+
+  // 미리보기 — 사용자가 입력한 값으로 자동 계산되는 다른 한 쪽 값
+  const previewQty = (() => {
+    if (!useAmountFirst) return null
+    const a = parseFloatInput(txAmount)
+    const p = parseFloatInput(txPrice)
+    if (a === null || p === null || p <= 0) return null
+    return a / p
+  })()
+  const previewAmount = (() => {
+    if (!isBuySell || useAmountFirst) return null
+    const q = parseFloatInput(txQty)
+    const p = parseFloatInput(txPrice)
+    if (q === null || p === null) return null
+    return q * p
+  })()
   return (
     <form
       className="grid gap-2"
@@ -2473,28 +2807,81 @@ function TransactionForm({
         ))}
       </div>
 
-      {isQtyMode ? (
-        <div className="grid gap-2 sm:grid-cols-2">
-          <input
-            className="input"
-            inputMode="decimal"
-            placeholder="수량"
-            value={txQty}
-            onChange={(e) => setTxQty(e.target.value)}
-            disabled={creating}
-          />
-          <input
-            className="input"
-            inputMode={allowDecimal ? 'decimal' : 'numeric'}
-            placeholder={`단가 (${curSym})`}
-            value={txPrice}
-            onChange={(e) => {
-              const pattern = allowDecimal ? /[^0-9.]/g : /[^0-9]/g
-              setTxPrice(e.target.value.replace(pattern, ''))
-            }}
-            disabled={creating}
-          />
-        </div>
+      {isBuySell ? (
+        <>
+          {/* 입력 방식 토글 — 소수점매수/매도용 */}
+          <div className="flex flex-wrap items-center gap-1 text-xs">
+            <span style={{ color: 'var(--muted)' }} className="mr-1">
+              입력 방식
+            </span>
+            <button
+              type="button"
+              className={
+                'btn text-xs ' +
+                (txInputMode === 'qtyPrice' ? 'btn-primary' : 'btn-outline')
+              }
+              onClick={() => setTxInputMode('qtyPrice')}
+              title="수량 × 단가 = 금액 (일반 정수 매수/매도)"
+            >
+              수량 + 단가
+            </button>
+            <button
+              type="button"
+              className={
+                'btn text-xs ' +
+                (txInputMode === 'amountPrice' ? 'btn-primary' : 'btn-outline')
+              }
+              onClick={() => setTxInputMode('amountPrice')}
+              title="금액 ÷ 단가 = 수량 (소수점매수/매도 — 결제금액 보존)"
+            >
+              금액 + 단가 (소수점)
+            </button>
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-2">
+            {useAmountFirst ? (
+              <input
+                className="input"
+                inputMode={allowDecimal ? 'decimal' : 'numeric'}
+                placeholder={`결제 금액 (${curSym})`}
+                value={txAmount}
+                onChange={(e) => {
+                  const pattern = allowDecimal ? /[^0-9.]/g : /[^0-9]/g
+                  setTxAmount(e.target.value.replace(pattern, ''))
+                }}
+                disabled={creating}
+              />
+            ) : (
+              <input
+                className="input"
+                inputMode="decimal"
+                placeholder="수량"
+                value={txQty}
+                onChange={(e) => setTxQty(e.target.value)}
+                disabled={creating}
+              />
+            )}
+            <input
+              className="input"
+              inputMode={allowDecimal ? 'decimal' : 'numeric'}
+              placeholder={`단가 (${curSym})`}
+              value={txPrice}
+              onChange={(e) => {
+                const pattern = allowDecimal ? /[^0-9.]/g : /[^0-9]/g
+                setTxPrice(e.target.value.replace(pattern, ''))
+              }}
+              disabled={creating}
+            />
+          </div>
+
+          {(previewQty !== null || previewAmount !== null) && (
+            <div className="text-xs" style={{ color: 'var(--muted)' }}>
+              {previewQty !== null
+                ? `→ 수량 ${formatQty(previewQty)}주`
+                : `→ 금액 ${formatMoney(previewAmount ?? 0, currency)}`}
+            </div>
+          )}
+        </>
       ) : (
         <input
           className="input"

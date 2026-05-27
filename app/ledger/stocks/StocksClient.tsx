@@ -274,7 +274,8 @@ function relativeTimeFromIso(iso: string | null): string {
 
 function formatQty(q: number) {
   if (Number.isInteger(q)) return q.toLocaleString('ko-KR')
-  return q.toLocaleString('ko-KR', { maximumFractionDigits: 4 })
+  // 소수점매수(fractional shares) 지원 — 최대 6자리까지 표시
+  return q.toLocaleString('ko-KR', { maximumFractionDigits: 6 })
 }
 
 function parseFloatInput(raw: string): number | null {

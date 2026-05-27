@@ -232,6 +232,7 @@ export default function MarketClient() {
       name: string
       price?: number | null
       changeRate?: number | null
+      decimals?: number // 해외 종목용 (소수점 자리수); 국내는 0
     }>
   >([])
   const [etfs, setEtfs] = useState<EtfQuote[]>([])
@@ -322,12 +323,37 @@ export default function MarketClient() {
                   const pc = j.prevClose ?? null
                   const rate =
                     p !== null && pc && pc !== 0 ? ((p - pc) / pc) * 100 : null
-                  return { ...w, price: p, changeRate: rate }
+                  return { ...w, price: p, changeRate: rate, decimals: 0 }
+                }
+              } else {
+                // 해외: KIS overseas quote
+                const pairs = `${w.market}:${w.symbol}`
+                const qr = await fetch(
+                  `/api/kis/overseas?pairs=${encodeURIComponent(pairs)}`,
+                  { cache: 'no-store' }
+                )
+                if (qr.ok) {
+                  const j = (await qr.json()) as {
+                    items: Array<{
+                      price?: number | null
+                      changeRate?: number | null
+                      decimals?: number
+                    }>
+                  }
+                  const item = j.items[0]
+                  if (item) {
+                    return {
+                      ...w,
+                      price: item.price ?? null,
+                      changeRate: item.changeRate ?? null,
+                      decimals: item.decimals ?? 2,
+                    }
+                  }
                 }
               }
-              return { ...w, price: null, changeRate: null }
+              return { ...w, price: null, changeRate: null, decimals: 0 }
             } catch {
-              return { ...w, price: null, changeRate: null }
+              return { ...w, price: null, changeRate: null, decimals: 0 }
             }
           })
         )
@@ -751,41 +777,64 @@ export default function MarketClient() {
               </span>
             </div>
             <div className="mt-3 grid gap-2 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
-              {watchlist.map((w) => (
-                <button
-                  key={w.id}
-                  type="button"
-                  onClick={() => {
-                    if (w.market === 'KR' && /^\d{6}$/.test(w.symbol)) {
-                      setActiveStock({ code: w.symbol, name: w.name })
-                    }
-                  }}
-                  className="card p-2 card-hover-border-only text-left"
-                >
-                  <div
-                    className="text-xs truncate font-semibold"
-                    style={{ color: 'var(--foreground)' }}
-                    title={w.name}
-                  >
-                    {w.name}
-                  </div>
-                  <div className="mt-1 flex items-baseline justify-between gap-1">
-                    <div className="text-sm font-bold">
-                      {w.price !== null && w.price !== undefined
-                        ? fmtKRW(w.price)
-                        : '—'}
-                    </div>
-                    <div
-                      className={
-                        'text-xs font-semibold ' +
-                        rateColor(w.changeRate ?? null)
+              {watchlist.map((w) => {
+                const isKr = w.market === 'KR' && /^\d{6}$/.test(w.symbol)
+                const priceText =
+                  w.price !== null && w.price !== undefined
+                    ? isKr
+                      ? fmtKRW(w.price)
+                      : w.price.toLocaleString('en-US', {
+                          minimumFractionDigits: w.decimals ?? 2,
+                          maximumFractionDigits: w.decimals ?? 2,
+                        })
+                    : '—'
+                return (
+                  <button
+                    key={w.id}
+                    type="button"
+                    onClick={() => {
+                      if (isKr) {
+                        setActiveStock({ code: w.symbol, name: w.name })
+                      } else {
+                        // 해외: market 필드가 exchange (NAS, NYS, AMS 등)
+                        setActiveOverseas({
+                          exchange: w.market,
+                          symbol: w.symbol,
+                          name: w.name,
+                        })
                       }
+                    }}
+                    className="card p-2 card-hover-border-only text-left"
+                  >
+                    <div
+                      className="text-xs truncate font-semibold"
+                      style={{ color: 'var(--foreground)' }}
+                      title={w.name}
                     >
-                      {fmtRate(w.changeRate ?? null)}
+                      {w.name}
                     </div>
-                  </div>
-                </button>
-              ))}
+                    <div className="mt-1 flex items-baseline justify-between gap-1">
+                      <div className="text-sm font-bold">{priceText}</div>
+                      <div
+                        className={
+                          'text-xs font-semibold ' +
+                          rateColor(w.changeRate ?? null)
+                        }
+                      >
+                        {fmtRate(w.changeRate ?? null)}
+                      </div>
+                    </div>
+                    {!isKr && (
+                      <div
+                        className="mt-0.5 text-[10px]"
+                        style={{ color: 'var(--muted)' }}
+                      >
+                        {w.market} · {w.symbol}
+                      </div>
+                    )}
+                  </button>
+                )
+              })}
             </div>
           </div>
         )}

@@ -1027,107 +1027,6 @@ export default function MarketClient() {
           </div>
         </div>
 
-        {/* 업종별 지수 */}
-        <div className="surface card-pad card-hover-border-only">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="font-extrabold">업종별 지수</div>
-            <div className="flex gap-1">
-              {(['KOSPI', 'KOSDAQ'] as const).map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => setSectorMarket(m)}
-                  className={
-                    'rounded-md px-3 py-1 text-xs font-semibold ' +
-                    (sectorMarket === m
-                      ? 'bg-current/10 ring-1 ring-current'
-                      : 'opacity-60 hover:opacity-100')
-                  }
-                >
-                  {m === 'KOSPI' ? '코스피' : '코스닥'}
-                </button>
-              ))}
-            </div>
-          </div>
-          {loading ? (
-            <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="h-14 rounded-md skeleton" />
-              ))}
-            </div>
-          ) : (sectorMarket === 'KOSPI' ? kospiSectors : kosdaqSectors).length ===
-            0 ? (
-            <div
-              className="mt-3 text-sm"
-              style={{ color: 'var(--muted)' }}
-            >
-              데이터가 없습니다.
-              {!kisEnabled ? ' KIS 자격증명 등록이 필요합니다.' : ''}
-            </div>
-          ) : (() => {
-            // 히트맵: 등락률 크기에 따라 배경 강도 조절
-            const list = sectorMarket === 'KOSPI' ? kospiSectors : kosdaqSectors
-            const maxAbs = Math.max(
-              0.5,
-              ...list.map((s) => Math.abs(s.changeRate ?? 0))
-            )
-            return (
-              <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {list.map((s) => {
-                  const rate = s.changeRate ?? 0
-                  const intensity = Math.min(1, Math.abs(rate) / maxAbs)
-                  const hue =
-                    rate > 0
-                      ? 'rgba(239, 68, 68, INTENSITY)' // red
-                      : rate < 0
-                        ? 'rgba(59, 130, 246, INTENSITY)' // blue
-                        : 'rgba(128, 128, 128, INTENSITY)'
-                  const bg = hue.replace(
-                    'INTENSITY',
-                    (intensity * 0.22).toFixed(3)
-                  )
-                  const border = hue.replace(
-                    'INTENSITY',
-                    (0.25 + intensity * 0.35).toFixed(3)
-                  )
-                  return (
-                    <div
-                      key={`${sectorMarket}-${s.code}-${s.name}`}
-                      className="rounded-md p-3 transition-colors"
-                      style={{
-                        background: bg,
-                        border: `1px solid ${border}`,
-                      }}
-                    >
-                      <div
-                        className="text-xs truncate font-semibold"
-                        style={{ color: 'var(--foreground)' }}
-                      >
-                        {s.name || s.code}
-                      </div>
-                      <div className="mt-1 flex items-baseline justify-between gap-2">
-                        <div className="text-lg font-extrabold">
-                          {fmtIndex(s.price)}
-                        </div>
-                        <div
-                          className={
-                            'text-sm font-bold ' + rateColor(s.changeRate)
-                          }
-                        >
-                          {fmtRate(s.changeRate)}
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )
-          })()}
-          <p className="mt-2 text-xs" style={{ color: 'var(--muted)' }}>
-            히트맵 — 등락률 절대값이 클수록 진한 색.
-          </p>
-        </div>
-
         {/* 좌측 랭킹 + 우측 내 자산 */}
         <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
           {/* 랭킹 */}
@@ -1412,6 +1311,107 @@ export default function MarketClient() {
               </div>
             )}
           </div>
+        </div>
+
+        {/* 업종별 지수 */}
+        <div className="surface card-pad card-hover-border-only">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="font-extrabold">업종별 지수</div>
+            <div className="flex gap-1">
+              {(['KOSPI', 'KOSDAQ'] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setSectorMarket(m)}
+                  className={
+                    'rounded-md px-3 py-1 text-xs font-semibold ' +
+                    (sectorMarket === m
+                      ? 'bg-current/10 ring-1 ring-current'
+                      : 'opacity-60 hover:opacity-100')
+                  }
+                >
+                  {m === 'KOSPI' ? '코스피' : '코스닥'}
+                </button>
+              ))}
+            </div>
+          </div>
+          {loading ? (
+            <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="h-14 rounded-md skeleton" />
+              ))}
+            </div>
+          ) : (sectorMarket === 'KOSPI' ? kospiSectors : kosdaqSectors).length ===
+            0 ? (
+            <div
+              className="mt-3 text-sm"
+              style={{ color: 'var(--muted)' }}
+            >
+              데이터가 없습니다.
+              {!kisEnabled ? ' KIS 자격증명 등록이 필요합니다.' : ''}
+            </div>
+          ) : (() => {
+            // 히트맵: 등락률 크기에 따라 배경 강도 조절
+            const list = sectorMarket === 'KOSPI' ? kospiSectors : kosdaqSectors
+            const maxAbs = Math.max(
+              0.5,
+              ...list.map((s) => Math.abs(s.changeRate ?? 0))
+            )
+            return (
+              <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {list.map((s) => {
+                  const rate = s.changeRate ?? 0
+                  const intensity = Math.min(1, Math.abs(rate) / maxAbs)
+                  const hue =
+                    rate > 0
+                      ? 'rgba(239, 68, 68, INTENSITY)' // red
+                      : rate < 0
+                        ? 'rgba(59, 130, 246, INTENSITY)' // blue
+                        : 'rgba(128, 128, 128, INTENSITY)'
+                  const bg = hue.replace(
+                    'INTENSITY',
+                    (intensity * 0.22).toFixed(3)
+                  )
+                  const border = hue.replace(
+                    'INTENSITY',
+                    (0.25 + intensity * 0.35).toFixed(3)
+                  )
+                  return (
+                    <div
+                      key={`${sectorMarket}-${s.code}-${s.name}`}
+                      className="rounded-md p-3 transition-colors"
+                      style={{
+                        background: bg,
+                        border: `1px solid ${border}`,
+                      }}
+                    >
+                      <div
+                        className="text-xs truncate font-semibold"
+                        style={{ color: 'var(--foreground)' }}
+                      >
+                        {s.name || s.code}
+                      </div>
+                      <div className="mt-1 flex items-baseline justify-between gap-2">
+                        <div className="text-lg font-extrabold">
+                          {fmtIndex(s.price)}
+                        </div>
+                        <div
+                          className={
+                            'text-sm font-bold ' + rateColor(s.changeRate)
+                          }
+                        >
+                          {fmtRate(s.changeRate)}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })()}
+          <p className="mt-2 text-xs" style={{ color: 'var(--muted)' }}>
+            히트맵 — 등락률 절대값이 클수록 진한 색.
+          </p>
         </div>
 
         {/* VI 발동 종목 + 시장 투자자 매매동향 */}

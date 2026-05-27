@@ -232,6 +232,7 @@ export default function MarketClient() {
       name: string
       price?: number | null
       changeRate?: number | null
+      decimals?: number // 해외 종목용 (소수점 자리수); 국내는 0
     }>
   >([])
   const [etfs, setEtfs] = useState<EtfQuote[]>([])
@@ -322,12 +323,37 @@ export default function MarketClient() {
                   const pc = j.prevClose ?? null
                   const rate =
                     p !== null && pc && pc !== 0 ? ((p - pc) / pc) * 100 : null
-                  return { ...w, price: p, changeRate: rate }
+                  return { ...w, price: p, changeRate: rate, decimals: 0 }
+                }
+              } else {
+                // 해외: KIS overseas quote
+                const pairs = `${w.market}:${w.symbol}`
+                const qr = await fetch(
+                  `/api/kis/overseas?pairs=${encodeURIComponent(pairs)}`,
+                  { cache: 'no-store' }
+                )
+                if (qr.ok) {
+                  const j = (await qr.json()) as {
+                    items: Array<{
+                      price?: number | null
+                      changeRate?: number | null
+                      decimals?: number
+                    }>
+                  }
+                  const item = j.items[0]
+                  if (item) {
+                    return {
+                      ...w,
+                      price: item.price ?? null,
+                      changeRate: item.changeRate ?? null,
+                      decimals: item.decimals ?? 2,
+                    }
+                  }
                 }
               }
-              return { ...w, price: null, changeRate: null }
+              return { ...w, price: null, changeRate: null, decimals: 0 }
             } catch {
-              return { ...w, price: null, changeRate: null }
+              return { ...w, price: null, changeRate: null, decimals: 0 }
             }
           })
         )
@@ -751,41 +777,66 @@ export default function MarketClient() {
               </span>
             </div>
             <div className="mt-3 grid gap-2 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
-              {watchlist.map((w) => (
-                <button
-                  key={w.id}
-                  type="button"
-                  onClick={() => {
-                    if (w.market === 'KR' && /^\d{6}$/.test(w.symbol)) {
-                      setActiveStock({ code: w.symbol, name: w.name })
-                    }
-                  }}
-                  className="card p-2 card-hover-border-only text-left"
-                >
-                  <div
-                    className="text-xs truncate font-semibold"
-                    style={{ color: 'var(--foreground)' }}
-                    title={w.name}
-                  >
-                    {w.name}
-                  </div>
-                  <div className="mt-1 flex items-baseline justify-between gap-1">
-                    <div className="text-sm font-bold">
-                      {w.price !== null && w.price !== undefined
-                        ? fmtKRW(w.price)
-                        : '—'}
-                    </div>
-                    <div
-                      className={
-                        'text-xs font-semibold ' +
-                        rateColor(w.changeRate ?? null)
+              {watchlist.map((w) => {
+                // market='KR' 이면 무조건 KR 모달로 — symbol 정규식 검사 안 함
+                // (신규 상장/우선주 등 6자리 외 변형도 모달이 직접 처리하게)
+                const isKr = w.market === 'KR'
+                const priceText =
+                  w.price !== null && w.price !== undefined
+                    ? isKr
+                      ? fmtKRW(w.price)
+                      : w.price.toLocaleString('en-US', {
+                          minimumFractionDigits: w.decimals ?? 2,
+                          maximumFractionDigits: w.decimals ?? 2,
+                        })
+                    : '—'
+                return (
+                  <button
+                    key={w.id}
+                    type="button"
+                    onClick={() => {
+                      if (isKr) {
+                        setActiveStock({ code: w.symbol, name: w.name })
+                      } else {
+                        // 해외: market 필드가 exchange (NAS, NYS, AMS 등)
+                        setActiveOverseas({
+                          exchange: w.market,
+                          symbol: w.symbol,
+                          name: w.name,
+                        })
                       }
+                    }}
+                    className="card p-2 card-hover-border-only text-left"
+                  >
+                    <div
+                      className="text-xs truncate font-semibold"
+                      style={{ color: 'var(--foreground)' }}
+                      title={w.name}
                     >
-                      {fmtRate(w.changeRate ?? null)}
+                      {w.name}
                     </div>
-                  </div>
-                </button>
-              ))}
+                    <div className="mt-1 flex items-baseline justify-between gap-1">
+                      <div className="text-sm font-bold">{priceText}</div>
+                      <div
+                        className={
+                          'text-xs font-semibold ' +
+                          rateColor(w.changeRate ?? null)
+                        }
+                      >
+                        {fmtRate(w.changeRate ?? null)}
+                      </div>
+                    </div>
+                    {!isKr && (
+                      <div
+                        className="mt-0.5 text-[10px]"
+                        style={{ color: 'var(--muted)' }}
+                      >
+                        {w.market} · {w.symbol}
+                      </div>
+                    )}
+                  </button>
+                )
+              })}
             </div>
           </div>
         )}
@@ -974,107 +1025,6 @@ export default function MarketClient() {
               )
             })}
           </div>
-        </div>
-
-        {/* 업종별 지수 */}
-        <div className="surface card-pad card-hover-border-only">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="font-extrabold">업종별 지수</div>
-            <div className="flex gap-1">
-              {(['KOSPI', 'KOSDAQ'] as const).map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => setSectorMarket(m)}
-                  className={
-                    'rounded-md px-3 py-1 text-xs font-semibold ' +
-                    (sectorMarket === m
-                      ? 'bg-current/10 ring-1 ring-current'
-                      : 'opacity-60 hover:opacity-100')
-                  }
-                >
-                  {m === 'KOSPI' ? '코스피' : '코스닥'}
-                </button>
-              ))}
-            </div>
-          </div>
-          {loading ? (
-            <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="h-14 rounded-md skeleton" />
-              ))}
-            </div>
-          ) : (sectorMarket === 'KOSPI' ? kospiSectors : kosdaqSectors).length ===
-            0 ? (
-            <div
-              className="mt-3 text-sm"
-              style={{ color: 'var(--muted)' }}
-            >
-              데이터가 없습니다.
-              {!kisEnabled ? ' KIS 자격증명 등록이 필요합니다.' : ''}
-            </div>
-          ) : (() => {
-            // 히트맵: 등락률 크기에 따라 배경 강도 조절
-            const list = sectorMarket === 'KOSPI' ? kospiSectors : kosdaqSectors
-            const maxAbs = Math.max(
-              0.5,
-              ...list.map((s) => Math.abs(s.changeRate ?? 0))
-            )
-            return (
-              <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {list.map((s) => {
-                  const rate = s.changeRate ?? 0
-                  const intensity = Math.min(1, Math.abs(rate) / maxAbs)
-                  const hue =
-                    rate > 0
-                      ? 'rgba(239, 68, 68, INTENSITY)' // red
-                      : rate < 0
-                        ? 'rgba(59, 130, 246, INTENSITY)' // blue
-                        : 'rgba(128, 128, 128, INTENSITY)'
-                  const bg = hue.replace(
-                    'INTENSITY',
-                    (intensity * 0.22).toFixed(3)
-                  )
-                  const border = hue.replace(
-                    'INTENSITY',
-                    (0.25 + intensity * 0.35).toFixed(3)
-                  )
-                  return (
-                    <div
-                      key={`${sectorMarket}-${s.code}-${s.name}`}
-                      className="rounded-md p-3 transition-colors"
-                      style={{
-                        background: bg,
-                        border: `1px solid ${border}`,
-                      }}
-                    >
-                      <div
-                        className="text-xs truncate font-semibold"
-                        style={{ color: 'var(--foreground)' }}
-                      >
-                        {s.name || s.code}
-                      </div>
-                      <div className="mt-1 flex items-baseline justify-between gap-2">
-                        <div className="text-lg font-extrabold">
-                          {fmtIndex(s.price)}
-                        </div>
-                        <div
-                          className={
-                            'text-sm font-bold ' + rateColor(s.changeRate)
-                          }
-                        >
-                          {fmtRate(s.changeRate)}
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )
-          })()}
-          <p className="mt-2 text-xs" style={{ color: 'var(--muted)' }}>
-            히트맵 — 등락률 절대값이 클수록 진한 색.
-          </p>
         </div>
 
         {/* 좌측 랭킹 + 우측 내 자산 */}
@@ -1361,6 +1311,107 @@ export default function MarketClient() {
               </div>
             )}
           </div>
+        </div>
+
+        {/* 업종별 지수 */}
+        <div className="surface card-pad card-hover-border-only">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="font-extrabold">업종별 지수</div>
+            <div className="flex gap-1">
+              {(['KOSPI', 'KOSDAQ'] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setSectorMarket(m)}
+                  className={
+                    'rounded-md px-3 py-1 text-xs font-semibold ' +
+                    (sectorMarket === m
+                      ? 'bg-current/10 ring-1 ring-current'
+                      : 'opacity-60 hover:opacity-100')
+                  }
+                >
+                  {m === 'KOSPI' ? '코스피' : '코스닥'}
+                </button>
+              ))}
+            </div>
+          </div>
+          {loading ? (
+            <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="h-14 rounded-md skeleton" />
+              ))}
+            </div>
+          ) : (sectorMarket === 'KOSPI' ? kospiSectors : kosdaqSectors).length ===
+            0 ? (
+            <div
+              className="mt-3 text-sm"
+              style={{ color: 'var(--muted)' }}
+            >
+              데이터가 없습니다.
+              {!kisEnabled ? ' KIS 자격증명 등록이 필요합니다.' : ''}
+            </div>
+          ) : (() => {
+            // 히트맵: 등락률 크기에 따라 배경 강도 조절
+            const list = sectorMarket === 'KOSPI' ? kospiSectors : kosdaqSectors
+            const maxAbs = Math.max(
+              0.5,
+              ...list.map((s) => Math.abs(s.changeRate ?? 0))
+            )
+            return (
+              <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {list.map((s) => {
+                  const rate = s.changeRate ?? 0
+                  const intensity = Math.min(1, Math.abs(rate) / maxAbs)
+                  const hue =
+                    rate > 0
+                      ? 'rgba(239, 68, 68, INTENSITY)' // red
+                      : rate < 0
+                        ? 'rgba(59, 130, 246, INTENSITY)' // blue
+                        : 'rgba(128, 128, 128, INTENSITY)'
+                  const bg = hue.replace(
+                    'INTENSITY',
+                    (intensity * 0.22).toFixed(3)
+                  )
+                  const border = hue.replace(
+                    'INTENSITY',
+                    (0.25 + intensity * 0.35).toFixed(3)
+                  )
+                  return (
+                    <div
+                      key={`${sectorMarket}-${s.code}-${s.name}`}
+                      className="rounded-md p-3 transition-colors"
+                      style={{
+                        background: bg,
+                        border: `1px solid ${border}`,
+                      }}
+                    >
+                      <div
+                        className="text-xs truncate font-semibold"
+                        style={{ color: 'var(--foreground)' }}
+                      >
+                        {s.name || s.code}
+                      </div>
+                      <div className="mt-1 flex items-baseline justify-between gap-2">
+                        <div className="text-lg font-extrabold">
+                          {fmtIndex(s.price)}
+                        </div>
+                        <div
+                          className={
+                            'text-sm font-bold ' + rateColor(s.changeRate)
+                          }
+                        >
+                          {fmtRate(s.changeRate)}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })()}
+          <p className="mt-2 text-xs" style={{ color: 'var(--muted)' }}>
+            히트맵 — 등락률 절대값이 클수록 진한 색.
+          </p>
         </div>
 
         {/* VI 발동 종목 + 시장 투자자 매매동향 */}

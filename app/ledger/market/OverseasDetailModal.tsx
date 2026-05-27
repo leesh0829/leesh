@@ -100,6 +100,7 @@ export default function OverseasDetailModal({
   const [period, setPeriod] = useState<Tab>('D')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [watched, setWatched] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -158,6 +159,33 @@ export default function OverseasDetailModal({
     }
   }, [target.exchange, target.symbol, period])
 
+  // 관심종목 여부 조회 — 종목 변경 시
+  useEffect(() => {
+    let cancelled = false
+    async function loadWatched() {
+      try {
+        const r = await fetch('/api/watchlist', { cache: 'no-store' })
+        if (cancelled) return
+        if (r.ok) {
+          const j = (await r.json()) as {
+            items: Array<{ market: string; symbol: string }>
+          }
+          setWatched(
+            j.items.some(
+              (x) => x.market === target.exchange && x.symbol === target.symbol
+            )
+          )
+        }
+      } catch {
+        // ignore
+      }
+    }
+    void loadWatched()
+    return () => {
+      cancelled = true
+    }
+  }, [target.exchange, target.symbol])
+
   const decimals = useMemo(
     () => quote?.decimals ?? daily?.decimals ?? 2,
     [quote, daily]
@@ -179,6 +207,39 @@ export default function OverseasDetailModal({
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                if (watched) {
+                  await fetch(
+                    `/api/watchlist?market=${encodeURIComponent(target.exchange)}&symbol=${encodeURIComponent(target.symbol)}`,
+                    { method: 'DELETE' }
+                  )
+                  setWatched(false)
+                } else {
+                  await fetch('/api/watchlist', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      market: target.exchange,
+                      symbol: target.symbol,
+                      name: target.name,
+                    }),
+                  })
+                  setWatched(true)
+                }
+              } catch {
+                // ignore
+              }
+            }}
+            className={
+              'btn text-xs ' + (watched ? 'btn-primary' : 'btn-outline')
+            }
+            title={watched ? '관심종목에서 제거' : '관심종목 추가'}
+          >
+            {watched ? '★ 관심' : '☆ 관심'}
+          </button>
           {!isPage && (
             <a
               href={`/ledger/market/overseas/${encodeURIComponent(target.exchange)}/${encodeURIComponent(target.symbol)}?name=${encodeURIComponent(target.name)}`}

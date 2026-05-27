@@ -1069,26 +1069,48 @@ export default function LedgerClient() {
                           </option>
                         ))}
                       </select>
-                      {hoTotalsAccountId !== 'ALL' ? (
+                      {/* 내역 필터 동기화 / 해제 토글
+                          - 상단=특정 계좌: 🔗 (그 계좌로 필터 동기화)
+                          - 상단=전체이지만 필터=특정 계좌: ✕ (필터 전체로 해제)
+                          - 둘 다 전체: 버튼 숨김 */}
+                      {(hoTotalsAccountId !== 'ALL' ||
+                        filterAccount !== 'ALL') ? (
                         <button
                           type="button"
                           className="btn btn-outline"
                           style={{ padding: '2px 6px', fontSize: '11px', lineHeight: 1.2 }}
                           onClick={() => {
-                            setFilterAccount(hoTotalsAccountId)
-                            setFilterOpen(true)
-                            // 내역 영역으로 부드럽게 스크롤
-                            window.requestAnimationFrame(() => {
-                              const el = document.getElementById(
-                                'ledger-entries-list'
-                              )
-                              el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                            })
+                            if (hoTotalsAccountId === 'ALL') {
+                              // 상단 전체 → 필터 해제
+                              setFilterAccount('ALL')
+                            } else {
+                              // 상단 특정 계좌 → 그 계좌로 필터 동기화
+                              setFilterAccount(hoTotalsAccountId)
+                              setFilterOpen(true)
+                              // 내역 영역으로 부드럽게 스크롤
+                              window.requestAnimationFrame(() => {
+                                const el = document.getElementById(
+                                  'ledger-entries-list'
+                                )
+                                el?.scrollIntoView({
+                                  behavior: 'smooth',
+                                  block: 'start',
+                                })
+                              })
+                            }
                           }}
-                          title="이 계좌로 아래 내역 필터를 동기화"
-                          aria-label="이 계좌로 내역 필터 동기화"
+                          title={
+                            hoTotalsAccountId === 'ALL'
+                              ? '내역 필터를 전체 계좌로 초기화'
+                              : '이 계좌로 아래 내역 필터를 동기화'
+                          }
+                          aria-label={
+                            hoTotalsAccountId === 'ALL'
+                              ? '내역 필터 전체로 초기화'
+                              : '이 계좌로 내역 필터 동기화'
+                          }
                         >
-                          🔗
+                          {hoTotalsAccountId === 'ALL' ? '✕' : '🔗'}
                         </button>
                       ) : null}
                     </div>

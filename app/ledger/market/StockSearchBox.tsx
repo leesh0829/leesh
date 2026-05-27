@@ -12,8 +12,33 @@ export type SearchHit = {
 
 // Naver의 reutersCode를 KIS 6자리 코드로 변환
 function toKrCode(symbol: string): string | null {
-  const cleaned = symbol.trim().replace(/\.KS$/i, '').replace(/\.KQ$/i, '')
-  return /^\d{6}$/.test(cleaned) ? cleaned : null
+  const cleaned = symbol
+    .trim()
+    .replace(/\.KS$/i, '')
+    .replace(/\.KQ$/i, '')
+    .replace(/\.KN$/i, '') // KONEX
+  // 표준 6자리
+  if (/^\d{6}$/.test(cleaned)) return cleaned
+  // 길이가 다른 경우 (신규 상장/우선주 등) — 숫자만 추출해 6자리면 OK
+  const digits = cleaned.replace(/\D/g, '')
+  if (/^\d{6}$/.test(digits)) return digits
+  return null
+}
+
+// SearchHit 전체를 보고 KR 종목 코드 판정 (currency/exchange 힌트도 활용)
+function detectKrCode(item: SearchHit): string | null {
+  const direct = toKrCode(item.symbol)
+  if (direct) return direct
+  // currency가 KRW 또는 exchange에 KOSPI/KOSDAQ/KONEX 포함이면 KR로 보고
+  // 숫자 6자리를 다시 추출 시도
+  const krw =
+    item.currency === 'KRW' ||
+    /(KOSPI|KOSDAQ|KONEX|KRX)/i.test(item.exchange ?? '')
+  if (krw) {
+    const digits = item.symbol.replace(/\D/g, '')
+    if (/^\d{6}$/.test(digits)) return digits
+  }
+  return null
 }
 
 // Reuters 코드 → KIS 해외 거래소/심볼 매핑
@@ -112,7 +137,7 @@ export default function StockSearchBox({
   function selectItem(item: SearchHit) {
     setOpen(false)
     setQ('')
-    const kr = toKrCode(item.symbol)
+    const kr = detectKrCode(item)
     if (kr) {
       onSelectKr(kr, item.name)
       return

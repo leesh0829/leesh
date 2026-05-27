@@ -778,7 +778,9 @@ export default function MarketClient() {
             </div>
             <div className="mt-3 grid gap-2 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
               {watchlist.map((w) => {
-                const isKr = w.market === 'KR' && /^\d{6}$/.test(w.symbol)
+                // market='KR' 이면 무조건 KR 모달로 — symbol 정규식 검사 안 함
+                // (신규 상장/우선주 등 6자리 외 변형도 모달이 직접 처리하게)
+                const isKr = w.market === 'KR'
                 const priceText =
                   w.price !== null && w.price !== undefined
                     ? isKr

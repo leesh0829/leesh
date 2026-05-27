@@ -617,6 +617,51 @@ export default function StockDetailModal({
           </button>
         </div>
 
+        {/* KIS 데이터 미제공 안내 — 신규 상장/거래정지/특수 종목 */}
+        {!loading &&
+          !orderbook &&
+          !meta &&
+          financial.length === 0 &&
+          minutes === null && (
+            <div
+              className="mt-3 card p-3 card-hover-border-only text-sm"
+              style={{
+                borderColor: 'rgba(245, 158, 11, 0.4)',
+                background: 'rgba(245, 158, 11, 0.08)',
+              }}
+            >
+              <div className="font-semibold">
+                ⚠ 이 종목의 KIS API 정보를 가져올 수 없습니다
+              </div>
+              <p
+                className="mt-1 text-xs leading-relaxed"
+                style={{ color: 'var(--muted)' }}
+              >
+                신규 상장(상장일 ~ 1~2거래일), 거래정지, 우선주·전환사채 등
+                특수 종목은 일부/전체 데이터가 제공되지 않을 수 있습니다.
+                네이버 금융에서 직접 확인해보세요.
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <a
+                  href={`https://m.stock.naver.com/domestic/stock/${encodeURIComponent(target.code)}/total`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-outline text-xs"
+                >
+                  네이버 증권 ↗
+                </a>
+                <a
+                  href={`https://finance.naver.com/item/main.naver?code=${encodeURIComponent(target.code)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-outline text-xs"
+                >
+                  네이버 PC ↗
+                </a>
+              </div>
+            </div>
+          )}
+
         {/* 현재가 요약 */}
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
           <div className="card p-3 card-hover-border-only">

@@ -4,6 +4,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import { toISOStringSafe } from '@/app/lib/date'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import remarkBreaks from 'remark-breaks'
 import rehypeHighlight from 'rehype-highlight'
 import rehypeRaw from 'rehype-raw'
 import BlogCommentsClient from '@/app/blog/[slug]/BlogCommentsClient'
@@ -196,7 +197,7 @@ export default async function DocsDetailPage({
                 <article className="card card-pad min-w-0 card-hover-border-only">
                   <div className="markdown-body">
                     <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
+                      remarkPlugins={[remarkGfm, remarkBreaks]}
                       rehypePlugins={[rehypeRaw, rehypeHighlight]}
                       components={{
                         h1: headingComponent('h1'),

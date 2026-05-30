@@ -46,7 +46,7 @@ export const EXPENSE_CATEGORIES: CategorySpec[] = [
   {
     key: '주거',
     label: '주거',
-    subcategories: ['월세', '대출이자', '관리비', '기타'],
+    subcategories: ['월세', '대출이자', '관리비', '부모님 생활비', '기타'],
   },
   {
     key: '통신',
@@ -56,7 +56,7 @@ export const EXPENSE_CATEGORIES: CategorySpec[] = [
   {
     key: '보험',
     label: '보험',
-    subcategories: ['실손보험', '생명보험', '자동차 보험', '기타'],
+    subcategories: ['실손보험', '생명보험', '자동차 보험', '기기 보험', '기타'],
   },
   {
     key: '구독',
@@ -72,12 +72,12 @@ export const EXPENSE_CATEGORIES: CategorySpec[] = [
   {
     key: '식비',
     label: '식비',
-    subcategories: ['식재료', '외식', '배달', '카페/간식', '기타'],
+    subcategories: ['식재료', '외식', '배달', '카페/간식', '주류', '편의점', '기타'],
   },
   {
     key: '생활',
     label: '생활',
-    subcategories: ['생필품', '편의점', '잡화', '기타'],
+    subcategories: ['생필품', '잡화', '기타'],
   },
   {
     key: '쇼핑',

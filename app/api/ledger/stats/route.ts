@@ -153,6 +153,9 @@ export async function GET(req: Request) {
   // 0=Sun ... 6=Sat
   const byWeekday: Array<{ income: number; expense: number; count: number }> =
     Array.from({ length: 7 }, () => ({ income: 0, expense: 0, count: 0 }))
+  // 0h ... 23h (서버 로컬 타임존 — byDay/byWeekday와 동일 규약)
+  const byHour: Array<{ income: number; expense: number; count: number }> =
+    Array.from({ length: 24 }, () => ({ income: 0, expense: 0, count: 0 }))
   // 카테고리 → 소분류 → 합계
   const bySubcategoryIncome = new Map<string, Map<string, number>>()
   const bySubcategoryExpense = new Map<string, Map<string, number>>()
@@ -231,6 +234,13 @@ export async function GET(req: Request) {
     else we.expense += r.amount
     we.count += 1
 
+    // 시간별 (0h~23h)
+    const hr = d.getHours()
+    const he = byHour[hr]
+    if (r.type === 'INCOME') he.income += r.amount
+    else he.expense += r.amount
+    he.count += 1
+
     // 소분류별 (카테고리 → 소분류)
     const subMap = r.type === 'INCOME' ? bySubcategoryIncome : bySubcategoryExpense
     const sub = r.subcategory ?? '(소분류 없음)'
@@ -269,6 +279,14 @@ export async function GET(req: Request) {
   // 요일별
   const byWeekdayArr = byWeekday.map((v, i) => ({
     weekday: i,
+    income: v.income,
+    expense: v.expense,
+    count: v.count,
+  }))
+
+  // 시간별
+  const byHourArr = byHour.map((v, i) => ({
+    hour: i,
     income: v.income,
     expense: v.expense,
     count: v.count,
@@ -429,6 +447,7 @@ export async function GET(req: Request) {
     byMonth: byMonthArr,
     byDay: byDayArr,
     byWeekday: byWeekdayArr,
+    byHour: byHourArr,
     topIncome,
     topExpense,
     categoryDiffIncome,

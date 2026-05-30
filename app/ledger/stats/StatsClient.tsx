@@ -33,6 +33,12 @@ type WeekdayAgg = {
   expense: number
   count: number
 }
+type HourAgg = {
+  hour: number
+  income: number
+  expense: number
+  count: number
+}
 type SubcategoryAgg = {
   category: string
   subcategories: { subcategory: string; total: number }[]
@@ -72,6 +78,7 @@ type StatsResponse = {
   byMonth: MonthAgg[]
   byDay: DayAgg[]
   byWeekday: WeekdayAgg[]
+  byHour: HourAgg[]
   topIncome: TopTransaction[]
   topExpense: TopTransaction[]
   categoryDiffIncome: CategoryDiff[] | null
@@ -210,6 +217,7 @@ export default function StatsClient() {
   const byMonth = useMemo(() => data?.byMonth ?? [], [data])
   const byDay = useMemo(() => data?.byDay ?? [], [data])
   const byWeekday = useMemo(() => data?.byWeekday ?? [], [data])
+  const byHour = useMemo(() => data?.byHour ?? [], [data])
   const bySubcategoryIncome = useMemo(
     () => data?.bySubcategoryIncome ?? [],
     [data]
@@ -610,6 +618,20 @@ export default function StatsClient() {
                   style={{ color: 'var(--muted)' }}
                 >
                   요일마다 거래 발생 횟수가 다르므로 평균(건당)으로 비교
+                </p>
+              </div>
+            )}
+
+            {/* 시간별 패턴 (0h~23h) */}
+            {byHour.some((h) => h.count > 0) && (
+              <div className="surface card-pad card-hover-border-only">
+                <div className="font-extrabold">시간별 패턴</div>
+                <HourBarChart data={byHour} />
+                <p
+                  className="mt-2 text-xs"
+                  style={{ color: 'var(--muted)' }}
+                >
+                  거래가 기록된 시각(occurredAt) 기준 0시~23시 — 합계 + 건수
                 </p>
               </div>
             )}
@@ -1879,6 +1901,127 @@ function WeekdayBarChart({ data }: { data: WeekdayAgg[] }) {
             <span className="ml-1" style={{ color: 'var(--muted)' }}>
               (합 {formatKRW(hovered.expense)})
             </span>
+          </div>
+        </>
+      )}
+    </ChartTooltip>
+    </div>
+  )
+}
+
+function HourBarChart({ data }: { data: HourAgg[] }) {
+  const stats = data.map((d) => ({
+    hour: d.hour,
+    income: d.income,
+    expense: d.expense,
+    count: d.count,
+  }))
+  const max = Math.max(
+    ...stats.map((s) => Math.max(s.income, s.expense)),
+    1
+  )
+  const W = 720
+  const H = 200
+  const padL = 30
+  const padR = 8
+  const padT = 12
+  const padB = 24
+  const innerW = W - padL - padR
+  const innerH = H - padT - padB
+  const slot = innerW / 24
+  const barW = Math.max(1, (slot - 2) / 2)
+  const { ref, pos, hovered, onMove, onLeave, show } = useChartHover<
+    (typeof stats)[number]
+  >()
+  return (
+    <div
+      ref={ref}
+      className="relative"
+      onMouseMove={onMove}
+      onMouseLeave={onLeave}
+    >
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} className="block">
+      {stats.map((s, i) => {
+        const cx = padL + slot * i + slot / 2
+        const incH = (s.income / max) * innerH
+        const expH = (s.expense / max) * innerH
+        const baseY = padT + innerH
+        return (
+          <g key={i}>
+            <rect
+              x={padL + slot * i}
+              y={padT}
+              width={slot}
+              height={innerH}
+              fill="transparent"
+              onMouseEnter={() => show(s)}
+            />
+            <rect
+              x={cx - barW - 0.5}
+              y={baseY - incH}
+              width={barW}
+              height={incH}
+              fill="#10b981"
+            />
+            <rect
+              x={cx + 0.5}
+              y={baseY - expH}
+              width={barW}
+              height={expH}
+              fill="#ef4444"
+            />
+            {/* 3시간 간격 라벨 (0, 3, 6, ..., 21) */}
+            {i % 3 === 0 && (
+              <text
+                x={cx}
+                y={H - 6}
+                fontSize={10}
+                fill="currentColor"
+                opacity={0.7}
+                fontWeight={600}
+                textAnchor="middle"
+              >
+                {i}시
+              </text>
+            )}
+          </g>
+        )
+      })}
+      {/* y axis labels */}
+      <text
+        x={padL - 4}
+        y={padT + 12}
+        fontSize={10}
+        fill="currentColor"
+        opacity={0.55}
+        textAnchor="end"
+      >
+        {Math.round(max / 10000)}만
+      </text>
+      <text
+        x={padL - 4}
+        y={padT + innerH - 2}
+        fontSize={10}
+        fill="currentColor"
+        opacity={0.55}
+        textAnchor="end"
+      >
+        0
+      </text>
+    </svg>
+    <ChartTooltip pos={pos} visible={!!hovered}>
+      {hovered && (
+        <>
+          <div className="font-bold mb-0.5">
+            {String(hovered.hour).padStart(2, '0')}:00 ~{' '}
+            {String((hovered.hour + 1) % 24).padStart(2, '0')}:00
+          </div>
+          <div style={{ color: 'var(--muted)' }}>{hovered.count}건</div>
+          <div className="text-emerald-500">
+            수입 {formatKRW(hovered.income)}
+          </div>
+          <div className="text-red-500">
+            지출 {formatKRW(hovered.expense)}
           </div>
         </>
       )}

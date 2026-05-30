@@ -11,6 +11,7 @@ type LedgerItem = {
   description: string
   category: string
   subcategory: string | null
+  accountId: string | null
   accountName: string | null
   excludeFromTotals: boolean
   linkedToHolding?: boolean
@@ -72,6 +73,9 @@ export default function LedgerCalendarClient() {
   const [items, setItems] = useState<LedgerItem[]>([])
   const [loading, setLoading] = useState(true)
   const [openDay, setOpenDay] = useState<DayCell | null>(null)
+  // 필터: 'ALL' | 'NONE'(계좌 미연결) | accountId  /  'ALL' | category
+  const [filterAccount, setFilterAccount] = useState<string>('ALL')
+  const [filterCategory, setFilterCategory] = useState<string>('ALL')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -104,10 +108,48 @@ export default function LedgerCalendarClient() {
     void load()
   }, [load])
 
+  // 필터 옵션 — items에서 추출 (현재 fetch 범위: 이전달~다음달)
+  const accountOptions = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const it of items) {
+      if (it.accountId && it.accountName) {
+        if (!map.has(it.accountId)) map.set(it.accountId, it.accountName)
+      }
+    }
+    return Array.from(map.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
+  }, [items])
+  const categoryOptions = useMemo(() => {
+    const set = new Set<string>()
+    for (const it of items) {
+      if (it.category) set.add(it.category)
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'ko'))
+  }, [items])
+
+  // 필터 적용 — 계좌·카테고리
+  const filteredItems = useMemo(() => {
+    let arr = items
+    if (filterAccount !== 'ALL') {
+      if (filterAccount === 'NONE') {
+        arr = arr.filter((it) => !it.accountId)
+      } else {
+        arr = arr.filter((it) => it.accountId === filterAccount)
+      }
+    }
+    if (filterCategory !== 'ALL') {
+      arr = arr.filter((it) => it.category === filterCategory)
+    }
+    return arr
+  }, [items, filterAccount, filterCategory])
+
+  const filterActive = filterAccount !== 'ALL' || filterCategory !== 'ALL'
+
   // 일별 그룹핑
   const dayMap = useMemo(() => {
     const map = new Map<string, LedgerItem[]>()
-    for (const it of items) {
+    for (const it of filteredItems) {
       const d = new Date(it.occurredAt)
       const key = toDateKey(d)
       const arr = map.get(key) ?? []
@@ -115,7 +157,7 @@ export default function LedgerCalendarClient() {
       map.set(key, arr)
     }
     return map
-  }, [items])
+  }, [filteredItems])
 
   // 달력 셀
   const cells = useMemo<DayCell[]>(() => {
@@ -268,6 +310,49 @@ export default function LedgerCalendarClient() {
                 </span>
               </div>
             </div>
+          </div>
+
+          {/* 필터: 계좌 / 카테고리 */}
+          <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-center">
+            <select
+              className="input"
+              value={filterAccount}
+              onChange={(e) => setFilterAccount(e.target.value)}
+              aria-label="계좌 필터"
+            >
+              <option value="ALL">전체 계좌</option>
+              <option value="NONE">(계좌 미연결)</option>
+              {accountOptions.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
+            <select
+              className="input"
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              aria-label="카테고리 필터"
+            >
+              <option value="ALL">전체 카테고리</option>
+              {categoryOptions.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="btn btn-outline text-xs"
+              onClick={() => {
+                setFilterAccount('ALL')
+                setFilterCategory('ALL')
+              }}
+              disabled={!filterActive}
+              title="필터 초기화"
+            >
+              필터 초기화
+            </button>
           </div>
         </div>
 

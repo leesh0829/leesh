@@ -73,6 +73,14 @@ const DEFAULTS: PermissionRow[] = [
     visible: true,
   },
   {
+    key: 'diary',
+    label: '일기장',
+    path: '/diary',
+    requireLogin: true,
+    minRole: 'USER',
+    visible: true,
+  },
+  {
     key: 'ledger',
     label: '가계부',
     path: '/ledger',

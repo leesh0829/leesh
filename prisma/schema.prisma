@@ -51,6 +51,8 @@ model User {
   stockAlarms    StockAlarm[] @relation("StockAlarmOwner")
 
   budgetTargets BudgetTarget[] @relation("BudgetTargetOwner")
+
+  diaryEntries DiaryEntry[] @relation("DiaryEntryOwner")
 }
 
 model Account {
@@ -485,6 +487,22 @@ model BudgetTarget {
 
   @@index([ownerId, enabled])
   @@index([accountId])
+}
+
+// 일기장 — 계정별 일별 마크다운 메모 (공유 없음, 본인만 조회)
+model DiaryEntry {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation("DiaryEntryOwner", fields: [userId], references: [id], onDelete: Cascade)
+
+  date      String // "YYYY-MM-DD" (KST 기준 하루)
+  contentMd String @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, date])
 }
 
 model MenuPermission {

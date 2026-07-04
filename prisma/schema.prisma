@@ -122,6 +122,7 @@ model Post {
   priority  Int        @default(0)
   blogCategory     BlogPostCategory @default(INFO)
   reviewRatingHalf Int?
+  docsCategory     String?
 
   startAt DateTime?
   endAt   DateTime?

@@ -15,6 +15,7 @@ const updateDocsPostSchema = z
     regenerateSlug: z.boolean().optional().default(false),
     isSecret: z.boolean().optional(),
     secretPassword: z.union([z.string(), z.null()]).optional(),
+    docsCategory: z.union([z.string().trim().max(60), z.null()]).optional(),
   })
   .strict()
 
@@ -105,6 +106,10 @@ export async function PUT(
     } else if (secretPassword && secretPassword.length >= 4) {
       data.secretPasswordHash = await bcrypt.hash(secretPassword, 10)
     }
+  }
+
+  if (parsed.data.docsCategory !== undefined) {
+    data.docsCategory = parsed.data.docsCategory || null
   }
 
   const updated = await prisma.post.update({

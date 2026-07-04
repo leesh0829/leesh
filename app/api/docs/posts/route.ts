@@ -15,6 +15,7 @@ const createDocsPostSchema = z
     publish: z.boolean().optional().default(false),
     isSecret: z.boolean().optional().default(false),
     secretPassword: z.union([z.string(), z.null()]).optional(),
+    docsCategory: z.string().trim().max(60).optional(),
   })
   .strict()
   .superRefine((value, ctx) => {
@@ -99,6 +100,7 @@ export async function POST(req: Request) {
       secretPasswordHash,
       priority: 0,
       allDay: false,
+      docsCategory: parsed.data.docsCategory || null,
     },
     select: { id: true, slug: true },
   })

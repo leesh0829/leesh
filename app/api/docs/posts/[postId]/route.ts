@@ -16,6 +16,7 @@ const updateDocsPostSchema = z
     isSecret: z.boolean().optional(),
     secretPassword: z.union([z.string(), z.null()]).optional(),
     docsCategory: z.union([z.string().trim().max(60), z.null()]).optional(),
+    isSpoiler: z.boolean().optional(),
   })
   .strict()
 
@@ -110,6 +111,10 @@ export async function PUT(
 
   if (parsed.data.docsCategory !== undefined) {
     data.docsCategory = parsed.data.docsCategory || null
+  }
+
+  if (typeof parsed.data.isSpoiler === 'boolean') {
+    data.isSpoiler = parsed.data.isSpoiler
   }
 
   const updated = await prisma.post.update({

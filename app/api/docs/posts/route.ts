@@ -16,6 +16,7 @@ const createDocsPostSchema = z
     isSecret: z.boolean().optional().default(false),
     secretPassword: z.union([z.string(), z.null()]).optional(),
     docsCategory: z.string().trim().max(60).optional(),
+    isSpoiler: z.boolean().optional().default(false),
   })
   .strict()
   .superRefine((value, ctx) => {
@@ -101,6 +102,7 @@ export async function POST(req: Request) {
       priority: 0,
       allDay: false,
       docsCategory: parsed.data.docsCategory || null,
+      isSpoiler: parsed.data.isSpoiler,
     },
     select: { id: true, slug: true },
   })

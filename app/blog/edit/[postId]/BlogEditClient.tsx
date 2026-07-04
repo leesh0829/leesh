@@ -14,6 +14,7 @@ type EditPost = {
   blogCategory?: BlogPostType
   reviewRatingHalf?: number | null
   isSpoiler?: boolean
+  docsCategory?: string | null
 }
 
 /**
@@ -32,12 +33,14 @@ export default function BlogEditClient({
   detailBasePath = '/blog',
   listBasePath = '/blog',
   showBlogMeta = false,
+  showDocsCategory = false,
 }: {
   post: EditPost
   apiBasePath?: string
   detailBasePath?: string
   listBasePath?: string
   showBlogMeta?: boolean
+  showDocsCategory?: boolean
 }) {
   const [title, setTitle] = useState(post.title)
   const [contentMd, setContentMd] = useState(post.contentMd)
@@ -52,6 +55,7 @@ export default function BlogEditClient({
   )
   const [regenerateSlug, setRegenerateSlug] = useState(false)
   const [isSpoiler, setIsSpoiler] = useState(post.isSpoiler ?? false)
+  const [docsCategory, setDocsCategory] = useState(post.docsCategory ?? '')
   const [msg, setMsg] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -82,6 +86,9 @@ export default function BlogEditClient({
         publish,
         regenerateSlug,
         isSpoiler,
+        ...(showDocsCategory
+          ? { docsCategory: docsCategory.trim() || null }
+          : {}),
       }),
     })
 
@@ -205,6 +212,20 @@ export default function BlogEditClient({
               </p>
             )}
           </div>
+        </div>
+      ) : null}
+
+      {showDocsCategory ? (
+        <div className="grid gap-2">
+          <label className="text-sm font-medium">분류</label>
+          <input
+            className="input"
+            value={docsCategory}
+            onChange={(e) => setDocsCategory(e.target.value)}
+            placeholder="예: Backend / DB (비우면 기타)"
+            maxLength={60}
+            disabled={saving}
+          />
         </div>
       ) : null}
 

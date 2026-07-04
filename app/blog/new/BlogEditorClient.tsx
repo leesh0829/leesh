@@ -20,11 +20,13 @@ export default function BlogEditorClient({
   apiBasePath = '/api/blog/posts',
   detailBasePath = '/blog',
   showBlogMeta = false,
+  showDocsCategory = false,
 }: {
   boardId: string
   apiBasePath?: string
   detailBasePath?: string
   showBlogMeta?: boolean
+  showDocsCategory?: boolean
 }) {
   const [title, setTitle] = useState('')
   const [contentMd, setContentMd] = useState('')
@@ -37,6 +39,7 @@ export default function BlogEditorClient({
   const [isSecret, setIsSecret] = useState(false)
   const [secretPassword, setSecretPassword] = useState('')
   const [isSpoiler, setIsSpoiler] = useState(false)
+  const [docsCategory, setDocsCategory] = useState('')
 
   const canPublish = useMemo(() => {
     if (!title.trim()) return false
@@ -84,6 +87,9 @@ export default function BlogEditorClient({
           isSecret,
           secretPassword: isSecret ? secretPassword.trim() || null : null,
           isSpoiler,
+          ...(showDocsCategory
+            ? { docsCategory: docsCategory.trim() || null }
+            : {}),
         }),
       })
 
@@ -192,6 +198,20 @@ export default function BlogEditorClient({
               </p>
             )}
           </div>
+        </div>
+      ) : null}
+
+      {showDocsCategory ? (
+        <div className="grid gap-2">
+          <label className="text-sm font-medium">분류</label>
+          <input
+            className="input"
+            value={docsCategory}
+            onChange={(e) => setDocsCategory(e.target.value)}
+            placeholder="예: Backend / DB (비우면 기타)"
+            maxLength={60}
+            disabled={saving}
+          />
         </div>
       ) : null}
 

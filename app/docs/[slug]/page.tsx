@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { prisma } from '@/app/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/options'
@@ -97,6 +98,7 @@ export default async function DocsDetailPage({
     createdAt: true,
     authorId: true,
     isSecret: true,
+    docsCategory: true,
     board: { select: { ownerId: true } },
   } as const
 
@@ -209,6 +211,16 @@ export default async function DocsDetailPage({
         <div className="surface card-pad card-hover-border-only">
           <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
+              <div
+                className="mb-1 text-xs"
+                style={{ color: 'var(--muted)' }}
+              >
+                <Link href="/docs" className="hover:underline">
+                  Docs
+                </Link>
+                {' / '}
+                {post.docsCategory ?? '미분류'}
+              </div>
               <h1 className="text-2xl font-bold leading-tight">
                 <span className="wrap-break-word">{post.title}</span>{' '}
                 {post.isSecret ? (

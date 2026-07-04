@@ -15,6 +15,14 @@ import BlogTocClient from '@/app/blog/[slug]/BlogTocClient'
 import { cookies } from 'next/headers'
 import { readUnlockedPostIds, UNLOCK_COOKIE_NAME } from '@/app/lib/unlockCookie'
 import { sanitizedMarkdownSchema } from '@/app/lib/markdown'
+import { estimateReadingMinutes } from '@/app/lib/readingTime'
+import {
+  adjacentOrder,
+  adjacentWhere,
+  postHref,
+  relatedWhere,
+} from '@/app/lib/postNav'
+import PostReadingFooter from '@/app/components/PostReadingFooter'
 
 export const runtime = 'nodejs'
 
@@ -143,6 +151,39 @@ export default async function DocsDetailPage({
   const unlockedByPassword = unlocked.includes(post.id)
 
   const locked = post.isSecret && !isPrivileged && !unlockedByPassword
+
+  const readingMinutes = locked
+    ? null
+    : estimateReadingMinutes(post.contentMd ?? '')
+
+  let prevPost: { id: string; title: string } | null = null
+  let nextPost: { id: string; title: string } | null = null
+  let relatedPosts: { id: string; title: string; createdAt: Date }[] = []
+  if (!locked) {
+    try {
+      ;[prevPost, nextPost, relatedPosts] = await Promise.all([
+        prisma.post.findFirst({
+          where: adjacentWhere('DOCS', post.createdAt, 'older'),
+          orderBy: { createdAt: adjacentOrder('older') },
+          select: { id: true, title: true },
+        }),
+        prisma.post.findFirst({
+          where: adjacentWhere('DOCS', post.createdAt, 'newer'),
+          orderBy: { createdAt: adjacentOrder('newer') },
+          select: { id: true, title: true },
+        }),
+        prisma.post.findMany({
+          where: relatedWhere('DOCS', post.id),
+          orderBy: { createdAt: 'desc' },
+          take: 3,
+          select: { id: true, title: true, createdAt: true },
+        }),
+      ])
+    } catch (error) {
+      console.error('[DOCS_DETAIL_NAV]', error)
+    }
+  }
+
   const tocHeadings = extractMarkdownHeadings(post.contentMd ?? '')
   const headingIdQueue = [...tocHeadings.map((h) => h.id)]
   const nextHeadingId = () => headingIdQueue.shift() ?? undefined
@@ -176,6 +217,9 @@ export default async function DocsDetailPage({
               </h1>
               <div className="mt-2 text-sm" style={{ color: 'var(--muted)' }}>
                 {toISOStringSafe(post.createdAt).slice(0, 10)}
+                {readingMinutes != null ? (
+                  <span> · {readingMinutes}분 읽기</span>
+                ) : null}
               </div>
             </div>
 
@@ -236,6 +280,30 @@ export default async function DocsDetailPage({
                     </ReactMarkdown>
                   </div>
                 </article>
+
+                <PostReadingFooter
+                  prev={
+                    prevPost
+                      ? {
+                          href: postHref('DOCS', prevPost.id),
+                          title: prevPost.title,
+                        }
+                      : null
+                  }
+                  next={
+                    nextPost
+                      ? {
+                          href: postHref('DOCS', nextPost.id),
+                          title: nextPost.title,
+                        }
+                      : null
+                  }
+                  related={relatedPosts.map((r) => ({
+                    href: postHref('DOCS', r.id),
+                    title: r.title,
+                    meta: toISOStringSafe(r.createdAt).slice(0, 10),
+                  }))}
+                />
 
                 <div className="mt-6">
                   <BlogCommentsClient boardId={post.boardId} postId={post.id} />

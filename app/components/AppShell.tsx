@@ -6,6 +6,7 @@ import Sidebar from './Sidebar'
 import Footer from './Footer'
 import Link from 'next/link'
 import ThemeToggle from './ThemeToggle'
+import { CommandPaletteTrigger } from './CommandPalette'
 
 const NO_SHELL_PREFIXES = ['/login', '/sign-up']
 
@@ -149,6 +150,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               Leesh
             </Link>
             <div className="ml-auto flex items-center gap-2">
+              <CommandPaletteTrigger />
               <ThemeToggle />
             </div>
           </div>

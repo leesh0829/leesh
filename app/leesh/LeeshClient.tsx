@@ -389,6 +389,7 @@ export default function LeeshClient() {
   const projects = [
     {
       name: 'FocusBuddy',
+      tags: ['.NET 8', 'WPF', 'LiveCharts2', 'IPC'],
       summary: '.NET 8 / WPF 기반 생산성 관리 프로그램',
       points: [
         'LiveCharts2 기반 실시간 사용 시간 시각화 기능 구현',
@@ -401,6 +402,7 @@ export default function LeeshClient() {
     },
     {
       name: 'Portfolio (leesh)',
+      tags: ['React', 'Next.js', 'TypeScript'],
       summary: 'React / Next 기반 포트폴리오 웹 서비스',
       points: [
         '직접 설계 및 구현',
@@ -413,6 +415,7 @@ export default function LeeshClient() {
     },
     {
       name: 'High School Game Projects (3)',
+      tags: ['Unity', 'C#'],
       summary: 'Unity 기반 게임 제작 프로젝트',
       points: [
         '기획 ~ 구현 전 과정 참여',
@@ -427,6 +430,7 @@ export default function LeeshClient() {
     },
     {
       name: 'Notiva',
+      tags: ['Next.js', 'FastAPI', 'Celery', 'pgvector'],
       summary: 'Next.js + FastAPI 기반 AI 음성 기록 및 요약 웹 서비스',
       points: [
         'STT → 요약 → 임베딩 인덱싱을 Celery 비동기 파이프라인으로 처리',
@@ -437,6 +441,7 @@ export default function LeeshClient() {
     },
     {
       name: 'Nope.exe',
+      tags: ['Win32 API', 'C#', 'P/Invoke'],
       summary: 'Win32 API 기반 윈도우 창 자동 제어 유틸리티',
       points: [
         'EnumWindows 등 Win32 API를 P/Invoke로 연동해 창 메타데이터 수집',
@@ -447,6 +452,7 @@ export default function LeeshClient() {
     },
     {
       name: 'tyPeng',
+      tags: ['.NET 8', 'WPF'],
       summary: '.NET 8 WPF 기반 투명 오버레이 타자 연습 애플리케이션',
       points: [
         'IME 우회 한글 두벌식 조합기(HangulComposer) 직접 구현',
@@ -512,6 +518,22 @@ export default function LeeshClient() {
                 </span>
               ))}
             </div>
+
+            <div className="mt-5 flex flex-wrap gap-3">
+              {[
+                { n: projects.length, label: '프로젝트' },
+                { n: careers.length, label: '경력' },
+                { n: detailedTechStacks.length, label: '기술 분야' },
+              ].map((s) => (
+                <div
+                  key={s.label}
+                  className="rounded-2xl border border-black/10 bg-black/[0.03] px-4 py-2 text-center"
+                >
+                  <div className="text-2xl font-bold">{s.n}</div>
+                  <div className="text-xs opacity-70">{s.label}</div>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="rounded-2xl border border-black/10 bg-black/[0.03] p-4">
@@ -574,12 +596,16 @@ export default function LeeshClient() {
 
       <section className="surface card-pad scroll-reveal">
         <h2 className="text-2xl font-semibold">Career</h2>
-        <div className="mt-4 grid gap-3">
+        <div className="mt-4 space-y-4 border-l-2 border-black/10 pl-6">
           {careers.map((career) => (
             <article
               key={`${career.company}-${career.period}`}
-              className="rounded-2xl border border-black/10 bg-black/[0.03] p-4"
+              className="relative rounded-2xl border border-black/10 bg-black/[0.03] p-4"
             >
+              <span
+                className="absolute -left-[31px] top-5 h-3 w-3 rounded-full bg-[#6d5aff]"
+                aria-hidden
+              />
               <h3 className="text-base font-semibold">{career.title}</h3>
               <p className="mt-1 text-sm opacity-80">{career.company}</p>
               <p className="mt-1 text-xs opacity-65">{career.period}</p>
@@ -612,6 +638,18 @@ export default function LeeshClient() {
                 <p className="mt-2 text-sm leading-6 opacity-80">
                   {project.summary}
                 </p>
+                {project.tags && project.tags.length > 0 ? (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {project.tags.map((t) => (
+                      <span
+                        key={t}
+                        className="rounded-full border border-black/10 bg-black/[0.04] px-2 py-0.5 text-[11px] font-medium opacity-80"
+                      >
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
                 <ul className="mt-3 list-disc space-y-1 pl-5 text-sm leading-6 opacity-90">
                   {project.points.map((point) => (
                     <li key={point}>{point}</li>

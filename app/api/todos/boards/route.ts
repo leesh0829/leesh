@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/app/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import { toISOStringSafe } from '@/app/lib/date'
 import {
   getReadableScheduleOwnerIds,
   toUserLabel,
 } from '@/app/lib/scheduleShare'
+import { getCurrentUserId } from '@/app/lib/serverAuth'
+import { badRequestFromZod, parseJsonWithSchema } from '@/app/lib/validation'
+import { z } from 'zod'
 
 type JsonError = { message: string }
 const jsonError = (status: number, message: string) =>
@@ -26,17 +27,45 @@ type TodoBoardRow = {
   createdAt: Date
 }
 
-export async function GET() {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email) return jsonError(401, 'unauthorized')
-
-  const me = await prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
+const dateInputSchema = z
+  .preprocess(
+    (value) => (value === '' ? null : value),
+    z.union([z.string(), z.null()]).optional().default(null)
+  )
+  .refine((value) => !value || !Number.isNaN(new Date(value).getTime()), {
+    message: 'invalid date',
   })
-  if (!me) return jsonError(401, 'unauthorized')
 
-  const readableOwnerIds = await getReadableScheduleOwnerIds(me.id, 'TODO')
+const todoBoardCreateSchema = z
+  .object({
+    name: z.preprocess(
+      (value) => (value == null ? '' : String(value).trim()),
+      z.string().min(1, 'name is required').max(120)
+    ),
+    description: z
+      .preprocess(
+        (value) =>
+          value === null || value === undefined ? null : String(value),
+        z.union([z.string().max(1000), z.null()])
+      )
+      .optional()
+      .default(null),
+    singleSchedule: z.boolean().optional().default(false),
+    scheduleStartAt: dateInputSchema,
+    scheduleEndAt: dateInputSchema,
+    scheduleAllDay: z.boolean().optional().default(false),
+  })
+  .strict()
+
+function toDateOrNull(value: string | null | undefined): Date | null {
+  return value ? new Date(value) : null
+}
+
+export async function GET() {
+  const userId = await getCurrentUserId()
+  if (!userId) return jsonError(401, 'unauthorized')
+
+  const readableOwnerIds = await getReadableScheduleOwnerIds(userId, 'TODO')
 
   const boards: TodoBoardRow[] = await prisma.board.findMany({
     where: { ownerId: { in: readableOwnerIds }, type: 'TODO' },
@@ -65,8 +94,8 @@ export async function GET() {
       description: b.description,
       ownerId: b.ownerId,
       ownerLabel: toUserLabel(b.owner.name, b.owner.email),
-      shared: b.ownerId !== me.id,
-      canEdit: b.ownerId === me.id,
+      shared: b.ownerId !== userId,
+      canEdit: b.ownerId === userId,
       scheduleStatus: b.scheduleStatus,
       singleSchedule: b.singleSchedule,
       scheduleStartAt: b.scheduleStartAt
@@ -80,51 +109,31 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email) return jsonError(401, 'unauthorized')
+  const userId = await getCurrentUserId()
+  if (!userId) return jsonError(401, 'unauthorized')
 
-  const me = await prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
-  })
-  if (!me) return jsonError(401, 'unauthorized')
-
-  const body = (await req.json().catch(() => null)) as {
-    name?: string
-    description?: string | null
-    singleSchedule?: boolean
-    scheduleStartAt?: string | null
-    scheduleEndAt?: string | null
-    scheduleAllDay?: boolean
-  } | null
-
-  if (!body?.name?.trim()) return jsonError(400, 'name is required')
-
-  const singleSchedule = !!body.singleSchedule
-
-  const start =
-    singleSchedule && body.scheduleStartAt
-      ? new Date(body.scheduleStartAt)
-      : null
-  if (start && Number.isNaN(start.getTime()))
-    return jsonError(400, 'invalid scheduleStartAt')
-
-  const end =
-    singleSchedule && body.scheduleEndAt ? new Date(body.scheduleEndAt) : null
-  if (end && Number.isNaN(end.getTime()))
-    return jsonError(400, 'invalid scheduleEndAt')
+  const parsed = await parseJsonWithSchema(req, todoBoardCreateSchema)
+  if (!parsed.success) return badRequestFromZod(parsed.error, 'bad request')
+  const {
+    name,
+    description,
+    singleSchedule,
+    scheduleStartAt,
+    scheduleEndAt,
+    scheduleAllDay,
+  } = parsed.data
 
   const created = await prisma.board.create({
     data: {
-      ownerId: me.id,
-      name: body.name.trim(),
-      description: body.description ?? null,
+      ownerId: userId,
+      name,
+      description,
       type: 'TODO',
       scheduleStatus: 'TODO',
       singleSchedule,
-      scheduleStartAt: start,
-      scheduleEndAt: end,
-      scheduleAllDay: !!body.scheduleAllDay,
+      scheduleStartAt: singleSchedule ? toDateOrNull(scheduleStartAt) : null,
+      scheduleEndAt: singleSchedule ? toDateOrNull(scheduleEndAt) : null,
+      scheduleAllDay,
     },
     select: {
       id: true,

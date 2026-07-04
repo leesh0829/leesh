@@ -5,6 +5,11 @@ import {
   rateLimitBackoff,
 } from '@/app/lib/kisRateLimit'
 import { cached } from '@/app/lib/kisCache'
+import { fetchKis } from '@/app/lib/kisFetch'
+import {
+  DEFAULT_KIS_INDEX_CODES,
+  normalizeKisIndexCodeList,
+} from '@/app/lib/kisIndexCodes'
 
 const MAX_RETRIES = 2
 
@@ -70,7 +75,7 @@ async function fetchIndex(
     let r: Response | null = null
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       await kisRateLimit(userId)
-      r = await fetch(url.toString(), {
+      r = await fetchKis(url.toString(), {
         headers: {
           'Content-Type': 'application/json; charset=utf-8',
           authorization: `Bearer ${ctx.accessToken}`,
@@ -119,11 +124,13 @@ async function fetchIndex(
 
 export async function getIndices(
   userId: string,
-  codes: string[] = ['0001', '1001']
+  codes: string[] = DEFAULT_KIS_INDEX_CODES
 ): Promise<IndexQuote[]> {
-  const key = `idx:${userId}:${codes.join(',')}`
+  const normalizedCodes = normalizeKisIndexCodeList(codes)
+  if (!normalizedCodes) return []
+  const key = `idx:${userId}:${normalizedCodes.join(',')}`
   return cached(key, TTL.INDEX, async () => {
-    const results = await Promise.all(codes.map((c) => fetchIndex(userId, c)))
+    const results = await Promise.all(normalizedCodes.map((c) => fetchIndex(userId, c)))
     return results.filter((r): r is IndexQuote => r !== null)
   })
 }
@@ -190,7 +197,7 @@ async function getCategoryIndicesImpl(
     let data: CategoryResponse = {}
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       await kisRateLimit(userId)
-      r = await fetch(url.toString(), {
+      r = await fetchKis(url.toString(), {
         headers: {
           'Content-Type': 'application/json; charset=utf-8',
           authorization: `Bearer ${ctx.accessToken}`,
@@ -314,7 +321,7 @@ async function getIndexHistoryImpl(
     let data: IndexHistoryResponse = {}
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       await kisRateLimit(userId)
-      r = await fetch(url.toString(), {
+      r = await fetchKis(url.toString(), {
         headers: {
           'Content-Type': 'application/json; charset=utf-8',
           authorization: `Bearer ${ctx.accessToken}`,
@@ -413,7 +420,7 @@ async function getIndexMinutesImpl(
     let data: IndexMinuteResponse = {}
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       await kisRateLimit(userId)
-      r = await fetch(url.toString(), {
+      r = await fetchKis(url.toString(), {
         headers: {
           'Content-Type': 'application/json; charset=utf-8',
           authorization: `Bearer ${ctx.accessToken}`,
@@ -514,7 +521,7 @@ async function getFxMinutesImpl(
     let data: FxMinuteResponse = {}
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       await kisRateLimit(userId)
-      r = await fetch(url.toString(), {
+      r = await fetchKis(url.toString(), {
         headers: {
           'Content-Type': 'application/json; charset=utf-8',
           authorization: `Bearer ${ctx.accessToken}`,
@@ -625,7 +632,7 @@ async function getVolumeRankingImpl(
     let data: VolumeRankResponse = {}
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       await kisRateLimit(userId)
-      r = await fetch(url.toString(), {
+      r = await fetchKis(url.toString(), {
         headers: {
           'Content-Type': 'application/json; charset=utf-8',
           authorization: `Bearer ${ctx.accessToken}`,
@@ -738,7 +745,7 @@ async function getRiseRankingImpl(
     let data: FluctuationResponse = {}
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       await kisRateLimit(userId)
-      r = await fetch(url.toString(), {
+      r = await fetchKis(url.toString(), {
         headers: {
           'Content-Type': 'application/json; charset=utf-8',
           authorization: `Bearer ${ctx.accessToken}`,
@@ -846,7 +853,7 @@ async function getSupplyRankingImpl(
     let data: SupplyRankResponse = {}
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       await kisRateLimit(userId)
-      r = await fetch(url.toString(), {
+      r = await fetchKis(url.toString(), {
         headers: {
           'Content-Type': 'application/json; charset=utf-8',
           authorization: `Bearer ${ctx.accessToken}`,
@@ -949,7 +956,7 @@ async function getBulkTransRankingImpl(
     let data: BulkTransResponse = {}
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       await kisRateLimit(userId)
-      r = await fetch(url.toString(), {
+      r = await fetchKis(url.toString(), {
         headers: {
           'Content-Type': 'application/json; charset=utf-8',
           authorization: `Bearer ${ctx.accessToken}`,
@@ -1053,7 +1060,7 @@ async function getExpectedTransRankingImpl(
     let data: ExpectedRankResponse = {}
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       await kisRateLimit(userId)
-      r = await fetch(url.toString(), {
+      r = await fetchKis(url.toString(), {
         headers: {
           'Content-Type': 'application/json; charset=utf-8',
           authorization: `Bearer ${ctx.accessToken}`,
@@ -1163,7 +1170,7 @@ async function getVolumePowerRankingImpl(
     let data: PowerResponse = {}
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       await kisRateLimit(userId)
-      r = await fetch(url.toString(), {
+      r = await fetchKis(url.toString(), {
         headers: {
           'Content-Type': 'application/json; charset=utf-8',
           authorization: `Bearer ${ctx.accessToken}`,
@@ -1284,7 +1291,7 @@ async function getViStatusImpl(
     let data: ViResponse = {}
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       await kisRateLimit(userId)
-      r = await fetch(url.toString(), {
+      r = await fetchKis(url.toString(), {
         headers: {
           'Content-Type': 'application/json; charset=utf-8',
           authorization: `Bearer ${ctx.accessToken}`,
@@ -1392,7 +1399,7 @@ async function getMarketInvestorDailyImpl(
     let data: MarketInvestorResponse = {}
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       await kisRateLimit(userId)
-      r = await fetch(url.toString(), {
+      r = await fetchKis(url.toString(), {
         headers: {
           'Content-Type': 'application/json; charset=utf-8',
           authorization: `Bearer ${ctx.accessToken}`,
@@ -1619,7 +1626,7 @@ async function getKisNewsImpl(
       let attemptData: NewsResponse = {}
       for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
         await kisRateLimit(userId)
-        attemptR = await fetch(urlStr, { headers, cache: 'no-store' })
+        attemptR = await fetchKis(urlStr, { headers, cache: 'no-store' })
         attemptData = (await attemptR.json()) as NewsResponse
         if (isRateLimitedResponse(attemptData) && attempt < MAX_RETRIES) {
           await rateLimitBackoff(attempt)

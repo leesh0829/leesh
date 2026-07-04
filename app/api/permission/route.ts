@@ -1,6 +1,7 @@
 import { prisma } from '@/app/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/options'
+import { badRequestFromZod, parseJsonWithSchema } from '@/app/lib/validation'
+import { z } from 'zod'
+import { getCurrentUser } from '@/app/lib/serverAuth'
 
 export const runtime = 'nodejs'
 
@@ -108,6 +109,23 @@ const DEFAULTS: PermissionRow[] = [
   },
 ]
 
+const permissionItemSchema = z
+  .object({
+    key: z.string().trim().min(1).max(80),
+    label: z.string().trim().min(1).max(80),
+    path: z.string().trim().min(1).max(200),
+    requireLogin: z.boolean(),
+    minRole: z.enum(['USER', 'ADMIN']),
+    visible: z.boolean(),
+  })
+  .strict()
+
+const permissionUpdateSchema = z
+  .object({
+    items: z.array(permissionItemSchema).max(100),
+  })
+  .strict()
+
 async function seedIfEmpty() {
   await prisma.menuPermission.createMany({
     data: DEFAULTS.map((d) => ({
@@ -148,16 +166,8 @@ async function seedIfEmpty() {
 }
 
 async function getMeRole(): Promise<UserRole | null> {
-  const session = await getServerSession(authOptions)
-  const email = session?.user?.email ?? null
-  if (!email) return null
-
-  const me = await prisma.user.findUnique({
-    where: { email },
-    select: { role: true },
-  })
-  if (!me) return null
-  return me.role as UserRole
+  const me = await getCurrentUser()
+  return me?.role ?? null
 }
 
 export async function GET(req: Request) {
@@ -197,50 +207,40 @@ export async function GET(req: Request) {
 }
 
 export async function PUT(req: Request) {
-  const session = await getServerSession(authOptions)
-  const email = session?.user?.email ?? null
-  if (!email) return Response.json({ message: 'unauthorized' }, { status: 401 })
-
-  const me = await prisma.user.findUnique({
-    where: { email },
-    select: { id: true, role: true },
-  })
+  const me = await getCurrentUser()
   if (!me) return Response.json({ message: 'unauthorized' }, { status: 401 })
   if (me.role !== 'ADMIN')
     return Response.json({ message: 'forbidden' }, { status: 403 })
 
   await seedIfEmpty()
 
-  const body = (await req.json().catch(() => null)) as {
-    items?: PermissionRow[]
-  } | null
-
-  const items = body?.items
-  if (!items || !Array.isArray(items)) {
-    return Response.json({ message: 'bad request' }, { status: 400 })
-  }
+  const parsed = await parseJsonWithSchema(req, permissionUpdateSchema)
+  if (!parsed.success) return badRequestFromZod(parsed.error, 'bad request')
+  const { items } = parsed.data
 
   // key 단위로 upsert
-  for (const it of items) {
-    await prisma.menuPermission.upsert({
-      where: { key: it.key },
-      create: {
-        key: it.key,
-        label: it.label,
-        path: it.path,
-        requireLogin: !!it.requireLogin,
-        minRole: it.minRole,
-        visible: !!it.visible,
-      },
-      update: {
-        label: it.label,
-        path: it.path,
-        requireLogin: !!it.requireLogin,
-        minRole: it.minRole,
-        visible: !!it.visible,
-      },
-    })
-  }
+  await prisma.$transaction(
+    items.map((it) =>
+      prisma.menuPermission.upsert({
+        where: { key: it.key },
+        create: {
+          key: it.key,
+          label: it.label,
+          path: it.path,
+          requireLogin: it.requireLogin,
+          minRole: it.minRole,
+          visible: it.visible,
+        },
+        update: {
+          label: it.label,
+          path: it.path,
+          requireLogin: it.requireLogin,
+          minRole: it.minRole,
+          visible: it.visible,
+        },
+      })
+    )
+  )
 
   return Response.json({ ok: true })
 }

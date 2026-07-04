@@ -1,20 +1,19 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/app/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/options'
+import { getCurrentUserId } from '@/app/lib/serverAuth'
+import { badRequestFromZod, parseJsonWithSchema } from '@/app/lib/validation'
+import { z } from 'zod'
 
 export const runtime = 'nodejs'
 
-async function getMe() {
-  const session = await getServerSession(authOptions)
-  const email = session?.user?.email
-  if (!email) return null
-
-  return prisma.user.findUnique({
-    where: { email },
-    select: { id: true },
+const commentPatchSchema = z
+  .object({
+    content: z.preprocess(
+      (value) => (value == null ? '' : String(value)),
+      z.string().trim().min(1, 'content required').max(20_000)
+    ),
   })
-}
+  .strict()
 
 export async function PATCH(
   req: Request,
@@ -24,14 +23,12 @@ export async function PATCH(
 ) {
   const { boardId, postId, commentId } = await params
 
-  const me = await getMe()
-  if (!me)
+  const userId = await getCurrentUserId()
+  if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
-  const body = await req.json().catch(() => ({}))
-  const text = typeof body?.content === 'string' ? body.content.trim() : ''
-  if (!text)
-    return NextResponse.json({ message: 'content required' }, { status: 400 })
+  const parsed = await parseJsonWithSchema(req, commentPatchSchema)
+  if (!parsed.success) return badRequestFromZod(parsed.error)
 
   const found = await prisma.comment.findFirst({
     where: { id: commentId, postId },
@@ -46,13 +43,13 @@ export async function PATCH(
     return NextResponse.json({ message: 'not found' }, { status: 404 })
   }
 
-  const can = found.authorId === me.id
+  const can = found.authorId === userId
 
   if (!can) return NextResponse.json({ message: 'forbidden' }, { status: 403 })
 
   await prisma.comment.update({
     where: { id: found.id },
-    data: { content: text },
+    data: { content: parsed.data.content },
   })
 
   return NextResponse.json({ ok: true })
@@ -66,8 +63,8 @@ export async function DELETE(
 ) {
   const { boardId, postId, commentId } = await params
 
-  const me = await getMe()
-  if (!me)
+  const userId = await getCurrentUserId()
+  if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
   const found = await prisma.comment.findFirst({
@@ -83,7 +80,7 @@ export async function DELETE(
     return NextResponse.json({ message: 'not found' }, { status: 404 })
   }
 
-  const can = found.authorId === me.id
+  const can = found.authorId === userId
 
   if (!can) return NextResponse.json({ message: 'forbidden' }, { status: 403 })
 

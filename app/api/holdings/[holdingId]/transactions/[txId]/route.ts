@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/app/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import { z } from 'zod'
 import { badRequestFromZod, parseJsonWithSchema } from '@/app/lib/validation'
+import { getCurrentUserId } from '@/app/lib/serverAuth'
+import { normalizeHoldingTransactionAmounts } from '@/app/lib/holdingTransactionValidation'
+import { updateHoldingTransactionWithLedgerSync } from '@/app/lib/holdingTransactionMutation'
 import { syncTransactionToLedger } from '@/app/lib/holdingLedgerSync'
+import { prepareHoldingLedgerSyncContext } from '@/app/lib/holdingLedgerSyncContext'
+import { getKrwRate } from '@/app/lib/fxRate'
 
 export const runtime = 'nodejs'
 
@@ -37,21 +40,12 @@ const txPatchSchema = z
   })
   .strict()
 
-async function getUser() {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email) return null
-  return prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
-  })
-}
-
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ holdingId: string; txId: string }> }
 ) {
-  const user = await getUser()
-  if (!user)
+  const userId = await getCurrentUserId()
+  if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
   const { holdingId, txId } = await params
@@ -72,16 +66,16 @@ export async function PATCH(
   })
   if (!existing || existing.holdingId !== holdingId)
     return NextResponse.json({ message: 'not found' }, { status: 404 })
-  if (existing.holding.ownerId !== user.id)
+  if (existing.holding.ownerId !== userId)
     return NextResponse.json({ message: 'forbidden' }, { status: 403 })
 
   const parsed = await parseJsonWithSchema(req, txPatchSchema)
   if (!parsed.success) return badRequestFromZod(parsed.error, 'invalid body')
 
   const nextType = parsed.data.type ?? existing.type
-  const nextQuantity =
+  const candidateQuantity =
     parsed.data.quantity !== undefined ? parsed.data.quantity : existing.quantity
-  const nextPrice =
+  const candidatePrice =
     parsed.data.pricePerUnit !== undefined
       ? parsed.data.pricePerUnit
       : existing.pricePerUnit
@@ -94,75 +88,76 @@ export async function PATCH(
         ? new Date(parsed.data.occurredAt)
         : existing.occurredAt
 
-  let nextAmount = existing.amount
-  if (nextType === 'BUY' || nextType === 'SELL') {
-    if (nextQuantity === null || nextPrice === null) {
-      return NextResponse.json(
-        { message: '수량과 단가를 입력해 주세요.' },
-        { status: 400 }
-      )
-    }
-    // 클라이언트가 amount를 명시적으로 보냈으면 그 값 우선 (소수점매수/매도)
-    nextAmount =
-      parsed.data.amount !== undefined && parsed.data.amount > 0
+  const isTrade = nextType === 'BUY' || nextType === 'SELL'
+  const normalized = normalizeHoldingTransactionAmounts({
+    type: nextType,
+    quantity: isTrade ? candidateQuantity : null,
+    pricePerUnit: isTrade ? candidatePrice : null,
+    amount: isTrade
+      ? parsed.data.amount
+      : parsed.data.amount !== undefined
         ? parsed.data.amount
-        : nextQuantity * nextPrice
-  } else {
-    if (parsed.data.amount !== undefined) {
-      nextAmount = parsed.data.amount
-    }
+        : existing.amount,
+  })
+  if (!normalized.ok) {
+    return NextResponse.json(
+      { message: normalized.message },
+      { status: 400 }
+    )
   }
 
-  await prisma.holdingTransaction.update({
-    where: { id: txId },
-    data: {
-      type: nextType,
-      quantity: nextQuantity,
-      pricePerUnit: nextPrice,
-      amount: nextAmount,
-      occurredAt: nextOccurredAt,
-      memo: nextMemo,
-    },
-  })
+  const {
+    quantity: nextQuantity,
+    pricePerUnit: nextPrice,
+    amount: nextAmount,
+  } = normalized
 
-  // 가계부 동기화
-  // linkToLedger가 명시되지 않았으면 기존 연결 유지 (재계산해서 업데이트)
   const link =
     parsed.data.linkToLedger !== undefined
       ? parsed.data.linkToLedger
       : !!existing.ledgerEntryId
 
-  const newLedgerEntryId = await syncTransactionToLedger(
+  const result = await updateHoldingTransactionWithLedgerSync(
     {
-      userId: user.id,
-      holdingId,
-      holdingName: existing.holding.name,
-      holdingCurrency: existing.holding.currency,
       txId,
-      type: nextType,
-      quantity: nextQuantity,
-      pricePerUnit: nextPrice,
-      amount: nextAmount,
-      occurredAt: nextOccurredAt,
-      memo: nextMemo,
+      data: {
+        type: nextType,
+        quantity: nextQuantity,
+        pricePerUnit: nextPrice,
+        amount: nextAmount,
+        occurredAt: nextOccurredAt,
+        memo: nextMemo,
+      },
+      syncContext: {
+        userId,
+        holdingId,
+        holdingName: existing.holding.name,
+        holdingCurrency: existing.holding.currency,
+        txId,
+        type: nextType,
+        quantity: nextQuantity,
+        pricePerUnit: nextPrice,
+        amount: nextAmount,
+        occurredAt: nextOccurredAt,
+        memo: nextMemo,
+      },
+      linkToLedger: link,
+      existingLedgerEntryId: existing.ledgerEntryId,
     },
-    link,
-    existing.ledgerEntryId
+    prisma,
+    syncTransactionToLedger,
+    (ctx, link) => prepareHoldingLedgerSyncContext(ctx, link, getKrwRate)
   )
-  await prisma.holdingTransaction.update({
-    where: { id: txId },
-    data: { ledgerEntryId: newLedgerEntryId },
-  })
 
-  return NextResponse.json({ ok: true, ledgerEntryId: newLedgerEntryId })
+  return NextResponse.json({ ok: true, ledgerEntryId: result.ledgerEntryId })
 }
 
 export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ holdingId: string; txId: string }> }
 ) {
-  const user = await getUser()
-  if (!user)
+  const userId = await getCurrentUserId()
+  if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
   const { holdingId, txId } = await params
@@ -177,12 +172,12 @@ export async function DELETE(
   })
   if (!existing || existing.holdingId !== holdingId)
     return NextResponse.json({ message: 'not found' }, { status: 404 })
-  if (existing.holding.ownerId !== user.id)
+  if (existing.holding.ownerId !== userId)
     return NextResponse.json({ message: 'forbidden' }, { status: 403 })
 
   if (existing.ledgerEntryId) {
     await prisma.ledgerEntry.deleteMany({
-      where: { id: existing.ledgerEntryId, ownerId: user.id },
+      where: { id: existing.ledgerEntryId, ownerId: userId },
     })
   }
 

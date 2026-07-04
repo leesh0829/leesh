@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/app/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import { toISOStringSafe } from '@/app/lib/date'
 import { z } from 'zod'
 import { badRequestFromZod, parseJsonWithSchema } from '@/app/lib/validation'
 import { aggregateHolding } from '@/app/lib/holdingAggregate'
 import { getReadableScheduleOwnerIds, toUserLabel } from '@/app/lib/scheduleShare'
+import { getCurrentUserId } from '@/app/lib/serverAuth'
 
 export const runtime = 'nodejs'
 
@@ -35,15 +34,6 @@ const holdingCreateSchema = z
       .transform((v) => (v ? v : null)),
   })
   .strict()
-
-async function getUser() {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email) return null
-  return prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
-  })
-}
 
 type HoldingRow = {
   id: string
@@ -75,11 +65,11 @@ type HoldingRow = {
 }
 
 export async function GET(req: Request) {
-  const user = await getUser()
-  if (!user)
+  const userId = await getCurrentUserId()
+  if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
-  const readableOwnerIds = await getReadableScheduleOwnerIds(user.id, 'STOCK')
+  const readableOwnerIds = await getReadableScheduleOwnerIds(userId, 'STOCK')
 
   const url = new URL(req.url)
   const excludeOwnersParam = url.searchParams.get('excludeOwners')
@@ -142,8 +132,8 @@ export async function GET(req: Request) {
       id: row.id,
       ownerId: row.ownerId,
       ownerLabel: toUserLabel(row.owner.name, row.owner.email),
-      shared: row.ownerId !== user.id,
-      canEdit: row.ownerId === user.id,
+      shared: row.ownerId !== userId,
+      canEdit: row.ownerId === userId,
       accountId: row.accountId,
       accountName: row.account?.name ?? null,
       accountBank: row.account?.bankName ?? null,
@@ -168,8 +158,8 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const user = await getUser()
-  if (!user)
+  const userId = await getCurrentUserId()
+  if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
   const parsed = await parseJsonWithSchema(req, holdingCreateSchema)
@@ -181,7 +171,7 @@ export async function POST(req: Request) {
       where: { id: parsed.data.accountId },
       select: { ownerId: true },
     })
-    if (!acc || acc.ownerId !== user.id) {
+    if (!acc || acc.ownerId !== userId) {
       return NextResponse.json(
         { message: '유효하지 않은 계좌입니다.' },
         { status: 400 }
@@ -191,7 +181,7 @@ export async function POST(req: Request) {
 
   const created = await prisma.holding.create({
     data: {
-      ownerId: user.id,
+      ownerId: userId,
       accountId: parsed.data.accountId ?? null,
       name: parsed.data.name,
       symbol: parsed.data.symbol,

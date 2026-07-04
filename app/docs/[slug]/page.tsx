@@ -7,12 +7,14 @@ import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
 import rehypeHighlight from 'rehype-highlight'
 import rehypeRaw from 'rehype-raw'
+import rehypeSanitize from 'rehype-sanitize'
 import BlogCommentsClient from '@/app/blog/[slug]/BlogCommentsClient'
 import BlogActionsClient from '@/app/blog/[slug]/BlogActionsClient'
 import BlogSecretGateClient from '@/app/blog/[slug]/BlogSecretGateClient'
 import BlogTocClient from '@/app/blog/[slug]/BlogTocClient'
 import { cookies } from 'next/headers'
 import { readUnlockedPostIds, UNLOCK_COOKIE_NAME } from '@/app/lib/unlockCookie'
+import { sanitizedMarkdownSchema } from '@/app/lib/markdown'
 
 export const runtime = 'nodejs'
 
@@ -198,7 +200,11 @@ export default async function DocsDetailPage({
                   <div className="markdown-body">
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm, remarkBreaks]}
-                      rehypePlugins={[rehypeRaw, rehypeHighlight]}
+                      rehypePlugins={[
+                        rehypeRaw,
+                        [rehypeSanitize, sanitizedMarkdownSchema],
+                        rehypeHighlight,
+                      ]}
                       components={{
                         h1: headingComponent('h1'),
                         h2: headingComponent('h2'),

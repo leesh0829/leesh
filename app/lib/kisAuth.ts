@@ -1,5 +1,6 @@
 import { prisma } from '@/app/lib/prisma'
 import { decrypt, encrypt } from '@/app/lib/cryptoUtil'
+import { fetchKis } from '@/app/lib/kisFetch'
 import { kisRateLimit } from '@/app/lib/kisRateLimit'
 
 // 동일 사용자의 동시 토큰 발급 시도 dedup
@@ -64,16 +65,19 @@ export async function getKisContext(userId: string): Promise<KisContext> {
     inFlight = (async () => {
       try {
         await kisRateLimit(userId)
-        const r = await fetch(`${baseUrl}/oauth2/tokenP`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            grant_type: 'client_credentials',
-            appkey: appKey,
-            appsecret: appSecret,
-          }),
-          cache: 'no-store',
-        })
+        const r = await fetchKis(
+          `${baseUrl}/oauth2/tokenP`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              grant_type: 'client_credentials',
+              appkey: appKey,
+              appsecret: appSecret,
+            }),
+            cache: 'no-store',
+          }
+        )
         const data = (await r.json()) as TokenIssueResponse
         if (!r.ok || !data.access_token) {
           throw new Error(
@@ -112,23 +116,30 @@ export async function getKisContext(userId: string): Promise<KisContext> {
 }
 
 // 토큰만 검증 (테스트 연결용) — DB 저장 없이
-export async function testKisCredentials(opts: {
-  appKey: string
-  appSecret: string
-  isLive: boolean
-}): Promise<{ ok: true } | { ok: false; message: string }> {
+export async function testKisCredentials(
+  userId: string,
+  opts: {
+    appKey: string
+    appSecret: string
+    isLive: boolean
+  }
+): Promise<{ ok: true } | { ok: false; message: string }> {
   const baseUrl = opts.isLive ? KIS_LIVE_BASE : KIS_MOCK_BASE
   try {
-    const r = await fetch(`${baseUrl}/oauth2/tokenP`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        grant_type: 'client_credentials',
-        appkey: opts.appKey,
-        appsecret: opts.appSecret,
-      }),
-      cache: 'no-store',
-    })
+    await kisRateLimit(userId)
+    const r = await fetchKis(
+      `${baseUrl}/oauth2/tokenP`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          grant_type: 'client_credentials',
+          appkey: opts.appKey,
+          appsecret: opts.appSecret,
+        }),
+        cache: 'no-store',
+      }
+    )
     const data = (await r.json()) as TokenIssueResponse
     if (!r.ok || !data.access_token) {
       return {

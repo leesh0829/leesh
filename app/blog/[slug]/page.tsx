@@ -7,6 +7,7 @@ import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
 import rehypeHighlight from 'rehype-highlight'
 import rehypeRaw from 'rehype-raw'
+import rehypeSanitize from 'rehype-sanitize'
 import BlogCommentsClient from './BlogCommentsClient'
 import BlogActionsClient from './BlogActionsClient'
 import BlogSecretGateClient from './BlogSecretGateClient'
@@ -21,6 +22,7 @@ import {
   formatReviewRatingHalf,
   getBlogPostTypeLabel,
 } from '@/app/lib/blog'
+import { sanitizedMarkdownSchema } from '@/app/lib/markdown'
 
 export const runtime = 'nodejs'
 
@@ -249,7 +251,11 @@ export default async function BlogDetailPage({
                       <div className="markdown-body">
                         <ReactMarkdown
                           remarkPlugins={[remarkGfm, remarkBreaks]}
-                          rehypePlugins={[rehypeRaw, rehypeHighlight]}
+                          rehypePlugins={[
+                            rehypeRaw,
+                            [rehypeSanitize, sanitizedMarkdownSchema],
+                            rehypeHighlight,
+                          ]}
                           components={{
                             h1: headingComponent('h1'),
                             h2: headingComponent('h2'),

@@ -1,17 +1,17 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import { searchSymbols } from '@/app/lib/naverFinance'
+import { getCurrentUserId } from '@/app/lib/serverAuth'
+import { normalizeStockSearchQuery } from '@/app/lib/stockQuery'
 
 export const runtime = 'nodejs'
 
 export async function GET(req: Request) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email)
+  const userId = await getCurrentUserId()
+  if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
   const url = new URL(req.url)
-  const q = url.searchParams.get('q')?.trim() ?? ''
+  const q = normalizeStockSearchQuery(url.searchParams.get('q'))
   if (!q) return NextResponse.json({ items: [] })
 
   try {

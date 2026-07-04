@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/options";
 import { toISOStringSafe } from "@/app/lib/date";
 import { z } from "zod";
 import { badRequestFromZod, parseJsonWithSchema } from "@/app/lib/validation";
+import { getCurrentUserId } from "@/app/lib/serverAuth";
 
 export const runtime = "nodejs";
 const todoCreateSchema = z
@@ -46,15 +45,6 @@ type TodoItemRow = {
   allDay: boolean;
 };
 
-async function getUser() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.email) return null;
-  return prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
-  });
-}
-
 async function getOrCreateTodoBoard(userId: string) {
   let board = await prisma.board.findFirst({
     where: { ownerId: userId, type: "TODO" },
@@ -70,10 +60,10 @@ async function getOrCreateTodoBoard(userId: string) {
 }
 
 export async function GET() {
-  const user = await getUser();
-  if (!user) return NextResponse.json({ message: "unauthorized" }, { status: 401 });
+  const userId = await getCurrentUserId();
+  if (!userId) return NextResponse.json({ message: "unauthorized" }, { status: 401 });
 
-  const board = await getOrCreateTodoBoard(user.id);
+  const board = await getOrCreateTodoBoard(userId);
 
   const itemsRaw: TodoItemRow[] = await prisma.post.findMany({
     where: { boardId: board.id },
@@ -93,8 +83,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const user = await getUser();
-  if (!user) return NextResponse.json({ message: "unauthorized" }, { status: 401 });
+  const userId = await getCurrentUserId();
+  if (!userId) return NextResponse.json({ message: "unauthorized" }, { status: 401 });
 
   const parsed = await parseJsonWithSchema(req, todoCreateSchema);
   if (!parsed.success) {
@@ -112,12 +102,12 @@ export async function POST(req: Request) {
       ? new Date(parsed.data.endAt)
       : null;
 
-  const board = await getOrCreateTodoBoard(user.id);
+  const board = await getOrCreateTodoBoard(userId);
 
   const created = await prisma.post.create({
     data: {
       boardId: board.id,
-      authorId: user.id,
+      authorId: userId,
       title,
       contentMd: "",
       status: "TODO",

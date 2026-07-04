@@ -1,19 +1,19 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/app/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import { getReadableScheduleOwnerIds } from '@/app/lib/scheduleShare'
+import { getCurrentUserId } from '@/app/lib/serverAuth'
+import {
+  buildPrevLedgerGroupByArgs,
+  summarizePrevLedgerGroups,
+  type PrevLedgerGroup,
+} from '@/app/lib/ledgerStatsPrev'
+import {
+  buildLedgerStatsGroupByArgs,
+  summarizeLedgerStatGroups,
+  type LedgerStatGroup,
+} from '@/app/lib/ledgerStatsCurrent'
 
 export const runtime = 'nodejs'
-
-async function getUser() {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email) return null
-  return prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
-  })
-}
 
 type EntryRow = {
   id: string
@@ -41,8 +41,8 @@ function dayKey(d: Date): string {
 }
 
 export async function GET(req: Request) {
-  const user = await getUser()
-  if (!user)
+  const userId = await getCurrentUserId()
+  if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
   const url = new URL(req.url)
@@ -55,7 +55,19 @@ export async function GET(req: Request) {
   if (start && !Number.isNaN(start.getTime())) occurredAtFilter.gte = start
   if (end && !Number.isNaN(end.getTime())) occurredAtFilter.lt = end
 
-  const readableOwnerIds = await getReadableScheduleOwnerIds(user.id, 'LEDGER')
+  const readableOwnerIds = await getReadableScheduleOwnerIds(userId, 'LEDGER')
+
+  const statGroups = await prisma.ledgerEntry.groupBy(
+    buildLedgerStatsGroupByArgs(readableOwnerIds, occurredAtFilter)
+  )
+  const statSummary = summarizeLedgerStatGroups(statGroups as LedgerStatGroup[])
+  const {
+    income,
+    expense,
+    count,
+    byCategoryIncome,
+    byCategoryExpense,
+  } = statSummary
 
   const rows: EntryRow[] = await prisma.ledgerEntry.findMany({
     where: {
@@ -106,38 +118,15 @@ export async function GET(req: Request) {
     const ms = end.getTime() - start.getTime()
     const prevEnd = new Date(start)
     const prevStart = new Date(start.getTime() - ms)
-    const prevRows = await prisma.ledgerEntry.findMany({
-      where: {
-        ownerId: { in: readableOwnerIds },
-        excludeFromTotals: false,
-        occurredAt: { gte: prevStart, lt: prevEnd },
-      },
-      select: {
-        type: true,
-        amount: true,
-        category: true,
-      },
-    })
-    let pi = 0
-    let pe = 0
-    const pcExp = new Map<string, number>()
-    const pcInc = new Map<string, number>()
-    for (const r of prevRows) {
-      if (r.type === 'INCOME') {
-        pi += r.amount
-        pcInc.set(r.category, (pcInc.get(r.category) ?? 0) + r.amount)
-      } else {
-        pe += r.amount
-        pcExp.set(r.category, (pcExp.get(r.category) ?? 0) + r.amount)
-      }
-    }
-    prevTotals = { income: pi, expense: pe, net: pi - pe }
-    prevByCategoryExpense = pcExp
-    prevByCategoryIncome = pcInc
+    const prevGroups = await prisma.ledgerEntry.groupBy(
+      buildPrevLedgerGroupByArgs(readableOwnerIds, prevStart, prevEnd)
+    )
+    const prevSummary = summarizePrevLedgerGroups(prevGroups as PrevLedgerGroup[])
+    prevTotals = prevSummary.prevTotals
+    prevByCategoryExpense = prevSummary.prevByCategoryExpense
+    prevByCategoryIncome = prevSummary.prevByCategoryIncome
   }
 
-  let income = 0
-  let expense = 0
   const byAccountMap = new Map<
     string,
     { id: string; name: string; bankName: string | null; income: number; expense: number; count: number }
@@ -146,8 +135,6 @@ export async function GET(req: Request) {
     string,
     { type: string; income: number; expense: number; count: number }
   >()
-  const byCategoryIncome = new Map<string, { total: number; count: number }>()
-  const byCategoryExpense = new Map<string, { total: number; count: number }>()
   const byMonth = new Map<string, { income: number; expense: number }>()
   const byDay = new Map<string, { income: number; expense: number }>()
   // 0=Sun ... 6=Sat
@@ -163,9 +150,6 @@ export async function GET(req: Request) {
   const NO_ACCOUNT_KEY = '__none__'
 
   for (const r of rows) {
-    if (r.type === 'INCOME') income += r.amount
-    else expense += r.amount
-
     // 계좌별
     const accKey = r.accountId ?? NO_ACCOUNT_KEY
     const accEntry =
@@ -204,13 +188,6 @@ export async function GET(req: Request) {
         byAccountTypeMap.set(t, entry)
       }
     }
-
-    // 카테고리별 (수입/지출 분리)
-    const catMap = r.type === 'INCOME' ? byCategoryIncome : byCategoryExpense
-    const catEntry = catMap.get(r.category) ?? { total: 0, count: 0 }
-    catEntry.total += r.amount
-    catEntry.count += 1
-    catMap.set(r.category, catEntry)
 
     // 월별 (YYYY-MM)
     const d = new Date(r.occurredAt)
@@ -436,7 +413,7 @@ export async function GET(req: Request) {
   )
 
   return NextResponse.json({
-    totals: { income, expense, net: income - expense, count: rows.length },
+    totals: { income, expense, net: income - expense, count },
     prevTotals,
     byAccount,
     byAccountType,

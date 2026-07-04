@@ -5,6 +5,11 @@ import {
   rateLimitBackoff,
 } from '@/app/lib/kisRateLimit'
 import { cached } from '@/app/lib/kisCache'
+import { fetchKis } from '@/app/lib/kisFetch'
+import {
+  normalizeKisOverseasPair,
+  type KisOverseasPair,
+} from '@/app/lib/kisOverseasSymbol'
 
 const MAX_RETRIES = 2
 
@@ -39,10 +44,12 @@ export async function getOverseasQuote(
   exchange: string,
   symbol: string
 ): Promise<OverseasQuote | null> {
+  const pair = normalizeKisOverseasPair(exchange, symbol)
+  if (!pair) return null
   return cached(
-    `oq:${userId}:${exchange}:${symbol}`,
+    `oq:${userId}:${pair.exchange}:${pair.symbol}`,
     TTL.QUOTE,
-    () => getOverseasQuoteImpl(userId, exchange, symbol)
+    () => getOverseasQuoteImpl(userId, pair.exchange, pair.symbol)
   )
 }
 
@@ -64,7 +71,7 @@ async function getOverseasQuoteImpl(
     let data: OverseasResponse = {}
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       await kisRateLimit(userId)
-      r = await fetch(url.toString(), {
+      r = await fetchKis(url.toString(), {
         headers: {
           'Content-Type': 'application/json; charset=utf-8',
           authorization: `Bearer ${ctx.accessToken}`,
@@ -131,7 +138,7 @@ async function getOverseasQuoteImpl(
 // 여러 종목/지수 동시 조회
 export async function getOverseasQuotes(
   userId: string,
-  pairs: Array<{ exchange: string; symbol: string }>
+  pairs: KisOverseasPair[]
 ): Promise<OverseasQuote[]> {
   const results = await Promise.all(
     pairs.map((p) => getOverseasQuote(userId, p.exchange, p.symbol))
@@ -169,10 +176,12 @@ export async function getOverseasMinute(
   symbol: string,
   gapMinutes = 1
 ): Promise<OverseasMinute | null> {
+  const pair = normalizeKisOverseasPair(exchange, symbol)
+  if (!pair) return null
   return cached(
-    `om:${userId}:${exchange}:${symbol}:${gapMinutes}`,
+    `om:${userId}:${pair.exchange}:${pair.symbol}:${gapMinutes}`,
     TTL.MINUTE,
-    () => getOverseasMinuteImpl(userId, exchange, symbol, gapMinutes)
+    () => getOverseasMinuteImpl(userId, pair.exchange, pair.symbol, gapMinutes)
   )
 }
 
@@ -201,7 +210,7 @@ async function getOverseasMinuteImpl(
     let data: OverseasMinuteResponse = {}
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       await kisRateLimit(userId)
-      r = await fetch(url.toString(), {
+      r = await fetchKis(url.toString(), {
         headers: {
           'Content-Type': 'application/json; charset=utf-8',
           authorization: `Bearer ${ctx.accessToken}`,
@@ -282,10 +291,12 @@ export async function getOverseasDaily(
   symbol: string,
   period: 'D' | 'W' | 'M' = 'D'
 ): Promise<OverseasDaily | null> {
+  const pair = normalizeKisOverseasPair(exchange, symbol)
+  if (!pair) return null
   return cached(
-    `od:${userId}:${exchange}:${symbol}:${period}`,
+    `od:${userId}:${pair.exchange}:${pair.symbol}:${period}`,
     TTL.DAILY,
-    () => getOverseasDailyImpl(userId, exchange, symbol, period)
+    () => getOverseasDailyImpl(userId, pair.exchange, pair.symbol, period)
   )
 }
 
@@ -316,7 +327,7 @@ async function getOverseasDailyImpl(
     let data: OverseasDailyResponse = {}
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       await kisRateLimit(userId)
-      r = await fetch(url.toString(), {
+      r = await fetchKis(url.toString(), {
         headers: {
           'Content-Type': 'application/json; charset=utf-8',
           authorization: `Bearer ${ctx.accessToken}`,

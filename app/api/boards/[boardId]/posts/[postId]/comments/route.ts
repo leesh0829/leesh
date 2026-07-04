@@ -1,11 +1,21 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/app/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import { toISOStringSafe } from '@/app/lib/date'
 import { readUnlockedPostIds, UNLOCK_COOKIE_NAME } from '@/app/lib/unlockCookie'
+import { getCurrentUserId } from '@/app/lib/serverAuth'
+import { badRequestFromZod, parseJsonWithSchema } from '@/app/lib/validation'
+import { z } from 'zod'
 
 export const runtime = 'nodejs'
+
+const commentCreateSchema = z
+  .object({
+    content: z.preprocess(
+      (value) => (value == null ? '' : String(value)),
+      z.string().trim().min(1, 'content required').max(20_000)
+    ),
+  })
+  .strict()
 
 type CommentRow = {
   id: string
@@ -94,21 +104,14 @@ export async function GET(
 ) {
   const { boardId, postId } = await params
 
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email)
-    return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
-
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
-  })
-  if (!user)
+  const userId = await getCurrentUserId()
+  if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
   const readable = await resolveReadablePost(req, {
     boardId,
     postId,
-    userId: user.id,
+    userId,
   })
   if (!readable.ok) {
     const message = readable.status === 403 ? 'forbidden' : 'not found'
@@ -140,33 +143,25 @@ export async function POST(
 ) {
   const { boardId, postId } = await params
 
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email)
-    return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
-
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
-  })
-  if (!user)
+  const userId = await getCurrentUserId()
+  if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
   const readable = await resolveReadablePost(req, {
     boardId,
     postId,
-    userId: user.id,
+    userId,
   })
   if (!readable.ok) {
     const message = readable.status === 403 ? 'forbidden' : 'not found'
     return NextResponse.json({ message }, { status: readable.status })
   }
 
-  const { content } = await req.json()
-  if (!content?.trim())
-    return NextResponse.json({ message: 'content required' }, { status: 400 })
+  const parsed = await parseJsonWithSchema(req, commentCreateSchema)
+  if (!parsed.success) return badRequestFromZod(parsed.error)
 
   const c = await prisma.comment.create({
-    data: { postId: postId, authorId: user.id, content: content.trim() },
+    data: { postId: postId, authorId: userId, content: parsed.data.content },
     select: { id: true },
   })
 

@@ -1,22 +1,21 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/app/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/options'
+import { getCurrentUserId } from '@/app/lib/serverAuth'
+import { z } from 'zod'
+import { badRequestFromZod, parseJsonWithSchema } from '@/app/lib/validation'
 
 export const runtime = 'nodejs'
 
-async function getUserId() {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email) return null
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
+const notePutSchema = z
+  .object({
+    market: z.string().trim().min(1).max(20),
+    symbol: z.string().trim().min(1).max(40),
+    note: z.string().max(20_000).optional().default(''),
   })
-  return user?.id ?? null
-}
+  .strict()
 
 export async function GET(req: Request) {
-  const userId = await getUserId()
+  const userId = await getCurrentUserId()
   if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
   const url = new URL(req.url)
@@ -26,24 +25,27 @@ export async function GET(req: Request) {
     return NextResponse.json({ message: 'invalid' }, { status: 400 })
   const note = await prisma.stockNote.findUnique({
     where: { userId_market_symbol: { userId, market, symbol } },
+    select: {
+      id: true,
+      market: true,
+      symbol: true,
+      note: true,
+      createdAt: true,
+      updatedAt: true,
+    },
   })
   return NextResponse.json({ note })
 }
 
 export async function PUT(req: Request) {
-  const userId = await getUserId()
+  const userId = await getCurrentUserId()
   if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
-  const body = (await req.json()) as {
-    market?: string
-    symbol?: string
-    note?: string
-  }
-  const market = body.market?.trim()
-  const symbol = body.symbol?.trim()
-  const noteText = (body.note ?? '').trim()
-  if (!market || !symbol)
-    return NextResponse.json({ message: 'invalid' }, { status: 400 })
+  const parsed = await parseJsonWithSchema(req, notePutSchema)
+  if (!parsed.success) return badRequestFromZod(parsed.error, 'invalid')
+
+  const { market, symbol } = parsed.data
+  const noteText = parsed.data.note.trim()
   try {
     if (!noteText) {
       await prisma.stockNote.deleteMany({
@@ -55,6 +57,14 @@ export async function PUT(req: Request) {
       where: { userId_market_symbol: { userId, market, symbol } },
       create: { userId, market, symbol, note: noteText },
       update: { note: noteText },
+      select: {
+        id: true,
+        market: true,
+        symbol: true,
+        note: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     })
     return NextResponse.json({ note })
   } catch (e) {

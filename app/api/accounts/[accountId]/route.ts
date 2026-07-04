@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/app/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import { z } from 'zod'
 import { badRequestFromZod, parseJsonWithSchema } from '@/app/lib/validation'
 import {
@@ -9,6 +7,7 @@ import {
   validateAccountTypes,
   type AccountType,
 } from '@/app/lib/accountTypes'
+import { getCurrentUserId } from '@/app/lib/serverAuth'
 
 export const runtime = 'nodejs'
 
@@ -33,21 +32,12 @@ const accountPatchSchema = z
   })
   .strict()
 
-async function getUser() {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email) return null
-  return prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
-  })
-}
-
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ accountId: string }> }
 ) {
-  const user = await getUser()
-  if (!user)
+  const userId = await getCurrentUserId()
+  if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
   const { accountId } = await params
@@ -57,7 +47,7 @@ export async function PATCH(
   })
   if (!existing)
     return NextResponse.json({ message: 'not found' }, { status: 404 })
-  if (existing.ownerId !== user.id)
+  if (existing.ownerId !== userId)
     return NextResponse.json({ message: 'forbidden' }, { status: 403 })
 
   const parsed = await parseJsonWithSchema(req, accountPatchSchema)
@@ -95,8 +85,8 @@ export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ accountId: string }> }
 ) {
-  const user = await getUser()
-  if (!user)
+  const userId = await getCurrentUserId()
+  if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
   const { accountId } = await params
@@ -106,7 +96,7 @@ export async function DELETE(
   })
   if (!existing)
     return NextResponse.json({ message: 'not found' }, { status: 404 })
-  if (existing.ownerId !== user.id)
+  if (existing.ownerId !== userId)
     return NextResponse.json({ message: 'forbidden' }, { status: 403 })
 
   await prisma.financialAccount.delete({ where: { id: accountId } })

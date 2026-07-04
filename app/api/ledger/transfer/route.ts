@@ -1,60 +1,69 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/app/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/options'
+import { getCurrentUserId } from '@/app/lib/serverAuth'
+import { badRequestFromZod, parseJsonWithSchema } from '@/app/lib/validation'
+import { z } from 'zod'
 
 export const runtime = 'nodejs'
+
+const transferSchema = z
+  .object({
+    fromAccountId: z.preprocess(
+      (value) => (value == null ? '' : String(value).trim()),
+      z.string().min(1, '출발/도착 계좌를 모두 선택해주세요.').max(80)
+    ),
+    toAccountId: z.preprocess(
+      (value) => (value == null ? '' : String(value).trim()),
+      z.string().min(1, '출발/도착 계좌를 모두 선택해주세요.').max(80)
+    ),
+    amount: z
+      .number()
+      .finite()
+      .positive('금액은 0보다 커야 합니다.')
+      .max(2_000_000_000, '금액이 너무 큽니다.'),
+    description: z.string().trim().max(200).optional().default(''),
+    occurredAt: z.union([z.string(), z.null()]).optional().default(null),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    if (value.fromAccountId === value.toAccountId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['toAccountId'],
+        message: '서로 다른 계좌를 선택해주세요.',
+      })
+    }
+    if (value.occurredAt) {
+      const d = new Date(value.occurredAt)
+      if (Number.isNaN(d.getTime())) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['occurredAt'],
+          message: 'invalid occurredAt',
+        })
+      }
+    }
+  })
 
 // 계좌간 이체 — 출발 계좌에 EXPENSE, 도착 계좌에 INCOME을 한 트랜잭션으로 생성.
 // 둘 다 category="계좌이체", excludeFromTotals=true 로 자산 변동 없음 처리.
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email)
+  const userId = await getCurrentUserId()
+  if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
-  })
-  if (!user)
-    return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
+  const parsed = await parseJsonWithSchema(req, transferSchema)
+  if (!parsed.success) return badRequestFromZod(parsed.error, 'invalid body')
 
-  const body = (await req.json()) as {
-    fromAccountId?: string
-    toAccountId?: string
-    amount?: number
-    description?: string
-    occurredAt?: string | null
-  }
-
-  const fromAccountId = body.fromAccountId?.trim() ?? ''
-  const toAccountId = body.toAccountId?.trim() ?? ''
-  const amount = typeof body.amount === 'number' ? Math.round(body.amount) : NaN
-  const description = (body.description ?? '').trim()
-  const occurredAt =
-    typeof body.occurredAt === 'string' && body.occurredAt
-      ? new Date(body.occurredAt)
-      : new Date()
-
-  if (!fromAccountId || !toAccountId)
-    return NextResponse.json(
-      { message: '출발/도착 계좌를 모두 선택해주세요.' },
-      { status: 400 }
-    )
-  if (fromAccountId === toAccountId)
-    return NextResponse.json(
-      { message: '서로 다른 계좌를 선택해주세요.' },
-      { status: 400 }
-    )
-  if (!Number.isFinite(amount) || amount <= 0)
-    return NextResponse.json(
-      { message: '금액은 0보다 커야 합니다.' },
-      { status: 400 }
-    )
+  const { fromAccountId, toAccountId, description } = parsed.data
+  const amount = Math.round(parsed.data.amount)
+  const occurredAt = parsed.data.occurredAt
+    ? new Date(parsed.data.occurredAt)
+    : new Date()
 
   // 두 계좌 모두 본인 소유인지 검증
   const accounts = await prisma.financialAccount.findMany({
-    where: { id: { in: [fromAccountId, toAccountId] }, ownerId: user.id },
+    where: { id: { in: [fromAccountId, toAccountId] }, ownerId: userId },
     select: { id: true, name: true },
   })
   if (accounts.length !== 2)
@@ -71,7 +80,7 @@ export async function POST(req: Request) {
     const result = await prisma.$transaction([
       prisma.ledgerEntry.create({
         data: {
-          ownerId: user.id,
+          ownerId: userId,
           accountId: fromAccountId,
           type: 'EXPENSE',
           amount,
@@ -85,7 +94,7 @@ export async function POST(req: Request) {
       }),
       prisma.ledgerEntry.create({
         data: {
-          ownerId: user.id,
+          ownerId: userId,
           accountId: toAccountId,
           type: 'INCOME',
           amount,

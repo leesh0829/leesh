@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/app/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import { z } from 'zod'
 import { badRequestFromZod, parseJsonWithSchema } from '@/app/lib/validation'
+import { getCurrentUserId } from '@/app/lib/serverAuth'
+import { normalizeHoldingTransactionAmounts } from '@/app/lib/holdingTransactionValidation'
+import { createHoldingTransactionWithLedgerSync } from '@/app/lib/holdingTransactionMutation'
 import { syncTransactionToLedger } from '@/app/lib/holdingLedgerSync'
+import { prepareHoldingLedgerSyncContext } from '@/app/lib/holdingLedgerSyncContext'
+import { getKrwRate } from '@/app/lib/fxRate'
 
 export const runtime = 'nodejs'
 
@@ -37,21 +40,12 @@ const txCreateSchema = z
   })
   .strict()
 
-async function getUser() {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email) return null
-  return prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
-  })
-}
-
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ holdingId: string }> }
 ) {
-  const user = await getUser()
-  if (!user)
+  const userId = await getCurrentUserId()
+  if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
   const { holdingId } = await params
@@ -61,7 +55,7 @@ export async function POST(
   })
   if (!holding)
     return NextResponse.json({ message: 'not found' }, { status: 404 })
-  if (holding.ownerId !== user.id)
+  if (holding.ownerId !== userId)
     return NextResponse.json({ message: 'forbidden' }, { status: 403 })
 
   const parsed = await parseJsonWithSchema(req, txCreateSchema)
@@ -73,82 +67,53 @@ export async function POST(
       ? new Date(parsed.data.occurredAt)
       : new Date()
 
-  // BUY/SELL: quantity & pricePerUnit 필수.
-  //   기본 amount = qty * price 이지만, 클라이언트가 명시적으로 amount를 보내면
-  //   그 값을 우선 사용 (소수점매수/매도 — 실제 결제금액 보존, 부동소수점 오차 방지).
-  // DIVIDEND/FEE/TAX: amount 필수
-  let quantity: number | null = null
-  let pricePerUnit: number | null = null
-  let amount = 0
-  if (type === 'BUY' || type === 'SELL') {
-    quantity = parsed.data.quantity ?? null
-    pricePerUnit = parsed.data.pricePerUnit ?? null
-    if (
-      quantity === null ||
-      quantity <= 0 ||
-      pricePerUnit === null ||
-      pricePerUnit < 0
-    ) {
-      return NextResponse.json(
-        { message: '수량과 단가를 입력해 주세요.' },
-        { status: 400 }
-      )
-    }
-    amount =
-      typeof parsed.data.amount === 'number' && parsed.data.amount > 0
-        ? parsed.data.amount
-        : quantity * pricePerUnit
-  } else {
-    if (
-      parsed.data.amount === undefined ||
-      parsed.data.amount === null ||
-      parsed.data.amount <= 0
-    ) {
-      return NextResponse.json(
-        { message: '금액을 입력해 주세요.' },
-        { status: 400 }
-      )
-    }
-    amount = parsed.data.amount
-  }
-
-  const created = await prisma.holdingTransaction.create({
-    data: {
-      holdingId,
-      type,
-      quantity,
-      pricePerUnit,
-      amount,
-      occurredAt,
-      memo: parsed.data.memo,
-    },
-    select: { id: true },
+  // BUY/SELL: quantity & pricePerUnit 필수, amount 미지정 시 qty * price.
+  // DIVIDEND/FEE/TAX: amount 필수, quantity/price는 저장하지 않음.
+  const isTrade = type === 'BUY' || type === 'SELL'
+  const normalized = normalizeHoldingTransactionAmounts({
+    type,
+    quantity: isTrade ? (parsed.data.quantity ?? null) : null,
+    pricePerUnit: isTrade ? (parsed.data.pricePerUnit ?? null) : null,
+    amount: parsed.data.amount,
   })
-
-  // 가계부 자동 연동
-  const ledgerEntryId = await syncTransactionToLedger(
-    {
-      userId: user.id,
-      holdingId,
-      holdingName: holding.name,
-      holdingCurrency: holding.currency,
-      txId: created.id,
-      type,
-      quantity,
-      pricePerUnit,
-      amount,
-      occurredAt,
-      memo: parsed.data.memo,
-    },
-    linkToLedger,
-    null
-  )
-  if (ledgerEntryId) {
-    await prisma.holdingTransaction.update({
-      where: { id: created.id },
-      data: { ledgerEntryId },
-    })
+  if (!normalized.ok) {
+    return NextResponse.json(
+      { message: normalized.message },
+      { status: 400 }
+    )
   }
 
-  return NextResponse.json({ id: created.id, ledgerEntryId })
+  const { quantity, pricePerUnit, amount } = normalized
+
+  const result = await createHoldingTransactionWithLedgerSync(
+    {
+      data: {
+        holdingId,
+        type,
+        quantity,
+        pricePerUnit,
+        amount,
+        occurredAt,
+        memo: parsed.data.memo,
+      },
+      syncContext: {
+        userId,
+        holdingId,
+        holdingName: holding.name,
+        holdingCurrency: holding.currency,
+        type,
+        quantity,
+        pricePerUnit,
+        amount,
+        occurredAt,
+        memo: parsed.data.memo,
+      },
+      linkToLedger,
+    },
+    prisma,
+    syncTransactionToLedger,
+    (ctx, link) => prepareHoldingLedgerSyncContext(ctx, link, getKrwRate)
+  )
+
+  return NextResponse.json(result)
 }

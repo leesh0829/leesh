@@ -6,36 +6,57 @@ const DB_TIMEZONE = "Asia/Seoul";
 
 const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;
+  prismaProxy?: PrismaClient;
   pgPool?: Pool;
 };
 
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) throw new Error("DATABASE_URL is missing");
+function getConnectionString() {
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) throw new Error("DATABASE_URL is missing");
+  return connectionString;
+}
 
-const pool =
-  globalForPrisma.pgPool ??
-  new Pool({
-    connectionString,
+function getPool() {
+  if (globalForPrisma.pgPool) return globalForPrisma.pgPool;
+
+  const pool = new Pool({
+    connectionString: getConnectionString(),
   });
 
-pool.on("connect", (client) => {
-  void client
-    .query("SELECT set_config('TimeZone', $1, false)", [DB_TIMEZONE])
-    .catch((err) => {
-      console.error("Failed to set DB timezone:", err);
-    });
-});
+  pool.on("connect", (client) => {
+    void client
+      .query("SELECT set_config('TimeZone', $1, false)", [DB_TIMEZONE])
+      .catch((err) => {
+        console.error("Failed to set DB timezone:", err);
+      });
+  });
 
-const adapter = new PrismaPg(pool);
+  globalForPrisma.pgPool = pool;
 
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
+  return pool;
+}
+
+export function getPrisma() {
+  if (globalForPrisma.prisma) return globalForPrisma.prisma;
+
+  const adapter = new PrismaPg(getPool());
+  const client = new PrismaClient({
     adapter,
     log: ["error"],
   });
 
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma;
-  globalForPrisma.pgPool = pool;
+  globalForPrisma.prisma = client;
+
+  return client;
 }
+
+export const prisma =
+  globalForPrisma.prismaProxy ??
+  new Proxy({} as PrismaClient, {
+    get(_target, prop, receiver) {
+      const value = Reflect.get(getPrisma(), prop, receiver);
+      return typeof value === "function" ? value.bind(getPrisma()) : value;
+    },
+  });
+
+globalForPrisma.prismaProxy = prisma;

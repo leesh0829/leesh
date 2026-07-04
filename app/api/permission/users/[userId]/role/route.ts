@@ -1,38 +1,27 @@
 import { prisma } from '@/app/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/options'
+import { getCurrentAdmin } from '@/app/lib/serverAuth'
+import { badRequestFromZod, parseJsonWithSchema } from '@/app/lib/validation'
+import { z } from 'zod'
 
 export const runtime = 'nodejs'
 
-async function requireAdmin() {
-  const session = await getServerSession(authOptions)
-  const email = session?.user?.email ?? null
-  if (!email) return null
-
-  const me = await prisma.user.findUnique({
-    where: { email },
-    select: { id: true, role: true },
+const roleUpdateSchema = z
+  .object({
+    role: z.enum(['USER', 'ADMIN']),
   })
-  if (!me || me.role !== 'ADMIN') return null
-  return me
-}
+  .strict()
 
 export async function PUT(
   req: Request,
   ctx: { params: Promise<{ userId: string }> }
 ) {
-  const me = await requireAdmin()
+  const me = await getCurrentAdmin()
   if (!me) return Response.json({ message: 'forbidden' }, { status: 403 })
 
   const { userId } = await ctx.params
-  const body = (await req.json().catch(() => null)) as {
-    role?: 'USER' | 'ADMIN'
-  } | null
-  const role = body?.role
-
-  if (role !== 'USER' && role !== 'ADMIN') {
-    return Response.json({ message: 'bad request' }, { status: 400 })
-  }
+  const parsed = await parseJsonWithSchema(req, roleUpdateSchema)
+  if (!parsed.success) return badRequestFromZod(parsed.error, 'bad request')
+  const { role } = parsed.data
 
   const target = await prisma.user.findUnique({
     where: { id: userId },

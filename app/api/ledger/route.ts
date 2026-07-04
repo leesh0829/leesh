@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/app/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import { toISOStringSafe } from '@/app/lib/date'
 import { z } from 'zod'
 import { badRequestFromZod, parseJsonWithSchema } from '@/app/lib/validation'
 import { getReadableScheduleOwnerIds, toUserLabel } from '@/app/lib/scheduleShare'
 import { isValidCategoryCombination } from '@/app/lib/ledgerCategories'
+import { getCurrentUserId } from '@/app/lib/serverAuth'
 
 export const runtime = 'nodejs'
 
@@ -66,18 +65,9 @@ type LedgerEntryRow = {
   holdingTransaction: { id: string } | null
 }
 
-async function getUser() {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email) return null
-  return prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
-  })
-}
-
 export async function GET(req: Request) {
-  const user = await getUser()
-  if (!user)
+  const userId = await getCurrentUserId()
+  if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
   const url = new URL(req.url)
@@ -93,7 +83,7 @@ export async function GET(req: Request) {
   if (end && !Number.isNaN(end.getTime())) occurredAtFilter.lt = end
 
   const readableOwnerIds = await getReadableScheduleOwnerIds(
-    user.id,
+    userId,
     'LEDGER'
   )
 
@@ -162,18 +152,20 @@ export async function GET(req: Request) {
     carryBalances.set(accId, accountInitialMap.get(accId) ?? 0)
   }
   if (accountIdSet.size > 0 && occurredAtFilter.gte) {
-    const carryRows = await prisma.ledgerEntry.findMany({
+    const carryRows = await prisma.ledgerEntry.groupBy({
+      by: ['accountId', 'type'],
       where: {
         ownerId: { in: effectiveOwnerIds },
         accountId: { in: Array.from(accountIdSet) },
         occurredAt: { lt: occurredAtFilter.gte },
       },
-      select: { accountId: true, type: true, amount: true },
+      _sum: { amount: true },
     })
     for (const r of carryRows) {
       if (!r.accountId) continue
       const prev = carryBalances.get(r.accountId) ?? 0
-      const delta = r.type === 'INCOME' ? r.amount : -r.amount
+      const amount = r._sum.amount ?? 0
+      const delta = r.type === 'INCOME' ? amount : -amount
       carryBalances.set(r.accountId, prev + delta)
     }
   }
@@ -198,8 +190,8 @@ export async function GET(req: Request) {
     id: row.id,
     ownerId: row.ownerId,
     ownerLabel: toUserLabel(row.owner.name, row.owner.email),
-    shared: row.ownerId !== user.id,
-    canEdit: row.ownerId === user.id,
+    shared: row.ownerId !== userId,
+    canEdit: row.ownerId === userId,
     accountId: row.accountId,
     accountName: row.account?.name ?? null,
     accountBank: row.account?.bankName ?? null,
@@ -221,16 +213,13 @@ export async function GET(req: Request) {
 
   // 전체 잔액 (기간 무관, 본인+공유 합산, 합계 제외 항목 제외)
   // owner별로도 그룹핑해서 분리 모드 표시에 사용
-  const allRows: {
-    ownerId: string
-    type: 'INCOME' | 'EXPENSE'
-    amount: number
-  }[] = await prisma.ledgerEntry.findMany({
+  const totalGroups = await prisma.ledgerEntry.groupBy({
+    by: ['ownerId', 'type'],
     where: {
       ownerId: { in: effectiveOwnerIds },
       excludeFromTotals: false,
     },
-    select: { ownerId: true, type: true, amount: true },
+    _sum: { amount: true },
   })
   let totalIncome = 0
   let totalExpense = 0
@@ -238,27 +227,30 @@ export async function GET(req: Request) {
     string,
     { income: number; expense: number; initial: number }
   >()
-  for (const r of allRows) {
-    if (r.type === 'INCOME') totalIncome += r.amount
-    else totalExpense += r.amount
+  for (const r of totalGroups) {
+    const amount = r._sum.amount ?? 0
+    if (r.type === 'INCOME') totalIncome += amount
+    else totalExpense += amount
     const entry =
       ownerTotalsMap.get(r.ownerId) ?? { income: 0, expense: 0, initial: 0 }
-    if (r.type === 'INCOME') entry.income += r.amount
-    else entry.expense += r.amount
+    if (r.type === 'INCOME') entry.income += amount
+    else entry.expense += amount
     ownerTotalsMap.set(r.ownerId, entry)
   }
 
   // 계좌 초기 잔액 합산 — 잔액에는 더해지지만 income/expense에는 미포함
-  const allAccounts = await prisma.financialAccount.findMany({
+  const accountInitialGroups = await prisma.financialAccount.groupBy({
+    by: ['ownerId'],
     where: { ownerId: { in: effectiveOwnerIds } },
-    select: { ownerId: true, initialBalance: true },
+    _sum: { initialBalance: true },
   })
   let totalInitial = 0
-  for (const a of allAccounts) {
-    totalInitial += a.initialBalance
+  for (const a of accountInitialGroups) {
+    const initialBalance = a._sum.initialBalance ?? 0
+    totalInitial += initialBalance
     const entry =
       ownerTotalsMap.get(a.ownerId) ?? { income: 0, expense: 0, initial: 0 }
-    entry.initial += a.initialBalance
+    entry.initial += initialBalance
     ownerTotalsMap.set(a.ownerId, entry)
   }
 
@@ -283,8 +275,8 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const user = await getUser()
-  if (!user)
+  const userId = await getCurrentUserId()
+  if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
   const parsed = await parseJsonWithSchema(req, entryCreateSchema)
@@ -301,7 +293,7 @@ export async function POST(req: Request) {
       where: { id: accountId },
       select: { ownerId: true },
     })
-    if (!acc || acc.ownerId !== user.id) {
+    if (!acc || acc.ownerId !== userId) {
       return NextResponse.json(
         { message: '유효하지 않은 계좌입니다.' },
         { status: 400 }
@@ -323,7 +315,7 @@ export async function POST(req: Request) {
 
   const created = await prisma.ledgerEntry.create({
     data: {
-      ownerId: user.id,
+      ownerId: userId,
       accountId,
       type,
       amount,

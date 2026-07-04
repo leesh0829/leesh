@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/app/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import { toISOStringSafe } from '@/app/lib/date'
 import { z } from 'zod'
 import { badRequestFromZod, parseJsonWithSchema } from '@/app/lib/validation'
+import { getCurrentUserId } from '@/app/lib/serverAuth'
 
 export const runtime = 'nodejs'
 const postStatusSchema = z.enum(['TODO', 'DOING', 'DONE'])
@@ -36,21 +35,13 @@ export async function GET(
 ) {
   const { boardId, postId } = await params
 
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email) {
-    return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
-  })
-  if (!user)
+  const userId = await getCurrentUserId()
+  if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
   // 기존 로직 유지: 보드 owner만 GET 허용
   const board = await prisma.board.findFirst({
-    where: { id: boardId, ownerId: user.id },
+    where: { id: boardId, ownerId: userId },
     select: { id: true },
   })
   if (!board)
@@ -103,16 +94,8 @@ export async function PATCH(
 ) {
   const { boardId, postId } = await params
 
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email) {
-    return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
-  })
-  if (!user)
+  const userId = await getCurrentUserId()
+  if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
   const postForAuth = await prisma.post.findFirst({
@@ -121,7 +104,7 @@ export async function PATCH(
   })
   if (!postForAuth)
     return NextResponse.json({ message: 'not found' }, { status: 404 })
-  if (postForAuth.authorId !== user.id)
+  if (postForAuth.authorId !== userId)
     return NextResponse.json({ message: 'forbidden' }, { status: 403 })
 
   const parsed = await parseJsonWithSchema(req, patchPostSchema)
@@ -195,16 +178,8 @@ export async function DELETE(
 ) {
   const { boardId, postId } = await params
 
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email) {
-    return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
-  })
-  if (!user)
+  const userId = await getCurrentUserId()
+  if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
   const post = await prisma.post.findFirst({
@@ -213,7 +188,7 @@ export async function DELETE(
   })
   if (!post) return NextResponse.json({ message: 'not found' }, { status: 404 })
 
-  if (post.authorId !== user.id) {
+  if (post.authorId !== userId) {
     return NextResponse.json({ message: 'forbidden' }, { status: 403 })
   }
 

@@ -6,8 +6,10 @@ import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
 import rehypeHighlight from 'rehype-highlight'
 import rehypeRaw from 'rehype-raw'
+import rehypeSanitize from 'rehype-sanitize'
 import { toHumanHttpError } from '@/app/lib/httpErrorText'
 import MarkdownEditor from '@/app/components/MarkdownEditor'
+import { sanitizedMarkdownSchema } from '@/app/lib/markdown'
 
 /**
  * Extracts a trimmed message string from an API-like payload object.
@@ -861,7 +863,11 @@ export default function LeeshClient() {
           <article className="markdown-body mt-4">
             <ReactMarkdown
               remarkPlugins={[remarkGfm, remarkBreaks]}
-              rehypePlugins={[rehypeRaw, rehypeHighlight]}
+              rehypePlugins={[
+                rehypeRaw,
+                [rehypeSanitize, sanitizedMarkdownSchema],
+                rehypeHighlight,
+              ]}
               components={mdComponents}
             >
               {doc?.contentMd ?? ''}

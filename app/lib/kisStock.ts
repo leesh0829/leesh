@@ -5,6 +5,8 @@ import {
   rateLimitBackoff,
 } from '@/app/lib/kisRateLimit'
 import { cached } from '@/app/lib/kisCache'
+import { fetchKis } from '@/app/lib/kisFetch'
+import { normalizeKisMinuteHour } from '@/app/lib/kisMinuteHour'
 
 const MAX_RETRIES = 2
 
@@ -34,17 +36,20 @@ async function kisGet<T>(
   let data: unknown = {}
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     await kisRateLimit(userId)
-    r = await fetch(`${ctx.baseUrl}${pathWithQuery}`, {
-      headers: {
-        'Content-Type': 'application/json; charset=utf-8',
-        authorization: `Bearer ${ctx.accessToken}`,
-        appkey: ctx.appKey,
-        appsecret: ctx.appSecret,
-        tr_id: trId,
-        custtype: 'P',
-      },
-      cache: 'no-store',
-    })
+    r = await fetchKis(
+      `${ctx.baseUrl}${pathWithQuery}`,
+      {
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+          authorization: `Bearer ${ctx.accessToken}`,
+          appkey: ctx.appKey,
+          appsecret: ctx.appSecret,
+          tr_id: trId,
+          custtype: 'P',
+        },
+        cache: 'no-store',
+      }
+    )
     data = (await r.json()) as unknown
     if (isRateLimitedResponse(data as { rt_cd?: string; msg_cd?: string }) && attempt < MAX_RETRIES) {
       await rateLimitBackoff(attempt)
@@ -332,10 +337,12 @@ export async function getMinuteBars(
   code: string,
   hour?: string
 ): Promise<MinuteChart | null> {
+  const normalizedHour = normalizeKisMinuteHour(hour)
+  if (normalizedHour === null) return null
   return cached(
-    `min:${userId}:${code}:${hour ?? 'now'}`,
+    `min:${userId}:${code}:${normalizedHour ?? 'now'}`,
     TTL.MINUTE,
-    () => getMinuteBarsImpl(userId, code, hour)
+    () => getMinuteBarsImpl(userId, code, normalizedHour)
   )
 }
 
@@ -346,7 +353,7 @@ async function getMinuteBarsImpl(
 ): Promise<MinuteChart | null> {
   // 기준 시각 미지정 → 빈 값(현재). FID_PW_DATA_INCU_YN=Y → 과거일 분봉 포함.
   // 한국 시각 기준 YYYYMMDD/HHMMSS — KST 변환 없이 빈 문자열 보내면 KIS가 현재 기준 사용.
-  const h = hour ?? ''
+  const h = encodeURIComponent(hour ?? '')
   const query =
     `FID_COND_MRKT_DIV_CODE=J&FID_INPUT_ISCD=${encodeURIComponent(code)}` +
     `&FID_INPUT_HOUR_1=${h}&FID_INPUT_DATE_1=&FID_PW_DATA_INCU_YN=Y&FID_FAKE_TICK_INCU_YN=N`

@@ -1,6 +1,8 @@
 // 종목별 공시 — Naver Finance 비공식 (DART 원천)
 // API key 없음. DART 직접 호출은 corp_code 매핑이 복잡해서 우회.
 
+import { fetchWithTimeout } from '@/app/lib/fetchWithTimeout'
+
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
 
 export type DisclosureItem = {
@@ -37,10 +39,14 @@ export async function getNaverDisclosures(
   // Naver finance disclosure endpoint (비공식)
   const url = `https://m.stock.naver.com/api/stock/${cleaned}/disclosure?menu=alldisclosure&pageSize=${limit}`
   try {
-    const r = await fetch(url, {
-      headers: { 'User-Agent': UA, Accept: 'application/json' },
-      next: { revalidate: 600 }, // 10분 캐시
-    })
+    const r = await fetchWithTimeout(
+      url,
+      {
+        headers: { 'User-Agent': UA, Accept: 'application/json' },
+        next: { revalidate: 600 }, // 10분 캐시
+      },
+      { timeoutMs: 8_000 }
+    )
     if (!r.ok) return []
     const data = (await r.json()) as NaverResponse
     const items = data.items ?? []

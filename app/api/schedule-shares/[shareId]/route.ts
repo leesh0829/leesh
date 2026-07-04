@@ -1,47 +1,42 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/app/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import { toISOStringSafe } from '@/app/lib/date'
+import { getCurrentUserId } from '@/app/lib/serverAuth'
+import { badRequestFromZod, parseJsonWithSchema } from '@/app/lib/validation'
+import { z } from 'zod'
 
 export const runtime = 'nodejs'
+
+const scheduleShareActionSchema = z
+  .object({
+    action: z.enum(['ACCEPT', 'REJECT']),
+  })
+  .strict()
 
 type JsonError = { message: string }
 const jsonError = (status: number, message: string) =>
   NextResponse.json({ message } satisfies JsonError, { status })
-
-async function getMe() {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email) return null
-  return prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
-  })
-}
 
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ shareId: string }> }
 ) {
   try {
-    const me = await getMe()
-    if (!me) return jsonError(401, 'unauthorized')
+    const userId = await getCurrentUserId()
+    if (!userId) return jsonError(401, 'unauthorized')
 
     const { shareId } = await params
-    const body = (await req.json().catch(() => null)) as {
-      action?: 'ACCEPT' | 'REJECT'
-    } | null
-    const action = body?.action
-    if (!action || (action !== 'ACCEPT' && action !== 'REJECT')) {
-      return jsonError(400, 'action must be ACCEPT or REJECT')
-    }
+    const parsed = await parseJsonWithSchema(req, scheduleShareActionSchema)
+    if (!parsed.success)
+      return badRequestFromZod(parsed.error, 'action must be ACCEPT or REJECT')
+    const { action } = parsed.data
 
     const share = await prisma.scheduleShare.findUnique({
       where: { id: shareId },
       select: { id: true, ownerId: true, scope: true },
     })
     if (!share) return jsonError(404, 'not found')
-    if (share.ownerId !== me.id) return jsonError(403, 'forbidden')
+    if (share.ownerId !== userId) return jsonError(403, 'forbidden')
 
     const updated = await prisma.scheduleShare.update({
       where: { id: share.id },
@@ -83,8 +78,8 @@ export async function DELETE(
   { params }: { params: Promise<{ shareId: string }> }
 ) {
   try {
-    const me = await getMe()
-    if (!me) return jsonError(401, 'unauthorized')
+    const userId = await getCurrentUserId()
+    if (!userId) return jsonError(401, 'unauthorized')
 
     const { shareId } = await params
 
@@ -94,7 +89,7 @@ export async function DELETE(
     })
     if (!share) return jsonError(404, 'not found')
 
-    const allowed = share.requesterId === me.id || share.ownerId === me.id
+    const allowed = share.requesterId === userId || share.ownerId === userId
     if (!allowed) return jsonError(403, 'forbidden')
 
     await prisma.scheduleShare.delete({ where: { id: share.id } })

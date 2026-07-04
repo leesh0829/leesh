@@ -1,21 +1,11 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/app/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import { z } from 'zod'
 import { badRequestFromZod, parseJsonWithSchema } from '@/app/lib/validation'
 import { encrypt, decrypt, maskSecret } from '@/app/lib/cryptoUtil'
+import { getCurrentUserId } from '@/app/lib/serverAuth'
 
 export const runtime = 'nodejs'
-
-async function getUser() {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email) return null
-  return prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
-  })
-}
 
 const upsertSchema = z
   .object({
@@ -41,12 +31,12 @@ const upsertSchema = z
 
 // 사용자의 등록 상태 + 마스킹된 키 정보 반환 (실제 값 노출 X)
 export async function GET() {
-  const user = await getUser()
-  if (!user)
+  const userId = await getCurrentUserId()
+  if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
   const cred = await prisma.kisCredential.findUnique({
-    where: { userId: user.id },
+    where: { userId },
     select: {
       appKey: true,
       accountNumber: true,
@@ -71,8 +61,8 @@ export async function GET() {
 
 // 등록/갱신 (upsert)
 export async function PUT(req: Request) {
-  const user = await getUser()
-  if (!user)
+  const userId = await getCurrentUserId()
+  if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
   const parsed = await parseJsonWithSchema(req, upsertSchema)
@@ -82,9 +72,9 @@ export async function PUT(req: Request) {
     parsed.data
 
   await prisma.kisCredential.upsert({
-    where: { userId: user.id },
+    where: { userId },
     create: {
-      userId: user.id,
+      userId,
       appKey: encrypt(appKey),
       appSecret: encrypt(appSecret),
       accountNumber,
@@ -107,10 +97,10 @@ export async function PUT(req: Request) {
 }
 
 export async function DELETE() {
-  const user = await getUser()
-  if (!user)
+  const userId = await getCurrentUserId()
+  if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
-  await prisma.kisCredential.deleteMany({ where: { userId: user.id } })
+  await prisma.kisCredential.deleteMany({ where: { userId } })
   return NextResponse.json({ ok: true })
 }

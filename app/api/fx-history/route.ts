@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server'
+import { fetchWithTimeout } from '@/app/lib/fetchWithTimeout'
+import { normalizeCurrencyCode } from '@/app/lib/currencyCode'
 
 export const runtime = 'nodejs'
 
@@ -14,8 +16,10 @@ type TimeSeries = {
 // 환율은 캔들 데이터가 아니라 일별 종가만 — open/close만 동일값으로 채워 캔들화
 export async function GET(req: Request) {
   const url = new URL(req.url)
-  const base = (url.searchParams.get('base') ?? 'USD').toUpperCase()
-  const target = (url.searchParams.get('target') ?? 'KRW').toUpperCase()
+  const base = normalizeCurrencyCode(url.searchParams.get('base') ?? 'USD')
+  const target = normalizeCurrencyCode(url.searchParams.get('target') ?? 'KRW')
+  if (!base || !target)
+    return NextResponse.json({ message: 'invalid currency' }, { status: 400 })
   const daysRaw = url.searchParams.get('days')
   const days = Math.min(730, Math.max(7, daysRaw ? parseInt(daysRaw, 10) : 180))
 
@@ -25,8 +29,12 @@ export async function GET(req: Request) {
   const fmt = (d: Date) => d.toISOString().slice(0, 10)
 
   try {
-    const apiUrl = `https://api.frankfurter.dev/v1/${fmt(from)}..${fmt(to)}?base=${base}&symbols=${target}`
-    const r = await fetch(apiUrl, { next: { revalidate: 600 } })
+    const apiUrl = `https://api.frankfurter.dev/v1/${fmt(from)}..${fmt(to)}?base=${encodeURIComponent(base)}&symbols=${encodeURIComponent(target)}`
+    const r = await fetchWithTimeout(
+      apiUrl,
+      { next: { revalidate: 600 } },
+      { timeoutMs: 8_000 }
+    )
     if (!r.ok) {
       return NextResponse.json({ message: 'fx history failed' }, { status: 502 })
     }

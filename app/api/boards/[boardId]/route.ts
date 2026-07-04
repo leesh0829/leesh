@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/app/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/options'
+import { getCurrentUserId } from '@/app/lib/serverAuth'
+import { badRequestFromZod, parseJsonWithSchema } from '@/app/lib/validation'
+import { z } from 'zod'
 
 export const runtime = 'nodejs'
 const MANAGEABLE_BOARD_TYPES: ReadonlySet<string> = new Set([
@@ -9,17 +10,12 @@ const MANAGEABLE_BOARD_TYPES: ReadonlySet<string> = new Set([
   'TODO',
 ])
 
-async function getMe() {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email) return null
-
-  const me = await prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
+const boardPatchSchema = z
+  .object({
+    name: z.string().trim().min(1, 'invalid name').max(120).optional(),
+    description: z.union([z.string().trim().max(1000), z.null()]).optional(),
   })
-
-  return me
-}
+  .strict()
 
 export async function GET(
   _req: Request,
@@ -27,12 +23,12 @@ export async function GET(
 ) {
   const { boardId } = await params
 
-  const me = await getMe()
-  if (!me)
+  const userId = await getCurrentUserId()
+  if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
   const board = await prisma.board.findFirst({
-    where: { id: boardId, ownerId: me.id },
+    where: { id: boardId, ownerId: userId },
   })
   if (!board)
     return NextResponse.json({ message: 'not found' }, { status: 404 })
@@ -46,22 +42,13 @@ export async function PATCH(
 ) {
   const { boardId } = await params
 
-  const me = await getMe()
-  if (!me)
+  const userId = await getCurrentUserId()
+  if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
-  const body = await req.json().catch(() => null)
-  const name = typeof body?.name === 'string' ? body.name.trim() : undefined
-  const description =
-    body?.description === null
-      ? null
-      : typeof body?.description === 'string'
-        ? body.description.trim()
-        : undefined
-
-  if (name !== undefined && !name) {
-    return NextResponse.json({ message: 'invalid name' }, { status: 400 })
-  }
+  const parsed = await parseJsonWithSchema(req, boardPatchSchema)
+  if (!parsed.success) return badRequestFromZod(parsed.error, 'invalid body')
+  const { name, description } = parsed.data
 
   const board = await prisma.board.findUnique({
     where: { id: boardId },
@@ -70,7 +57,7 @@ export async function PATCH(
   if (!board)
     return NextResponse.json({ message: 'not found' }, { status: 404 })
 
-  const canManage = board.ownerId === me.id
+  const canManage = board.ownerId === userId
   if (!canManage)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
@@ -97,8 +84,8 @@ export async function DELETE(
 ) {
   const { boardId } = await params
 
-  const me = await getMe()
-  if (!me)
+  const userId = await getCurrentUserId()
+  if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
   const board = await prisma.board.findUnique({
@@ -108,7 +95,7 @@ export async function DELETE(
   if (!board)
     return NextResponse.json({ message: 'not found' }, { status: 404 })
 
-  const canManage = board.ownerId === me.id
+  const canManage = board.ownerId === userId
   if (!canManage)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 

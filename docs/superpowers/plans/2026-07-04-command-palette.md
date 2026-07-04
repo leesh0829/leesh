@@ -12,7 +12,7 @@
 
 - **새 npm 의존성 0** — `cmdk` 등 라이브러리 도입 금지. 기존 디자인 시스템 클래스(`.surface .card-pad .modal-enter .input .badge .nav-link .nav-link-active .btn .btn-outline`) 재사용.
 - **보안 불변식(스펙 §3·§6 준수)** — 검색은 다음을 초과 조회 금지: 블로그 `board.type=BLOG & status=DONE`, Docs `board.type=DOCS & status=DONE`, 고객센터 `board.type=HELP`, 게시판 `board.type=GENERAL & ownerId=본인(로그인 시만)`. 응답에 `contentMd`·`secretPasswordHash` 등 민감 필드 **절대 미포함**(제목만). 비밀글 열람 잠금은 기존 상세페이지가 최종 결정.
-- **테스트 러너 없음** — 리포지토리에 jest/vitest 등 자동 테스트 프레임워크가 없다. CLAUDE.md(“Simplicity First / nothing speculative”)에 따라 **테스트 프레임워크를 새로 추가하지 않는다.** 검증은 각 태스크에서 `npm run lint` + `npm run build`(타입 검사 포함) + 명시된 수동 스모크로 대체한다.
+- **테스트: Node 내장 러너(`node:test`)** — 리포지토리에 `tests/*.test.ts` 26개가 있고 `node --test tests/<file>.test.ts`로 실행한다(별도 `npm test` 스크립트·프레임워크 없음). 하우스 컨벤션은 **순수 로직을 `app/lib/*.ts`로 분리해 단위 테스트**하는 것(예: `kisRouteAuthDecision.ts`). 따라서 검색의 보안 로직은 `app/lib/search.ts`로 분리해 테스트한다. 추가 검증: `npm run lint` + `npm run build` + 수동 스모크. (`tsc --noEmit`의 `tests/**` `.ts`-확장자 에러는 기존 26개 테스트 전부가 갖는 무해한 것 — 실제 실행은 `node --test`로 정상.)
 - **코드 스타일** — `.prettierrc` 및 수정 중인 파일의 주변 스타일을 따른다(`app/` 컴포넌트/페이지는 대체로 세미콜론 생략·single quote). import 별칭 `@/app/...` 사용.
 - **URL 규칙(기존 목록과 일치)** — 블로그 `/blog/{id}`, Docs `/docs/{id}`, 고객센터 `/help/{id}`, 게시판 `/boards/{boardId}/{id}`. id는 `encodeURIComponent`로 감싼다.
 
@@ -21,7 +21,9 @@
 ### Task 1: 통합 검색 API (`GET /api/search`)
 
 **Files:**
-- Create: `app/api/search/route.ts`
+- Create: `app/lib/search.ts` (순수 로직: 쿼리 정규화·where 빌더·매퍼 — 보안 불변식 위치)
+- Create: `app/api/search/route.ts` (얇은 핸들러 — lib 조합 + Prisma 호출)
+- Create: `tests/search.test.ts` (`node --test`용 보안 불변식 단위 테스트)
 
 **Interfaces:**
 - Consumes: `@/app/lib/prisma`(`prisma`), `@/app/lib/serverAuth`(`getCurrentUserId(): Promise<string | null>`), `@/app/lib/prismaError`(`isDatabaseConnectionError(e): boolean`), `@prisma/client`(`Prisma` 타입).

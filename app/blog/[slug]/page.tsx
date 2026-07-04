@@ -21,8 +21,17 @@ import { readUnlockedPostIds, UNLOCK_COOKIE_NAME } from '@/app/lib/unlockCookie'
 import {
   formatReviewRatingHalf,
   getBlogPostTypeLabel,
+  type BlogPostType,
 } from '@/app/lib/blog'
 import { sanitizedMarkdownSchema } from '@/app/lib/markdown'
+import { estimateReadingMinutes } from '@/app/lib/readingTime'
+import {
+  adjacentOrder,
+  adjacentWhere,
+  postHref,
+  relatedWhere,
+} from '@/app/lib/postNav'
+import PostReadingFooter from '@/app/components/PostReadingFooter'
 
 export const runtime = 'nodejs'
 
@@ -169,6 +178,40 @@ export default async function BlogDetailPage({
 
   const locked = post.isSecret && !isPrivileged && !unlockedByPassword
   const spoilerGated = post.isSpoiler && !isPrivileged
+
+  const readingMinutes = locked
+    ? null
+    : estimateReadingMinutes(post.contentMd ?? '')
+
+  let prevPost: { id: string; title: string } | null = null
+  let nextPost: { id: string; title: string } | null = null
+  let relatedPosts: { id: string; title: string; blogCategory: BlogPostType }[] =
+    []
+  if (!locked) {
+    try {
+      ;[prevPost, nextPost, relatedPosts] = await Promise.all([
+        prisma.post.findFirst({
+          where: adjacentWhere('BLOG', post.createdAt, 'older'),
+          orderBy: { createdAt: adjacentOrder('older') },
+          select: { id: true, title: true },
+        }),
+        prisma.post.findFirst({
+          where: adjacentWhere('BLOG', post.createdAt, 'newer'),
+          orderBy: { createdAt: adjacentOrder('newer') },
+          select: { id: true, title: true },
+        }),
+        prisma.post.findMany({
+          where: relatedWhere('BLOG', post.id, post.blogCategory),
+          orderBy: { createdAt: 'desc' },
+          take: 3,
+          select: { id: true, title: true, blogCategory: true },
+        }),
+      ])
+    } catch (error) {
+      console.error('[BLOG_DETAIL_NAV]', error)
+    }
+  }
+
   const tocHeadings = extractMarkdownHeadings(post.contentMd ?? '')
   const headingIdQueue = [...tocHeadings.map((h) => h.id)]
   const nextHeadingId = () => headingIdQueue.shift() ?? undefined
@@ -229,6 +272,9 @@ export default async function BlogDetailPage({
                     <span aria-hidden="true">★</span>
                     <span>{formatReviewRatingHalf(post.reviewRatingHalf)}</span>
                   </span>
+                ) : null}
+                {readingMinutes != null ? (
+                  <span> · {readingMinutes}분 읽기</span>
                 ) : null}
               </div>
             </div>
@@ -294,6 +340,30 @@ export default async function BlogDetailPage({
                     article
                   )
                 })()}
+
+                <PostReadingFooter
+                  prev={
+                    prevPost
+                      ? {
+                          href: postHref('BLOG', prevPost.id),
+                          title: prevPost.title,
+                        }
+                      : null
+                  }
+                  next={
+                    nextPost
+                      ? {
+                          href: postHref('BLOG', nextPost.id),
+                          title: nextPost.title,
+                        }
+                      : null
+                  }
+                  related={relatedPosts.map((r) => ({
+                    href: postHref('BLOG', r.id),
+                    title: r.title,
+                    meta: getBlogPostTypeLabel(r.blogCategory),
+                  }))}
+                />
 
                 <div className="mt-6">
                   <BlogSpoilerSideBlur>

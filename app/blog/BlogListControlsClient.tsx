@@ -9,6 +9,7 @@ import {
   formatReviewRatingHalf,
   type BlogPostType,
 } from '@/app/lib/blog'
+import type { BlogTypeCounts } from '@/app/lib/blogCounts'
 
 type SortOrder = 'asc' | 'desc'
 
@@ -29,11 +30,13 @@ export default function BlogListControlsClient({
   typeFilter,
   ratingFilter,
   canWrite,
+  typeCounts,
 }: {
   sortOrder: SortOrder
   typeFilter: BlogPostType | null
   ratingFilter: number | null
   canWrite: boolean
+  typeCounts: BlogTypeCounts
 }) {
   const pathname = usePathname()
   const router = useRouter()
@@ -142,7 +145,8 @@ export default function BlogListControlsClient({
                   disabled={isPending}
                   onClick={() => navigate({ type: null, page: 1 })}
                 >
-                  전체
+                  전체{' '}
+                  <span className="opacity-60">({typeCounts.total})</span>
                 </button>
                 {BLOG_POST_TYPE_OPTIONS.map((option) => (
                   <button
@@ -152,7 +156,10 @@ export default function BlogListControlsClient({
                     disabled={isPending}
                     onClick={() => navigate({ type: option.value, page: 1 })}
                   >
-                    {option.label}
+                    {option.label}{' '}
+                    <span className="opacity-60">
+                      ({typeCounts.byType[option.value]})
+                    </span>
                   </button>
                 ))}
               </div>

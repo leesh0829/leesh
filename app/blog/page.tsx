@@ -5,12 +5,17 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import { toISOStringSafe } from '@/app/lib/date'
 import type { Prisma } from '@prisma/client'
 import {
+  BLOG_POST_TYPE_VALUES,
   formatReviewRatingHalf,
   getBlogPostTypeLabel,
   parseBlogPostType,
   parseReviewRatingHalf,
   type BlogPostType,
 } from '@/app/lib/blog'
+import {
+  tallyBlogTypeCounts,
+  type BlogTypeCounts,
+} from '@/app/lib/blogCounts'
 import { isDatabaseConnectionError } from '@/app/lib/prismaError'
 import BlogListControlsClient from './BlogListControlsClient'
 
@@ -83,10 +88,19 @@ export default async function BlogListPage(props: {
     ...(ratingFilter !== null ? { reviewRatingHalf: ratingFilter } : {}),
   }
 
+  const countWhere: Prisma.PostWhereInput = {
+    board: { type: 'BLOG' },
+    status: 'DONE',
+    ...(titleQuery
+      ? { title: { contains: titleQuery, mode: 'insensitive' } }
+      : {}),
+  }
+
   let totalCount = 0
   let totalPages = 1
   let page = 1
   let posts: BlogPostListItem[] = []
+  let typeCounts: BlogTypeCounts = tallyBlogTypeCounts([], BLOG_POST_TYPE_VALUES)
 
   if (!databaseUnavailable) {
     try {
@@ -114,6 +128,13 @@ export default async function BlogListPage(props: {
         ...p,
         createdAt: toISOStringSafe(p.createdAt),
       }))
+
+      const typeCountRows = await prisma.post.groupBy({
+        by: ['blogCategory'],
+        where: countWhere,
+        _count: { _all: true },
+      })
+      typeCounts = tallyBlogTypeCounts(typeCountRows, BLOG_POST_TYPE_VALUES)
     } catch (error) {
       if (!isDatabaseConnectionError(error)) throw error
       databaseUnavailable = true
@@ -214,6 +235,7 @@ export default async function BlogListPage(props: {
               typeFilter={typeFilter}
               ratingFilter={ratingFilter}
               canWrite={canWrite}
+              typeCounts={typeCounts}
             />
           </div>
         </div>

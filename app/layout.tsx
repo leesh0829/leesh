@@ -6,6 +6,7 @@ import { cookies } from 'next/headers'
 
 import Providers from './components/Providers'
 import AppShell from './components/AppShell'
+import CommandPalette from './components/CommandPalette'
 import DotMode from './components/DotMode'
 import GlobalTopRightControls from './components/GlobalTopRightControls'
 import HeadingHackEffect from './components/HeadingHackEffect'
@@ -107,6 +108,7 @@ export default async function RootLayout({
           <div className="app-physics-layer">
             <WorldBossButton />
             <GlobalTopRightControls />
+            <CommandPalette />
             <AppShell>{children}</AppShell>
           </div>
         </Providers>

@@ -15,6 +15,7 @@ type EditPost = {
   reviewRatingHalf?: number | null
   isSpoiler?: boolean
   docsCategory?: string | null
+  tags?: string[]
 }
 
 /**
@@ -56,6 +57,7 @@ export default function BlogEditClient({
   const [regenerateSlug, setRegenerateSlug] = useState(false)
   const [isSpoiler, setIsSpoiler] = useState(post.isSpoiler ?? false)
   const [docsCategory, setDocsCategory] = useState(post.docsCategory ?? '')
+  const [tagsRaw, setTagsRaw] = useState((post.tags ?? []).join(', '))
   const [msg, setMsg] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -81,6 +83,7 @@ export default function BlogEditClient({
                 blogCategory === 'REVIEW' && ratingEnabled
                   ? reviewRatingHalf
                   : null,
+              tagsRaw,
             }
           : {}),
         publish,
@@ -212,6 +215,19 @@ export default function BlogEditClient({
               </p>
             )}
           </div>
+        </div>
+      ) : null}
+
+      {showBlogMeta ? (
+        <div className="grid gap-2">
+          <label className="text-sm font-medium">태그</label>
+          <input
+            className="input"
+            value={tagsRaw}
+            onChange={(e) => setTagsRaw(e.target.value)}
+            placeholder="콤마로 구분 (예: react, 회고)"
+            disabled={saving}
+          />
         </div>
       ) : null}
 

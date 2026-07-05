@@ -40,6 +40,7 @@ export default function BlogEditorClient({
   const [secretPassword, setSecretPassword] = useState('')
   const [isSpoiler, setIsSpoiler] = useState(false)
   const [docsCategory, setDocsCategory] = useState('')
+  const [tagsRaw, setTagsRaw] = useState('')
 
   const canPublish = useMemo(() => {
     if (!title.trim()) return false
@@ -81,6 +82,7 @@ export default function BlogEditorClient({
                   blogCategory === 'REVIEW' && ratingEnabled
                     ? reviewRatingHalf
                     : null,
+                tagsRaw,
               }
             : {}),
           publish,
@@ -198,6 +200,19 @@ export default function BlogEditorClient({
               </p>
             )}
           </div>
+        </div>
+      ) : null}
+
+      {showBlogMeta ? (
+        <div className="grid gap-2">
+          <label className="text-sm font-medium">태그</label>
+          <input
+            className="input"
+            value={tagsRaw}
+            onChange={(e) => setTagsRaw(e.target.value)}
+            placeholder="콤마로 구분 (예: react, 회고)"
+            disabled={saving}
+          />
         </div>
       ) : null}
 

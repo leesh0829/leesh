@@ -1,4 +1,6 @@
+import type { Metadata } from 'next'
 import { prisma } from '@/app/lib/prisma'
+import { toExcerpt } from '@/app/lib/excerpt'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import { toISOStringSafe } from '@/app/lib/date'
@@ -104,6 +106,34 @@ function extractMarkdownHeadings(markdown: string): TocHeading[] {
  * @param params - A promise resolving to route parameters containing `slug`
  * @returns The page element for the blog post; shows "글 없음" when the post is not found.
  */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}): Promise<Metadata> {
+  const { slug } = await params
+  const post = await prisma.post.findFirst({
+    where: {
+      OR: [{ id: slug }, { slug }],
+      board: { type: 'BLOG' },
+      status: 'DONE',
+    },
+    orderBy: { createdAt: 'desc' },
+    select: { title: true, contentMd: true, isSecret: true, isSpoiler: true },
+  })
+  if (!post) return { title: '글 없음 · Leesh' }
+  const description =
+    post.isSecret || post.isSpoiler
+      ? '비공개 또는 열람 주의 글입니다.'
+      : toExcerpt(post.contentMd, 160)
+  return {
+    title: `${post.title} · Leesh`,
+    description,
+    openGraph: { title: post.title, description, type: 'article' },
+    twitter: { card: 'summary', title: post.title, description },
+  }
+}
+
 export default async function BlogDetailPage({
   params,
 }: {

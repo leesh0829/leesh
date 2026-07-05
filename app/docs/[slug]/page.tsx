@@ -1,5 +1,7 @@
 import Link from 'next/link'
+import type { Metadata } from 'next'
 import { prisma } from '@/app/lib/prisma'
+import { toExcerpt } from '@/app/lib/excerpt'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import { toISOStringSafe } from '@/app/lib/date'
@@ -80,6 +82,33 @@ function extractMarkdownHeadings(markdown: string): TocHeading[] {
   }
 
   return headings
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}): Promise<Metadata> {
+  const { slug } = await params
+  const post = await prisma.post.findFirst({
+    where: {
+      OR: [{ id: slug }, { slug }],
+      board: { type: 'DOCS' },
+      status: 'DONE',
+    },
+    orderBy: { createdAt: 'desc' },
+    select: { title: true, contentMd: true, isSecret: true },
+  })
+  if (!post) return { title: '문서 없음 · Leesh' }
+  const description = post.isSecret
+    ? '비공개 문서입니다.'
+    : toExcerpt(post.contentMd, 160)
+  return {
+    title: `${post.title} · Leesh`,
+    description,
+    openGraph: { title: post.title, description, type: 'article' },
+    twitter: { card: 'summary', title: post.title, description },
+  }
 }
 
 export default async function DocsDetailPage({

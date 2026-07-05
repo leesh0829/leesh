@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import type { Metadata } from 'next'
 import { prisma } from '@/app/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/options'
@@ -47,6 +48,11 @@ type BlogPostRow = {
 
 type BlogPostListItem = Omit<BlogPostRow, 'createdAt'> & {
   createdAt: string
+}
+
+export const metadata: Metadata = {
+  title: 'Blog · Leesh',
+  alternates: { types: { 'application/rss+xml': '/blog/rss.xml' } },
 }
 
 export default async function BlogListPage(props: {

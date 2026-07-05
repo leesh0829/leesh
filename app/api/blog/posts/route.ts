@@ -7,6 +7,7 @@ import {
   BLOG_POST_TYPE_VALUES,
   parseReviewRatingHalf,
 } from '@/app/lib/blog'
+import { parseTags } from '@/app/lib/blogTags'
 import { getCurrentUserId } from '@/app/lib/serverAuth'
 
 export const runtime = 'nodejs'
@@ -21,6 +22,7 @@ const createBlogPostSchema = z
     isSecret: z.boolean().optional().default(false),
     secretPassword: z.union([z.string(), z.null()]).optional(),
     isSpoiler: z.boolean().optional().default(false),
+    tagsRaw: z.string().optional(),
   })
   .strict()
   .superRefine((value, ctx) => {
@@ -133,6 +135,7 @@ export async function POST(req: Request) {
       isSpoiler,
       priority: 0,
       allDay: false,
+      tags: parseTags(parsed.data.tagsRaw ?? ''),
     },
     select: { id: true, slug: true },
   })

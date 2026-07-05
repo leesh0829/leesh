@@ -7,6 +7,7 @@ import {
   BLOG_POST_TYPE_VALUES,
   parseReviewRatingHalf,
 } from '@/app/lib/blog'
+import { parseTags } from '@/app/lib/blogTags'
 import { getCurrentUserId } from '@/app/lib/serverAuth'
 
 export const runtime = 'nodejs'
@@ -21,6 +22,7 @@ const updateBlogPostSchema = z
     isSecret: z.boolean().optional(),
     secretPassword: z.union([z.string(), z.null()]).optional(),
     isSpoiler: z.boolean().optional(),
+    tagsRaw: z.string().optional(),
   })
   .strict()
   .superRefine((value, ctx) => {
@@ -145,6 +147,10 @@ export async function PUT(
 
   if (typeof isSpoiler === 'boolean') {
     data.isSpoiler = isSpoiler
+  }
+
+  if (parsed.data.tagsRaw !== undefined) {
+    data.tags = parseTags(parsed.data.tagsRaw)
   }
 
   const updated = await prisma.post.update({

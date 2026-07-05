@@ -10,6 +10,7 @@ import {
   type BlogPostType,
 } from '@/app/lib/blog'
 import type { BlogTypeCounts } from '@/app/lib/blogCounts'
+import type { TagCount } from '@/app/lib/blogTags'
 
 type SortOrder = 'asc' | 'desc'
 
@@ -31,25 +32,30 @@ export default function BlogListControlsClient({
   ratingFilter,
   canWrite,
   typeCounts,
+  tagCounts,
+  tagFilter,
 }: {
   sortOrder: SortOrder
   typeFilter: BlogPostType | null
   ratingFilter: number | null
   canWrite: boolean
   typeCounts: BlogTypeCounts
+  tagCounts: TagCount[]
+  tagFilter: string | null
 }) {
   const pathname = usePathname()
   const router = useRouter()
   const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
   const [filterOpen, setFilterOpen] = useState(
-    typeFilter !== null || ratingFilter !== null
+    typeFilter !== null || ratingFilter !== null || !!tagFilter
   )
 
   function buildHref(next: {
     sort?: SortOrder
     type?: BlogPostType | null
     rating?: number | null
+    tag?: string | null
     page?: number
   }) {
     const params = new URLSearchParams(searchParams.toString())
@@ -65,6 +71,10 @@ export default function BlogListControlsClient({
       next.rating === undefined ? ratingFilter : next.rating
     if (typeof nextRating === 'number') params.set('rating', String(nextRating))
     else params.delete('rating')
+
+    const nextTag = next.tag === undefined ? tagFilter : next.tag
+    if (nextTag) params.set('tag', nextTag)
+    else params.delete('tag')
 
     return `${pathname}?${params.toString()}`
   }
@@ -84,7 +94,8 @@ export default function BlogListControlsClient({
             filterOpen ||
               sortOrder !== 'desc' ||
               typeFilter !== null ||
-              ratingFilter !== null
+              ratingFilter !== null ||
+              !!tagFilter
           )}
           onClick={() => setFilterOpen((prev) => !prev)}
           aria-expanded={filterOpen}
@@ -193,6 +204,36 @@ export default function BlogListControlsClient({
                 ))}
               </div>
             </div>
+
+            {tagCounts.length > 0 ? (
+              <div className="space-y-2">
+                <div className="text-xs font-semibold uppercase tracking-[0.16em] opacity-60">
+                  태그
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className={filterChipClass(!tagFilter)}
+                    disabled={isPending}
+                    onClick={() => navigate({ tag: null, page: 1 })}
+                  >
+                    전체
+                  </button>
+                  {tagCounts.map((tc) => (
+                    <button
+                      key={tc.tag}
+                      type="button"
+                      className={filterChipClass(tagFilter === tc.tag)}
+                      disabled={isPending}
+                      onClick={() => navigate({ tag: tc.tag, page: 1 })}
+                    >
+                      #{tc.tag}{' '}
+                      <span className="opacity-60">({tc.count})</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       </div>

@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import type { Metadata } from 'next'
 import { prisma } from '@/app/lib/prisma'
 import { toExcerpt } from '@/app/lib/excerpt'
@@ -153,6 +154,7 @@ export default async function BlogDetailPage({
     authorId: true,
     isSecret: true,
     isSpoiler: true,
+    tags: true,
     board: { select: { ownerId: true } },
   } as const
 
@@ -307,6 +309,19 @@ export default async function BlogDetailPage({
                   <span> · {readingMinutes}분 읽기</span>
                 ) : null}
               </div>
+              {post.tags.length > 0 ? (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {post.tags.map((t) => (
+                    <Link
+                      key={t}
+                      href={`/blog?tag=${encodeURIComponent(t)}`}
+                      className="rounded-full border border-black/10 bg-black/[0.04] px-2 py-0.5 text-xs no-underline opacity-80 hover:opacity-100"
+                    >
+                      #{t}
+                    </Link>
+                  ))}
+                </div>
+              ) : null}
             </div>
 
             <div className="shrink-0">

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import MarkdownEditor from '@/app/components/MarkdownEditor'
+import DiaryHeatmap from '@/app/components/DiaryHeatmap'
 import { useToast } from '@/app/components/ToastProvider'
 import { useAsyncLock } from '@/app/lib/useAsyncLock'
 import { toHumanHttpError } from '@/app/lib/httpErrorText'
@@ -232,6 +233,9 @@ export default function DiaryClient() {
 
   return (
     <main className="w-full px-3 py-6 sm:px-4 lg:px-6">
+      <div className="mx-auto mb-4 w-full max-w-3xl">
+        <DiaryHeatmap />
+      </div>
       <div className="mx-auto w-full max-w-3xl surface card-pad card-hover-border-only">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>

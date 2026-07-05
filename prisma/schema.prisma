@@ -123,6 +123,7 @@ model Post {
   blogCategory     BlogPostCategory @default(INFO)
   reviewRatingHalf Int?
   docsCategory     String?
+  tags             String[] @default([])
 
   startAt DateTime?
   endAt   DateTime?

@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { buildDiaryHeatmap } from '../app/lib/diaryHeatmap.ts'
+import {
+  buildDiaryHeatmap,
+  buildMonthLabels,
+} from '../app/lib/diaryHeatmap.ts'
 
 test('grid has `weeks` columns, each of 7 days', () => {
   const grid = buildDiaryHeatmap([], '2026-07-05', 4)
@@ -51,4 +54,20 @@ test('accepts a Set as input', () => {
     grid.flat().find((c) => c.date === '2026-07-03')?.hasEntry,
     true
   )
+})
+
+test('buildMonthLabels: length matches; first has year; same-month cols null', () => {
+  const grid = buildDiaryHeatmap([], '2026-07-05', 12)
+  const labels = buildMonthLabels(grid)
+  assert.equal(labels.length, grid.length)
+  assert.ok(labels[0] && /^\d{4}\. \d{1,2}월$/.test(labels[0]))
+  assert.ok(labels.some((l) => l === null)) // 같은 달 연속 열은 null
+  for (const l of labels) {
+    if (l) assert.ok(/\d{1,2}월/.test(l))
+  }
+})
+
+test('buildMonthLabels: spans multiple months over ~3 months', () => {
+  const labels = buildMonthLabels(buildDiaryHeatmap([], '2026-07-05', 12))
+  assert.ok(labels.filter(Boolean).length >= 2)
 })

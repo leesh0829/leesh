@@ -234,7 +234,7 @@ export default function DiaryClient() {
   return (
     <main className="w-full px-3 py-6 sm:px-4 lg:px-6">
       <div className="mx-auto mb-4 w-full max-w-3xl">
-        <DiaryHeatmap />
+        <DiaryHeatmap onSelectDate={(d) => void goToDate(d)} />
       </div>
       <div className="mx-auto w-full max-w-3xl surface card-pad card-hover-border-only">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">

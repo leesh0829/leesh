@@ -22,6 +22,23 @@ function addDays(dt: Date, n: number): Date {
   return new Date(dt.getTime() + n * 86400000)
 }
 
+// 각 열(주)에 대한 월 라벨. 월이 바뀌는 첫 열에만 라벨, 그 외 null.
+// 연도가 바뀌면 "YYYY. M월", 아니면 "M월".
+export function buildMonthLabels(grid: HeatmapWeek[]): (string | null)[] {
+  let prevMonth = -1
+  let prevYear = -1
+  return grid.map((week) => {
+    const d = parseYmd(week[0].date)
+    const y = d.getUTCFullYear()
+    const m = d.getUTCMonth() + 1
+    if (m === prevMonth && y === prevYear) return null
+    const newYear = y !== prevYear
+    prevMonth = m
+    prevYear = y
+    return newYear ? `${y}. ${m}월` : `${m}월`
+  })
+}
+
 // GitHub 잔디식 그리드: `weeks`개 열(오래된→최신), 각 열 7일(일→토).
 // 마지막 열은 오늘이 속한 주의 토요일에 정렬. 오늘 이후 칸은 inRange:false.
 export function buildDiaryHeatmap(

@@ -1,10 +1,20 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/options";
 import { toISOStringSafe } from "@/app/lib/date";
+import { badRequestFromZod, parseJsonWithSchema } from "@/app/lib/validation";
+import { getCurrentUser } from "@/app/lib/serverAuth";
+import { z } from "zod";
 
 export const runtime = "nodejs";
+
+const answerCreateSchema = z
+  .object({
+    content: z.preprocess(
+      (value) => (value == null ? "" : String(value)),
+      z.string().trim().min(1, "content required").max(20_000, "content too long"),
+    ),
+  })
+  .strict();
 
 type AnswerRow = {
   id: string;
@@ -59,20 +69,13 @@ export async function POST(
 ) {
   const { postId } = await params;
 
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.email) {
+  const me = await getCurrentUser();
+  if (!me) {
     return NextResponse.json(
       { message: "로그인이 필요합니다." },
       { status: 401 },
     );
   }
-
-  const me = await prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true, role: true },
-  });
-  if (!me)
-    return NextResponse.json({ message: "unauthorized" }, { status: 401 });
 
   const ownerId = await getOwnerUserId();
   const isOperator = !!ownerId && (me.role === "ADMIN" || me.id === ownerId);
@@ -90,13 +93,11 @@ export async function POST(
   if (!post)
     return NextResponse.json({ message: "not found" }, { status: 404 });
 
-  const body = await req.json().catch(() => null);
-  const content = (body?.content ?? "").toString().trim();
-  if (!content)
-    return NextResponse.json({ message: "content required" }, { status: 400 });
+  const parsed = await parseJsonWithSchema(req, answerCreateSchema);
+  if (!parsed.success) return badRequestFromZod(parsed.error);
 
   const c = await prisma.comment.create({
-    data: { postId, authorId: me.id, content },
+    data: { postId, authorId: me.id, content: parsed.data.content },
     select: { id: true },
   });
 

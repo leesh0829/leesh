@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/options";
 import { toISOStringSafe } from "@/app/lib/date";
+import { getCurrentUser } from "@/app/lib/serverAuth";
 
 export const runtime = "nodejs";
 
@@ -41,13 +40,7 @@ export async function GET(
   if (!post)
     return NextResponse.json({ message: "not found" }, { status: 404 });
 
-  const session = await getServerSession(authOptions);
-  const me = session?.user?.email
-    ? await prisma.user.findUnique({
-        where: { email: session.user.email },
-        select: { id: true, role: true },
-      })
-    : null;
+  const me = await getCurrentUser();
 
   const canAnswer = !!me && (me.role === "ADMIN" || me.id === ownerId);
 

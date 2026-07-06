@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/options";
 import { toISOStringSafe } from "@/app/lib/date";
 import { z } from "zod";
 import { badRequestFromZod, parseJsonWithSchema } from "@/app/lib/validation";
+import { getCurrentUserId } from "@/app/lib/serverAuth";
 
 export const runtime = "nodejs";
 
@@ -29,18 +28,8 @@ const diaryUpsertSchema = z
   })
   .strict();
 
-async function getUserId() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.email) return null;
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
-  });
-  return user?.id ?? null;
-}
-
 export async function GET(req: Request) {
-  const userId = await getUserId();
+  const userId = await getCurrentUserId();
   if (!userId) return NextResponse.json({ message: "unauthorized" }, { status: 401 });
 
   const url = new URL(req.url);
@@ -63,7 +52,7 @@ export async function GET(req: Request) {
 }
 
 export async function PUT(req: Request) {
-  const userId = await getUserId();
+  const userId = await getCurrentUserId();
   if (!userId) return NextResponse.json({ message: "unauthorized" }, { status: 401 });
 
   const parsed = await parseJsonWithSchema(req, diaryUpsertSchema);

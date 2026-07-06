@@ -66,6 +66,7 @@ export default async function DocsNewPage() {
           boardId={docsBoard.id}
           apiBasePath="/api/docs/posts"
           detailBasePath="/docs"
+          showDocsCategory
         />
       </div>
     </main>

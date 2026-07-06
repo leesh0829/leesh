@@ -1,21 +1,14 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/app/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import { getQuote as getNaverQuote } from '@/app/lib/naverFinance'
 import { getKisQuote, isKrSymbol } from '@/app/lib/kisQuote'
+import { getCurrentUserId } from '@/app/lib/serverAuth'
+import {
+  normalizeStockSymbol,
+  normalizeStockSymbolList,
+} from '@/app/lib/stockQuery'
 
 export const runtime = 'nodejs'
-
-async function getUserId() {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email) return null
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
-  })
-  return user?.id ?? null
-}
 
 async function userHasKis(userId: string): Promise<boolean> {
   const c = await prisma.kisCredential.findUnique({
@@ -48,7 +41,7 @@ async function fetchOneQuote(
 // GET /api/holdings/quote?symbol=AAPL.O — 단일
 // GET /api/holdings/quote?symbols=A,B,C — 배치 (콤마 구분)
 export async function GET(req: Request) {
-  const userId = await getUserId()
+  const userId = await getCurrentUserId()
   if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
@@ -59,8 +52,12 @@ export async function GET(req: Request) {
   const batchRaw = url.searchParams.get('symbols')?.trim()
 
   if (single) {
+    const symbol = normalizeStockSymbol(single)
+    if (!symbol)
+      return NextResponse.json({ message: 'invalid symbol' }, { status: 400 })
+
     try {
-      const q = await fetchOneQuote(userId, single, kisEnabled)
+      const q = await fetchOneQuote(userId, symbol, kisEnabled)
       if (!q)
         return NextResponse.json(
           { message: '시세를 가져오지 못했습니다.' },
@@ -77,11 +74,9 @@ export async function GET(req: Request) {
   }
 
   if (batchRaw) {
-    const symbols = batchRaw
-      .split(',')
-      .map((s) => s.trim())
-      .filter((s) => !!s)
-      .slice(0, 30)
+    const symbols = normalizeStockSymbolList(batchRaw, 30)
+    if (symbols.length === 0) return NextResponse.json({ items: [] })
+
     const results = await Promise.all(
       symbols.map((s) => fetchOneQuote(userId, s, kisEnabled))
     )

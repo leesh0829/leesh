@@ -6,36 +6,28 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import { toISOStringSafe } from '@/app/lib/date'
 import { isDatabaseConnectionError } from '@/app/lib/prismaError'
 import type { Prisma } from '@prisma/client'
+import { groupDocsByCategory, type DocsListItem } from '@/app/lib/docsTree'
 
 export const runtime = 'nodejs'
 
 type SortOrder = 'asc' | 'desc'
-const DOCS_PAGE_SIZE = 10
 
 function parseSortOrder(v: string | undefined): SortOrder {
   return v === 'asc' ? 'asc' : 'desc'
-}
-
-function parsePage(v: string | undefined): number {
-  if (!v) return 1
-  const n = Number(v)
-  if (!Number.isFinite(n)) return 1
-  return Math.max(1, Math.floor(n))
 }
 
 type DocsPostRow = {
   id: string
   title: string
   createdAt: Date
-  author: { name: string | null; email: string | null }
+  docsCategory: string | null
 }
 
 export default async function DocsListPage(props: {
-  searchParams?: Promise<{ sort?: string; page?: string; q?: string }>
+  searchParams?: Promise<{ sort?: string; q?: string }>
 }) {
   const searchParams = (await props.searchParams) ?? {}
   const sortOrder = parseSortOrder(searchParams.sort)
-  const rawPage = parsePage(searchParams.page)
   const titleQuery =
     typeof searchParams.q === 'string' ? searchParams.q.trim() : ''
   let databaseUnavailable = false
@@ -58,58 +50,38 @@ export default async function DocsListPage(props: {
       ? { title: { contains: titleQuery, mode: 'insensitive' } }
       : {}),
   }
-  let totalCount = 0
-  let totalPages = 1
-  let page = 1
-  let posts: Array<Omit<DocsPostRow, 'createdAt'> & { createdAt: string }> = []
 
+  let items: DocsListItem[] = []
   if (!databaseUnavailable) {
     try {
-      totalCount = await prisma.post.count({ where })
-      totalPages = Math.max(1, Math.ceil(totalCount / DOCS_PAGE_SIZE))
-      page = Math.min(rawPage, totalPages)
-
-      const postsRaw: DocsPostRow[] = await prisma.post.findMany({
+      const rows: DocsPostRow[] = await prisma.post.findMany({
         where,
         orderBy: { createdAt: sortOrder },
-        skip: (page - 1) * DOCS_PAGE_SIZE,
-        take: DOCS_PAGE_SIZE,
-        select: {
-          id: true,
-          title: true,
-          createdAt: true,
-          author: { select: { name: true, email: true } },
-        },
+        select: { id: true, title: true, createdAt: true, docsCategory: true },
       })
-
-      posts = postsRaw.map((p: DocsPostRow) => ({
-        ...p,
+      items = rows.map((p) => ({
+        id: p.id,
+        title: p.title,
+        docsCategory: p.docsCategory,
         createdAt: toISOStringSafe(p.createdAt),
       }))
     } catch (error) {
       if (!isDatabaseConnectionError(error)) throw error
       databaseUnavailable = true
-      totalCount = 0
-      totalPages = 1
-      page = 1
-      posts = []
+      items = []
       console.error('[DOCS_PAGE_DB_UNAVAILABLE][POSTS]', error)
     }
   }
 
-  const toHref = (next: { page?: number; sort?: SortOrder; q?: string }) => {
+  const groups = groupDocsByCategory(items)
+
+  const buildHref = (next: { sort?: SortOrder; q?: string }) => {
     const params = new URLSearchParams()
     params.set('sort', next.sort ?? sortOrder)
-    params.set(
-      'page',
-      String(Math.min(totalPages, Math.max(1, next.page ?? page)))
-    )
     const q = (next.q ?? titleQuery).trim()
     if (q) params.set('q', q)
     return `/docs?${params.toString()}`
   }
-
-  const pageHref = (nextPage: number) => toHref({ page: nextPage })
 
   return (
     <main className="container-page py-8">
@@ -129,7 +101,6 @@ export default async function DocsListPage(props: {
               className="flex w-full flex-wrap items-center gap-2 lg:justify-end"
             >
               <input type="hidden" name="sort" value={sortOrder} />
-              <input type="hidden" name="page" value="1" />
               <input
                 type="text"
                 name="q"
@@ -145,14 +116,14 @@ export default async function DocsListPage(props: {
                 검색
               </button>
               {titleQuery ? (
-                <Link href={toHref({ page: 1, q: '' })} className="btn btn-ghost">
+                <Link href={buildHref({ q: '' })} className="btn btn-ghost">
                   초기화
                 </Link>
               ) : null}
             </form>
             <div className="flex flex-wrap items-center gap-2 lg:justify-end">
               <Link
-                href={toHref({ sort: 'desc', page: 1 })}
+                href={buildHref({ sort: 'desc' })}
                 className={
                   'btn ' +
                   (sortOrder === 'desc' ? 'btn-primary' : 'btn-outline')
@@ -161,7 +132,7 @@ export default async function DocsListPage(props: {
                 최신순
               </Link>
               <Link
-                href={toHref({ sort: 'asc', page: 1 })}
+                href={buildHref({ sort: 'asc' })}
                 className={
                   'btn ' + (sortOrder === 'asc' ? 'btn-primary' : 'btn-outline')
                 }
@@ -177,82 +148,60 @@ export default async function DocsListPage(props: {
           </div>
         </div>
 
-        <div className="stagger-in mt-6 grid gap-3">
+        <div className="mt-6 grid gap-3">
           {databaseUnavailable ? (
             <div className="card card-pad">
               <div className="font-medium">문서 목록을 불러올 수 없습니다.</div>
               <div className="mt-1 text-sm" style={{ color: 'var(--muted)' }}>
-                데이터베이스 연결이 준비되지 않았습니다. DB가 올라온 뒤 새로고침하면
-                목록이 다시 표시됩니다.
+                데이터베이스 연결이 준비되지 않았습니다. DB가 올라온 뒤
+                새로고침하면 목록이 다시 표시됩니다.
               </div>
             </div>
-          ) : posts.length === 0 ? (
+          ) : groups.length === 0 ? (
             <div className="card card-pad">
               <div className="text-sm" style={{ color: 'var(--muted)' }}>
                 {titleQuery ? `검색 결과 없음: "${titleQuery}"` : '문서 없음'}
               </div>
             </div>
           ) : (
-            posts.map((p) => (
-              <Link
-                key={p.id}
-                href={`/docs/${encodeURIComponent(p.id)}`}
-                className="card card-pad block no-underline hover:no-underline"
+            groups.map((group) => (
+              <details
+                key={group.category}
+                open
+                className="card card-pad card-hover-border-only"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="truncate font-semibold">{p.title}</div>
-                    <div
-                      className="mt-1 text-xs"
-                      style={{ color: 'var(--muted)' }}
+                <summary className="cursor-pointer text-sm font-semibold">
+                  {group.category}{' '}
+                  <span className="opacity-60">({group.items.length})</span>
+                </summary>
+                <div className="mt-3 grid gap-2">
+                  {group.items.map((p) => (
+                    <Link
+                      key={p.id}
+                      href={`/docs/${encodeURIComponent(p.id)}`}
+                      className="card card-pad block no-underline hover:no-underline"
                     >
-                      {p.createdAt.slice(0, 10)}
-                      {p.author?.name || p.author?.email ? (
-                        <>
-                          {' '}
-                          ·{' '}
-                          {p.author?.name ??
-                            (p.author?.email
-                              ? p.author.email.split('@')[0]
-                              : 'unknown')}
-                        </>
-                      ) : null}
-                    </div>
-                  </div>
-                  <span className="badge">보기</span>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="truncate font-semibold">
+                            {p.title}
+                          </div>
+                          <div
+                            className="mt-1 text-xs"
+                            style={{ color: 'var(--muted)' }}
+                          >
+                            {p.createdAt.slice(0, 10)}
+                          </div>
+                        </div>
+                        <span className="badge">보기</span>
+                      </div>
+                    </Link>
+                  ))}
                 </div>
-              </Link>
+              </details>
             ))
           )}
         </div>
-
-        {totalPages > 1 ? (
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-            <Link
-              href={pageHref(page - 1)}
-              aria-disabled={page <= 1}
-              className={
-                'btn btn-outline ' +
-                (page <= 1 ? 'pointer-events-none opacity-50' : '')
-              }
-            >
-              이전
-            </Link>
-            <span className="badge">
-              {page} / {totalPages}
-            </span>
-            <Link
-              href={pageHref(page + 1)}
-              aria-disabled={page >= totalPages}
-              className={
-                'btn btn-outline ' +
-                (page >= totalPages ? 'pointer-events-none opacity-50' : '')
-              }
-            >
-              다음
-            </Link>
-          </div>
-        ) : null}
       </div>
     </main>
   )

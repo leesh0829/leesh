@@ -1,32 +1,30 @@
 import { prisma } from '@/app/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/options'
+import { getCurrentAdmin } from '@/app/lib/serverAuth'
+import { badRequestFromZod, parseJsonWithSchema } from '@/app/lib/validation'
+import { z } from 'zod'
 
 export const runtime = 'nodejs'
 
-type OverrideIn = {
-  menuKey: string
-  mode: 'ALLOW' | 'DENY'
-}
-
-async function requireAdmin() {
-  const session = await getServerSession(authOptions)
-  const email = session?.user?.email ?? null
-  if (!email) return null
-
-  const me = await prisma.user.findUnique({
-    where: { email },
-    select: { id: true, role: true },
+const overridesUpdateSchema = z
+  .object({
+    overrides: z
+      .array(
+        z
+          .object({
+            menuKey: z.string().trim().min(1).max(80),
+            mode: z.enum(['ALLOW', 'DENY']),
+          })
+          .strict()
+      )
+      .max(100),
   })
-  if (!me || me.role !== 'ADMIN') return null
-  return me
-}
+  .strict()
 
 export async function GET(
   _: Request,
   ctx: { params: Promise<{ userId: string }> }
 ) {
-  const me = await requireAdmin()
+  const me = await getCurrentAdmin()
   if (!me) return Response.json({ message: 'forbidden' }, { status: 403 })
 
   const { userId } = await ctx.params
@@ -44,31 +42,33 @@ export async function PUT(
   req: Request,
   ctx: { params: Promise<{ userId: string }> }
 ) {
-  const me = await requireAdmin()
+  const me = await getCurrentAdmin()
   if (!me) return Response.json({ message: 'forbidden' }, { status: 403 })
 
   const { userId } = await ctx.params
 
-  const body = (await req.json().catch(() => null)) as {
-    overrides?: OverrideIn[]
-  } | null
-  const overrides = body?.overrides
-  if (!overrides || !Array.isArray(overrides)) {
-    return Response.json({ message: 'bad request' }, { status: 400 })
-  }
+  const parsed = await parseJsonWithSchema(req, overridesUpdateSchema)
+  if (!parsed.success) return badRequestFromZod(parsed.error, 'bad request')
+  const { overrides } = parsed.data
 
-  // 🔥 통째 동기화(제일 안 꼬임): 기존 삭제 후 재생성
-  await prisma.userMenuPermission.deleteMany({ where: { userId } })
+  const target = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true },
+  })
+  if (!target) return Response.json({ message: 'not found' }, { status: 404 })
 
-  if (overrides.length > 0) {
-    await prisma.userMenuPermission.createMany({
-      data: overrides.map((o) => ({
-        userId,
-        menuKey: o.menuKey,
-        mode: o.mode,
-      })),
-    })
-  }
+  await prisma.$transaction(async (tx) => {
+    await tx.userMenuPermission.deleteMany({ where: { userId } })
+    if (overrides.length > 0) {
+      await tx.userMenuPermission.createMany({
+        data: overrides.map((o) => ({
+          userId,
+          menuKey: o.menuKey,
+          mode: o.mode,
+        })),
+      })
+    }
+  })
 
   return Response.json({ ok: true })
 }

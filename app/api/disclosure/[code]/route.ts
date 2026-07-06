@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import { getNaverDisclosures } from '@/app/lib/naverDisclosure'
+import { getCurrentUserId } from '@/app/lib/serverAuth'
 
 export const runtime = 'nodejs'
 
@@ -9,8 +8,8 @@ export async function GET(
   req: Request,
   { params }: { params: Promise<{ code: string }> }
 ) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email)
+  const userId = await getCurrentUserId()
+  if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
   const { code } = await params
   if (!/^\d{6}$/.test(code))

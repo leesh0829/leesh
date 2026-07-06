@@ -53,6 +53,7 @@ export default async function DocsEditPage({
       slug: true,
       status: true,
       isSecret: true,
+      docsCategory: true,
     },
   })
 
@@ -88,6 +89,7 @@ export default async function DocsEditPage({
           apiBasePath="/api/docs/posts"
           detailBasePath="/docs"
           listBasePath="/docs"
+          showDocsCategory
         />
       </div>
     </main>

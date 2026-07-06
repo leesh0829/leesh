@@ -1,58 +1,37 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/app/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/options'
+import { getCurrentUserId } from '@/app/lib/serverAuth'
+import { normalizeStockSymbol } from '@/app/lib/stockQuery'
+import {
+  buildHoldingTradesWhere,
+  holdingTradesOrderBy,
+  holdingTradesSelect,
+  toHoldingTradeMarker,
+  type HoldingTradeRow,
+} from '@/app/lib/holdingTradesQuery'
 
 export const runtime = 'nodejs'
 
 // GET /api/holdings/trades?symbol=005930
 // 차트 마커용 — 해당 종목의 본인 매수/매도 거래 모음
 export async function GET(req: Request) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email)
-    return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
-  })
-  if (!user)
+  const userId = await getCurrentUserId()
+  if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
   const url = new URL(req.url)
-  const symbol = url.searchParams.get('symbol')?.trim() ?? ''
+  const symbol = normalizeStockSymbol(url.searchParams.get('symbol'))
   if (!symbol)
     return NextResponse.json({ message: 'symbol required' }, { status: 400 })
 
   try {
-    // 해당 종목의 모든 본인 보유 (다른 계좌에 같은 종목 여러 개 있을 수 있음)
-    const holdings = await prisma.holding.findMany({
-      where: { ownerId: user.id, symbol },
-      select: { id: true },
-    })
-    if (holdings.length === 0)
-      return NextResponse.json({ items: [] })
-    const txs = await prisma.holdingTransaction.findMany({
-      where: {
-        holdingId: { in: holdings.map((h) => h.id) },
-        type: { in: ['BUY', 'SELL'] },
-      },
-      orderBy: { occurredAt: 'asc' },
-      select: {
-        id: true,
-        type: true,
-        quantity: true,
-        pricePerUnit: true,
-        occurredAt: true,
-      },
+    const txs: HoldingTradeRow[] = await prisma.holdingTransaction.findMany({
+      where: buildHoldingTradesWhere(userId, symbol),
+      orderBy: holdingTradesOrderBy,
+      select: holdingTradesSelect,
     })
     return NextResponse.json({
-      items: txs.map((t) => ({
-        id: t.id,
-        type: t.type,
-        quantity: t.quantity,
-        unitPrice: t.pricePerUnit,
-        date: t.occurredAt.toISOString().slice(0, 10).replace(/-/g, ''),
-      })),
+      items: txs.map(toHoldingTradeMarker),
     })
   } catch (e) {
     console.error('[TRADES_API_ERROR]', e)

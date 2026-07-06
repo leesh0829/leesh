@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/app/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { badRequestFromZod, parseJsonWithSchema } from '@/app/lib/validation'
@@ -9,6 +7,8 @@ import {
   BLOG_POST_TYPE_VALUES,
   parseReviewRatingHalf,
 } from '@/app/lib/blog'
+import { parseTags } from '@/app/lib/blogTags'
+import { getCurrentUserId } from '@/app/lib/serverAuth'
 
 export const runtime = 'nodejs'
 const createBlogPostSchema = z
@@ -22,6 +22,7 @@ const createBlogPostSchema = z
     isSecret: z.boolean().optional().default(false),
     secretPassword: z.union([z.string(), z.null()]).optional(),
     isSpoiler: z.boolean().optional().default(false),
+    tagsRaw: z.string().optional(),
   })
   .strict()
   .superRefine((value, ctx) => {
@@ -74,17 +75,9 @@ function slugify(input: string): string {
 }
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email) {
+  const userId = await getCurrentUserId()
+  if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
-  })
-  if (!user)
-    return NextResponse.json({ message: 'user not found' }, { status: 404 })
 
   const parsed = await parseJsonWithSchema(req, createBlogPostSchema)
   if (!parsed.success) {
@@ -109,7 +102,7 @@ export async function POST(req: Request) {
 
   // 보드 소유/타입 확인
   const board = await prisma.board.findFirst({
-    where: { id: boardId, ownerId: user.id, type: 'BLOG' },
+    where: { id: boardId, ownerId: userId, type: 'BLOG' },
     select: { id: true },
   })
   if (!board)
@@ -130,7 +123,7 @@ export async function POST(req: Request) {
   const post = await prisma.post.create({
     data: {
       boardId,
-      authorId: user.id,
+      authorId: userId,
       title,
       contentMd,
       blogCategory,
@@ -142,6 +135,7 @@ export async function POST(req: Request) {
       isSpoiler,
       priority: 0,
       allDay: false,
+      tags: parseTags(parsed.data.tagsRaw ?? ''),
     },
     select: { id: true, slug: true },
   })

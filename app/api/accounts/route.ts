@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/app/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import { toISOStringSafe } from '@/app/lib/date'
 import { z } from 'zod'
 import { badRequestFromZod, parseJsonWithSchema } from '@/app/lib/validation'
@@ -10,6 +8,7 @@ import {
   validateAccountTypes,
   type AccountType,
 } from '@/app/lib/accountTypes'
+import { getCurrentUserId } from '@/app/lib/serverAuth'
 
 export const runtime = 'nodejs'
 
@@ -35,15 +34,6 @@ const accountCreateSchema = z
   })
   .strict()
 
-async function getUser() {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email) return null
-  return prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
-  })
-}
-
 type AccountRow = {
   id: string
   name: string
@@ -57,12 +47,12 @@ type AccountRow = {
 }
 
 export async function GET() {
-  const user = await getUser()
-  if (!user)
+  const userId = await getCurrentUserId()
+  if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
   const rows: AccountRow[] = await prisma.financialAccount.findMany({
-    where: { ownerId: user.id },
+    where: { ownerId: userId },
     orderBy: [{ createdAt: 'asc' }],
     select: {
       id: true,
@@ -94,8 +84,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const user = await getUser()
-  if (!user)
+  const userId = await getCurrentUserId()
+  if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
   const parsed = await parseJsonWithSchema(req, accountCreateSchema)
@@ -110,7 +100,7 @@ export async function POST(req: Request) {
 
   const created = await prisma.financialAccount.create({
     data: {
-      ownerId: user.id,
+      ownerId: userId,
       name,
       bankName,
       types,

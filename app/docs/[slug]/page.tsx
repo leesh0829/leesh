@@ -1,4 +1,7 @@
+import Link from 'next/link'
+import type { Metadata } from 'next'
 import { prisma } from '@/app/lib/prisma'
+import { toExcerpt } from '@/app/lib/excerpt'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import { toISOStringSafe } from '@/app/lib/date'
@@ -7,12 +10,22 @@ import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
 import rehypeHighlight from 'rehype-highlight'
 import rehypeRaw from 'rehype-raw'
+import rehypeSanitize from 'rehype-sanitize'
 import BlogCommentsClient from '@/app/blog/[slug]/BlogCommentsClient'
 import BlogActionsClient from '@/app/blog/[slug]/BlogActionsClient'
 import BlogSecretGateClient from '@/app/blog/[slug]/BlogSecretGateClient'
 import BlogTocClient from '@/app/blog/[slug]/BlogTocClient'
 import { cookies } from 'next/headers'
 import { readUnlockedPostIds, UNLOCK_COOKIE_NAME } from '@/app/lib/unlockCookie'
+import { sanitizedMarkdownSchema } from '@/app/lib/markdown'
+import { estimateReadingMinutes } from '@/app/lib/readingTime'
+import {
+  adjacentOrder,
+  adjacentWhere,
+  postHref,
+  relatedWhere,
+} from '@/app/lib/postNav'
+import PostReadingFooter from '@/app/components/PostReadingFooter'
 
 export const runtime = 'nodejs'
 
@@ -71,6 +84,33 @@ function extractMarkdownHeadings(markdown: string): TocHeading[] {
   return headings
 }
 
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}): Promise<Metadata> {
+  const { slug } = await params
+  const post = await prisma.post.findFirst({
+    where: {
+      OR: [{ id: slug }, { slug }],
+      board: { type: 'DOCS' },
+      status: 'DONE',
+    },
+    orderBy: { createdAt: 'desc' },
+    select: { title: true, contentMd: true, isSecret: true },
+  })
+  if (!post) return { title: '문서 없음 · Leesh' }
+  const description = post.isSecret
+    ? '비공개 문서입니다.'
+    : toExcerpt(post.contentMd, 160)
+  return {
+    title: `${post.title} · Leesh`,
+    description,
+    openGraph: { title: post.title, description, type: 'article' },
+    twitter: { card: 'summary', title: post.title, description },
+  }
+}
+
 export default async function DocsDetailPage({
   params,
 }: {
@@ -87,6 +127,7 @@ export default async function DocsDetailPage({
     createdAt: true,
     authorId: true,
     isSecret: true,
+    docsCategory: true,
     board: { select: { ownerId: true } },
   } as const
 
@@ -141,6 +182,39 @@ export default async function DocsDetailPage({
   const unlockedByPassword = unlocked.includes(post.id)
 
   const locked = post.isSecret && !isPrivileged && !unlockedByPassword
+
+  const readingMinutes = locked
+    ? null
+    : estimateReadingMinutes(post.contentMd ?? '')
+
+  let prevPost: { id: string; title: string } | null = null
+  let nextPost: { id: string; title: string } | null = null
+  let relatedPosts: { id: string; title: string; createdAt: Date }[] = []
+  if (!locked) {
+    try {
+      ;[prevPost, nextPost, relatedPosts] = await Promise.all([
+        prisma.post.findFirst({
+          where: adjacentWhere('DOCS', post.createdAt, 'older'),
+          orderBy: { createdAt: adjacentOrder('older') },
+          select: { id: true, title: true },
+        }),
+        prisma.post.findFirst({
+          where: adjacentWhere('DOCS', post.createdAt, 'newer'),
+          orderBy: { createdAt: adjacentOrder('newer') },
+          select: { id: true, title: true },
+        }),
+        prisma.post.findMany({
+          where: relatedWhere('DOCS', post.id),
+          orderBy: { createdAt: 'desc' },
+          take: 3,
+          select: { id: true, title: true, createdAt: true },
+        }),
+      ])
+    } catch (error) {
+      console.error('[DOCS_DETAIL_NAV]', error)
+    }
+  }
+
   const tocHeadings = extractMarkdownHeadings(post.contentMd ?? '')
   const headingIdQueue = [...tocHeadings.map((h) => h.id)]
   const nextHeadingId = () => headingIdQueue.shift() ?? undefined
@@ -166,6 +240,16 @@ export default async function DocsDetailPage({
         <div className="surface card-pad card-hover-border-only">
           <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
+              <div
+                className="mb-1 text-xs"
+                style={{ color: 'var(--muted)' }}
+              >
+                <Link href="/docs" className="hover:underline">
+                  Docs
+                </Link>
+                {' / '}
+                {post.docsCategory ?? '미분류'}
+              </div>
               <h1 className="text-2xl font-bold leading-tight">
                 <span className="wrap-break-word">{post.title}</span>{' '}
                 {post.isSecret ? (
@@ -174,6 +258,9 @@ export default async function DocsDetailPage({
               </h1>
               <div className="mt-2 text-sm" style={{ color: 'var(--muted)' }}>
                 {toISOStringSafe(post.createdAt).slice(0, 10)}
+                {readingMinutes != null ? (
+                  <span> · {readingMinutes}분 읽기</span>
+                ) : null}
               </div>
             </div>
 
@@ -198,7 +285,11 @@ export default async function DocsDetailPage({
                   <div className="markdown-body">
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm, remarkBreaks]}
-                      rehypePlugins={[rehypeRaw, rehypeHighlight]}
+                      rehypePlugins={[
+                        rehypeRaw,
+                        [rehypeSanitize, sanitizedMarkdownSchema],
+                        rehypeHighlight,
+                      ]}
                       components={{
                         h1: headingComponent('h1'),
                         h2: headingComponent('h2'),
@@ -230,6 +321,30 @@ export default async function DocsDetailPage({
                     </ReactMarkdown>
                   </div>
                 </article>
+
+                <PostReadingFooter
+                  prev={
+                    prevPost
+                      ? {
+                          href: postHref('DOCS', prevPost.id),
+                          title: prevPost.title,
+                        }
+                      : null
+                  }
+                  next={
+                    nextPost
+                      ? {
+                          href: postHref('DOCS', nextPost.id),
+                          title: nextPost.title,
+                        }
+                      : null
+                  }
+                  related={relatedPosts.map((r) => ({
+                    href: postHref('DOCS', r.id),
+                    title: r.title,
+                    meta: toISOStringSafe(r.createdAt).slice(0, 10),
+                  }))}
+                />
 
                 <div className="mt-6">
                   <BlogCommentsClient boardId={post.boardId} postId={post.id} />

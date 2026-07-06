@@ -2,6 +2,8 @@
 // - autocomplete: 한글/영문/심볼 검색 (글로벌)
 // - basic: 종목 시세
 
+import { fetchWithTimeout } from '@/app/lib/fetchWithTimeout'
+
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
 
 export type SearchHit = {
@@ -62,10 +64,14 @@ export async function searchSymbols(query: string): Promise<SearchHit[]> {
       target: 'stock,index,marketindicator',
     }).toString()
 
-  const r = await fetch(url, {
-    headers: { 'User-Agent': UA, Accept: 'application/json' },
-    next: { revalidate: 60 },
-  })
+  const r = await fetchWithTimeout(
+    url,
+    {
+      headers: { 'User-Agent': UA, Accept: 'application/json' },
+      next: { revalidate: 60 },
+    },
+    { timeoutMs: 8_000 }
+  )
   if (!r.ok) return []
   const data = (await r.json()) as NaverAutocompleteResponse
   const items = data.result?.items ?? []
@@ -134,10 +140,14 @@ export async function getQuote(symbol: string): Promise<Quote | null> {
 
   for (const buildUrl of QUOTE_ENDPOINTS) {
     try {
-      const r = await fetch(buildUrl(cleaned), {
-        headers: { 'User-Agent': UA, Accept: 'application/json' },
-        next: { revalidate: 60 },
-      })
+      const r = await fetchWithTimeout(
+        buildUrl(cleaned),
+        {
+          headers: { 'User-Agent': UA, Accept: 'application/json' },
+          next: { revalidate: 60 },
+        },
+        { timeoutMs: 8_000 }
+      )
       if (!r.ok) continue
       const data = (await r.json()) as NaverBasicResponse
       const price = parseNum(data.closePrice)

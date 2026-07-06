@@ -1,12 +1,33 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/app/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import { toISOStringSafe } from '@/app/lib/date'
+import { getCurrentUserId } from '@/app/lib/serverAuth'
+import { badRequestFromZod, parseJsonWithSchema } from '@/app/lib/validation'
+import { z } from 'zod'
 
 type JsonError = { message: string }
 const jsonError = (status: number, message: string) =>
   NextResponse.json({ message } satisfies JsonError, { status })
+
+const todoStatusSchema = z.enum(['TODO', 'DOING', 'DONE'])
+const dateInputSchema = z
+  .preprocess(
+    (value) => (value === '' ? null : value),
+    z.union([z.string(), z.null()]).optional()
+  )
+  .refine((value) => !value || !Number.isNaN(new Date(value).getTime()), {
+    message: 'invalid date',
+  })
+
+const todoBoardPatchSchema = z
+  .object({
+    scheduleStatus: todoStatusSchema.optional(),
+    singleSchedule: z.boolean().optional(),
+    scheduleStartAt: dateInputSchema,
+    scheduleEndAt: dateInputSchema,
+    scheduleAllDay: z.boolean().optional(),
+  })
+  .strict()
 
 export async function PATCH(
   req: Request,
@@ -14,14 +35,8 @@ export async function PATCH(
 ) {
   const { boardId } = await params
 
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email) return jsonError(401, 'unauthorized')
-
-  const me = await prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
-  })
-  if (!me) return jsonError(401, 'unauthorized')
+  const userId = await getCurrentUserId()
+  if (!userId) return jsonError(401, 'unauthorized')
 
   const exist = await prisma.board.findUnique({
     where: { id: boardId },
@@ -29,17 +44,11 @@ export async function PATCH(
   })
   if (!exist) return jsonError(404, 'not found')
   if (exist.type !== 'TODO') return jsonError(404, 'not found')
-  if (exist.ownerId !== me.id) return jsonError(403, 'forbidden')
+  if (exist.ownerId !== userId) return jsonError(403, 'forbidden')
 
-  const body = (await req.json().catch(() => null)) as {
-    scheduleStatus?: 'TODO' | 'DOING' | 'DONE'
-    singleSchedule?: boolean
-    scheduleStartAt?: string | null
-    scheduleEndAt?: string | null
-    scheduleAllDay?: boolean
-  } | null
-
-  if (!body) return jsonError(400, 'bad request')
+  const parsed = await parseJsonWithSchema(req, todoBoardPatchSchema)
+  if (!parsed.success) return badRequestFromZod(parsed.error, 'bad request')
+  const body = parsed.data
 
   const data: Record<string, unknown> = {}
 

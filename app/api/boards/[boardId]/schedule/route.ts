@@ -1,53 +1,20 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/app/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/options'
+import { getCurrentUserId } from '@/app/lib/serverAuth'
+import {
+  boardSchedulePatchSchema,
+  buildBoardScheduleUpdateData,
+} from '@/app/lib/boardSchedulePayload'
+import { badRequestFromZod, parseJsonWithSchema } from '@/app/lib/validation'
 
 export const runtime = 'nodejs'
-
-type PostStatus = 'TODO' | 'DOING' | 'DONE'
-const POST_STATUS: readonly PostStatus[] = ['TODO', 'DOING', 'DONE'] as const
-
-function parsePostStatus(
-  v: unknown,
-  fallback: PostStatus = 'TODO'
-): PostStatus {
-  if (typeof v !== 'string') return fallback
-  const s = v.trim().toUpperCase()
-  return (POST_STATUS as readonly string[]).includes(s)
-    ? (s as PostStatus)
-    : fallback
-}
-
-function toDateOrNull(v: unknown): Date | null {
-  if (typeof v !== 'string' || !v) return null
-  const d = new Date(v)
-  return Number.isNaN(d.getTime()) ? null : d
-}
-
-async function readBody(req: Request): Promise<Record<string, unknown>> {
-  try {
-    const json = await req.json()
-    if (json && typeof json === 'object') return json as Record<string, unknown>
-    return {}
-  } catch {
-    return {}
-  }
-}
 
 export async function PATCH(
   req: Request,
   ctx: { params: Promise<{ boardId: string }> }
 ) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email)
-    return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
-
-  const me = await prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
-  })
-  if (!me)
+  const userId = await getCurrentUserId()
+  if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
   const { boardId } = await ctx.params
@@ -57,33 +24,15 @@ export async function PATCH(
   })
   if (!board)
     return NextResponse.json({ message: 'not found' }, { status: 404 })
-  if (board.ownerId !== me.id)
+  if (board.ownerId !== userId)
     return NextResponse.json({ message: 'forbidden' }, { status: 403 })
 
-  const body = await readBody(req)
-
-  const singleSchedule = Boolean(body.singleSchedule)
-  const scheduleStatus = parsePostStatus(body.scheduleStatus, 'TODO')
-  const scheduleStartAt = toDateOrNull(body.scheduleStartAt)
-  const scheduleEndAt = toDateOrNull(body.scheduleEndAt)
-  const scheduleAllDay = Boolean(body.scheduleAllDay)
-
-  if (singleSchedule && !scheduleStartAt) {
-    return NextResponse.json(
-      { message: 'scheduleStartAt required' },
-      { status: 400 }
-    )
-  }
+  const parsed = await parseJsonWithSchema(req, boardSchedulePatchSchema)
+  if (!parsed.success) return badRequestFromZod(parsed.error, 'invalid body')
 
   await prisma.board.update({
     where: { id: boardId },
-    data: {
-      singleSchedule,
-      scheduleStatus,
-      scheduleStartAt: singleSchedule ? scheduleStartAt : null,
-      scheduleEndAt: singleSchedule ? scheduleEndAt : null,
-      scheduleAllDay: singleSchedule ? scheduleAllDay : false,
-    },
+    data: buildBoardScheduleUpdateData(parsed.data),
   })
 
   return NextResponse.json({ ok: true })
@@ -93,15 +42,8 @@ export async function DELETE(
   req: Request,
   ctx: { params: Promise<{ boardId: string }> }
 ) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email)
-    return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
-
-  const me = await prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
-  })
-  if (!me)
+  const userId = await getCurrentUserId()
+  if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
   const { boardId } = await ctx.params
@@ -111,7 +53,7 @@ export async function DELETE(
   })
   if (!board)
     return NextResponse.json({ message: 'not found' }, { status: 404 })
-  if (board.ownerId !== me.id)
+  if (board.ownerId !== userId)
     return NextResponse.json({ message: 'forbidden' }, { status: 403 })
 
   // 일정만 제거(보드는 유지)

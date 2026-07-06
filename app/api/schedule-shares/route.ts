@@ -1,11 +1,32 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/app/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import { toISOStringSafe } from '@/app/lib/date'
-import { parseScheduleShareScope, toUserLabel } from '@/app/lib/scheduleShare'
+import {
+  parseScheduleShareScope,
+  toUserLabel,
+  type ScheduleShareScope,
+} from '@/app/lib/scheduleShare'
+import { getCurrentUser } from '@/app/lib/serverAuth'
+import { badRequestFromZod, parseJsonWithSchema } from '@/app/lib/validation'
+import { z } from 'zod'
 
 export const runtime = 'nodejs'
+
+const scheduleShareCreateSchema = z
+  .object({
+    targetEmail: z.preprocess(
+      (value) => (value == null ? '' : String(value).trim()),
+      z
+        .string()
+        .min(1, 'targetEmail is required')
+        .max(254, 'targetEmail too long')
+    ),
+    scope: z.custom<ScheduleShareScope>(
+      (value) => parseScheduleShareScope(value) !== null,
+      'scope must be CALENDAR, TODO, LEDGER or STOCK'
+    ),
+  })
+  .strict()
 
 type JsonError = { message: string }
 const jsonError = (status: number, message: string) =>
@@ -40,18 +61,9 @@ type IncomingShareRow = {
   requester: { id: string; name: string | null; email: string | null }
 }
 
-async function getMe() {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email) return null
-  return prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true, name: true, email: true },
-  })
-}
-
 export async function GET() {
   try {
-    const me = await getMe()
+    const me = await getCurrentUser()
     if (!me) return jsonError(401, 'unauthorized')
 
     const [outgoing, incoming]: [OutgoingShareRow[], IncomingShareRow[]] =
@@ -138,18 +150,13 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const me = await getMe()
+    const me = await getCurrentUser()
     if (!me) return jsonError(401, 'unauthorized')
 
-    const body = (await req.json().catch(() => null)) as {
-      targetEmail?: string
-      scope?: 'CALENDAR' | 'TODO' | 'LEDGER' | 'STOCK'
-    } | null
-    const targetIdentity = body?.targetEmail?.trim()
-    if (!targetIdentity) return jsonError(400, 'targetEmail is required')
-    const scope = parseScheduleShareScope(body?.scope)
-    if (!scope)
-      return jsonError(400, 'scope must be CALENDAR, TODO, LEDGER or STOCK')
+    const parsed = await parseJsonWithSchema(req, scheduleShareCreateSchema)
+    if (!parsed.success) return badRequestFromZod(parsed.error, 'invalid body')
+    const targetIdentity = parsed.data.targetEmail
+    const scope = parsed.data.scope
 
     const meMatchesIdentityByEmail =
       !!me.email && me.email.toLowerCase() === targetIdentity.toLowerCase()

@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/app/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import bcrypt from 'bcrypt'
 import { z } from 'zod'
 import { badRequestFromZod, parseJsonWithSchema } from '@/app/lib/validation'
+import { getCurrentUserId } from '@/app/lib/serverAuth'
 
 export const runtime = 'nodejs'
 const postStatusSchema = z.enum(['TODO', 'DOING', 'DONE'])
@@ -62,20 +61,13 @@ function toNullableDate(raw: string | null | undefined): Date | null {
 export async function GET(_req: Request, ctx: Ctx) {
   const { boardId } = await ctx.params
 
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email)
-    return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
-
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
-  })
-  if (!user)
+  const userId = await getCurrentUserId()
+  if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
   // 보드 소유자 확인
   const board = await prisma.board.findFirst({
-    where: { id: boardId, ownerId: user.id },
+    where: { id: boardId, ownerId: userId },
     select: { id: true },
   })
   if (!board)
@@ -102,20 +94,13 @@ export async function GET(_req: Request, ctx: Ctx) {
 export async function POST(req: Request, ctx: Ctx) {
   const { boardId } = await ctx.params
 
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email)
-    return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
-
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
-  })
-  if (!user)
+  const userId = await getCurrentUserId()
+  if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
   // 보드 소유자 확인
   const board = await prisma.board.findFirst({
-    where: { id: boardId, ownerId: user.id },
+    where: { id: boardId, ownerId: userId },
     select: { id: true, singleSchedule: true },
   })
   if (!board)
@@ -160,7 +145,7 @@ export async function POST(req: Request, ctx: Ctx) {
   const post = await prisma.post.create({
     data: {
       boardId,
-      authorId: user.id,
+      authorId: userId,
       title,
       contentMd,
       status: parsed.data.status,

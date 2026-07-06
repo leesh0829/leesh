@@ -1,13 +1,12 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/app/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import { toISOStringSafe } from '@/app/lib/date'
 import { getKoreanHolidayCalendarItems } from '@/app/lib/koreanHolidayCalendar'
 import {
   getReadableScheduleOwnerIds,
   toUserLabel,
 } from '@/app/lib/scheduleShare'
+import { getCurrentUserId } from '@/app/lib/serverAuth'
 
 export const runtime = 'nodejs'
 
@@ -56,16 +55,8 @@ function ymToRange(month: string) {
 }
 
 export async function GET(req: Request) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email) {
-    return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
-  })
-  if (!user)
+  const userId = await getCurrentUserId()
+  if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
   const url = new URL(req.url)
@@ -76,7 +67,7 @@ export async function GET(req: Request) {
   const { start, end } = ymToRange(month)
 
   const readableOwnerIds = await getReadableScheduleOwnerIds(
-    user.id,
+    userId,
     'CALENDAR'
   )
 
@@ -137,10 +128,10 @@ export async function GET(req: Request) {
     .filter((p: CalendarPostRow) => p.startAt)
     .map((p: CalendarPostRow) => {
       const info = boardInfoMap.get(p.boardId)
-      const ownerId = info?.ownerId ?? user.id
+      const ownerId = info?.ownerId ?? userId
       const ownerLabel = info?.ownerLabel ?? '알 수 없는 사용자'
-      const shared = ownerId !== user.id
-      const canEdit = p.authorId === user.id
+      const shared = ownerId !== userId
+      const canEdit = p.authorId === userId
       const ownerPrefix = shared ? `[${ownerLabel}] ` : ''
       return {
         kind: 'POST' as const,
@@ -176,8 +167,8 @@ export async function GET(req: Request) {
     })
     .map((b: CalendarBoardRow) => {
       const ownerLabel = toUserLabel(b.owner.name, b.owner.email)
-      const shared = b.ownerId !== user.id
-      const canEdit = b.ownerId === user.id
+      const shared = b.ownerId !== userId
+      const canEdit = b.ownerId === userId
       const ownerPrefix = shared ? `[${ownerLabel}] ` : ''
       return {
         kind: 'BOARD' as const,

@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/app/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/options'
+import { requireKisCredential } from '@/app/lib/kisRouteAuth'
+import { normalizeKisDomesticCode } from '@/app/lib/kisDomesticCode'
 import { getMinuteBars } from '@/app/lib/kisStock'
+import { normalizeKisMinuteHour } from '@/app/lib/kisMinuteHour'
 
 export const runtime = 'nodejs'
 
@@ -10,36 +10,22 @@ export async function GET(
   req: Request,
   { params }: { params: Promise<{ code: string }> }
 ) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email)
-    return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
+  const auth = await requireKisCredential()
+  if (!auth.ok) return auth.response
+  const userId = auth.userId
 
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
-  })
-  if (!user)
-    return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
-
-  const cred = await prisma.kisCredential.findUnique({
-    where: { userId: user.id },
-    select: { id: true },
-  })
-  if (!cred)
-    return NextResponse.json(
-      { message: 'KIS 자격증명이 등록되어 있지 않습니다.' },
-      { status: 412 }
-    )
-
-  const { code } = await params
-  if (!/^\d{6}$/.test(code))
+  const { code: rawCode } = await params
+  const code = normalizeKisDomesticCode(rawCode)
+  if (code === null)
     return NextResponse.json({ message: 'invalid code' }, { status: 400 })
 
   const url = new URL(req.url)
-  const hour = url.searchParams.get('hour') ?? undefined
+  const hour = normalizeKisMinuteHour(url.searchParams.get('hour'))
+  if (hour === null)
+    return NextResponse.json({ message: 'invalid hour' }, { status: 400 })
 
   try {
-    const data = await getMinuteBars(user.id, code, hour ?? undefined)
+    const data = await getMinuteBars(userId, code, hour)
     return NextResponse.json({ data })
   } catch (e) {
     console.error('[KIS_MINUTES_API_ERROR]', e)

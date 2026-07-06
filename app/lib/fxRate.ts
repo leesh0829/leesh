@@ -1,3 +1,5 @@
+import { fetchWithTimeout } from './fetchWithTimeout'
+
 type FrankfurterResponse = {
   rates?: Record<string, number>
 }
@@ -14,9 +16,10 @@ export async function getKrwRate(fromCurrency: string): Promise<number> {
   if (cached && cached.expiresAt > Date.now()) return cached.rate
 
   try {
-    const r = await fetch(
+    const r = await fetchWithTimeout(
       `https://api.frankfurter.app/latest?from=${encodeURIComponent(cur)}&to=KRW`,
-      { next: { revalidate: 1800 } }
+      { next: { revalidate: 1800 } },
+      { timeoutMs: 8_000 }
     )
     if (!r.ok) {
       // 실패 시 fallback: 캐시된 값이라도 있으면 반환, 없으면 1

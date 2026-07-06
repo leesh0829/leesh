@@ -26,13 +26,15 @@ export async function sendMail({ to, subject, text, replyTo }: SendMailArgs) {
   }
 
   // nodemailer는 의존성 추가 필요 (아래 참고)
-  const nodemailer = await import("nodemailer");
+  const nodemailer = await import("nodemailer9");
 
   const transporter = nodemailer.createTransport({
     host,
     port,
     secure: port === 465,
     auth: { user, pass },
+    disableFileAccess: true,
+    disableUrlAccess: true,
   });
 
   await transporter.sendMail({

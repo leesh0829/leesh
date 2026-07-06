@@ -1,10 +1,24 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/options";
 import { toISOStringSafe } from "@/app/lib/date";
+import { badRequestFromZod, parseJsonWithSchema } from "@/app/lib/validation";
+import { getCurrentUserId } from "@/app/lib/serverAuth";
+import { z } from "zod";
 
 export const runtime = "nodejs";
+
+const helpPostCreateSchema = z
+  .object({
+    title: z.preprocess(
+      (value) => (value == null ? "" : String(value)),
+      z.string().trim().min(1, "title required").max(120, "title too long"),
+    ),
+    contentMd: z.preprocess(
+      (value) => (value == null ? "" : String(value)),
+      z.string().max(100_000, "content too long"),
+    ),
+  })
+  .strict();
 
 type HelpPostRow = {
   id: string;
@@ -79,20 +93,13 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.email) {
+  const userId = await getCurrentUserId();
+  if (!userId) {
     return NextResponse.json(
       { message: "로그인이 필요합니다." },
       { status: 401 },
     );
   }
-
-  const me = await prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
-  });
-  if (!me)
-    return NextResponse.json({ message: "unauthorized" }, { status: 401 });
 
   const ownerId = await getOwnerUserId();
   if (!ownerId)
@@ -100,19 +107,15 @@ export async function POST(req: Request) {
 
   const board = await getOrCreateHelpBoard(ownerId);
 
-  const body = await req.json().catch(() => null);
-  const title = (body?.title ?? "").toString().trim();
-  const contentMd = (body?.contentMd ?? "").toString();
-
-  if (!title)
-    return NextResponse.json({ message: "title required" }, { status: 400 });
+  const parsed = await parseJsonWithSchema(req, helpPostCreateSchema);
+  if (!parsed.success) return badRequestFromZod(parsed.error);
 
   const post = await prisma.post.create({
     data: {
       boardId: board.id,
-      authorId: me.id,
-      title,
-      contentMd,
+      authorId: userId,
+      title: parsed.data.title,
+      contentMd: parsed.data.contentMd,
       status: "DONE",
       slug: null,
     },

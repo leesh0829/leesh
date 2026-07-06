@@ -5,6 +5,7 @@ import {
   rateLimitBackoff,
 } from '@/app/lib/kisRateLimit'
 import { cached } from '@/app/lib/kisCache'
+import { fetchKis } from '@/app/lib/kisFetch'
 
 const MAX_RETRIES = 2
 const QUOTE_TTL = 10_000 // 시세 — 10초. 너무 짧으면 캐시 효과 없고, 너무 길면 stale.
@@ -74,16 +75,19 @@ async function getKisQuoteImpl(
     let data: InquirePriceResponse = {}
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       await kisRateLimit(userId)
-      r = await fetch(url.toString(), {
-        headers: {
-          'Content-Type': 'application/json; charset=utf-8',
-          authorization: `Bearer ${ctx.accessToken}`,
-          appkey: ctx.appKey,
-          appsecret: ctx.appSecret,
-          tr_id: 'FHKST01010100',
-        },
-        cache: 'no-store',
-      })
+      r = await fetchKis(
+        url.toString(),
+        {
+          headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            authorization: `Bearer ${ctx.accessToken}`,
+            appkey: ctx.appKey,
+            appsecret: ctx.appSecret,
+            tr_id: 'FHKST01010100',
+          },
+          cache: 'no-store',
+        }
+      )
       data = (await r.json()) as InquirePriceResponse
       if (isRateLimitedResponse(data) && attempt < MAX_RETRIES) {
         await rateLimitBackoff(attempt)

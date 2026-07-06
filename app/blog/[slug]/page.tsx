@@ -1,4 +1,7 @@
+import Link from 'next/link'
+import type { Metadata } from 'next'
 import { prisma } from '@/app/lib/prisma'
+import { toExcerpt } from '@/app/lib/excerpt'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import { toISOStringSafe } from '@/app/lib/date'
@@ -7,6 +10,7 @@ import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
 import rehypeHighlight from 'rehype-highlight'
 import rehypeRaw from 'rehype-raw'
+import rehypeSanitize from 'rehype-sanitize'
 import BlogCommentsClient from './BlogCommentsClient'
 import BlogActionsClient from './BlogActionsClient'
 import BlogSecretGateClient from './BlogSecretGateClient'
@@ -20,7 +24,17 @@ import { readUnlockedPostIds, UNLOCK_COOKIE_NAME } from '@/app/lib/unlockCookie'
 import {
   formatReviewRatingHalf,
   getBlogPostTypeLabel,
+  type BlogPostType,
 } from '@/app/lib/blog'
+import { sanitizedMarkdownSchema } from '@/app/lib/markdown'
+import { estimateReadingMinutes } from '@/app/lib/readingTime'
+import {
+  adjacentOrder,
+  adjacentWhere,
+  postHref,
+  relatedWhere,
+} from '@/app/lib/postNav'
+import PostReadingFooter from '@/app/components/PostReadingFooter'
 
 export const runtime = 'nodejs'
 
@@ -93,6 +107,34 @@ function extractMarkdownHeadings(markdown: string): TocHeading[] {
  * @param params - A promise resolving to route parameters containing `slug`
  * @returns The page element for the blog post; shows "글 없음" when the post is not found.
  */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}): Promise<Metadata> {
+  const { slug } = await params
+  const post = await prisma.post.findFirst({
+    where: {
+      OR: [{ id: slug }, { slug }],
+      board: { type: 'BLOG' },
+      status: 'DONE',
+    },
+    orderBy: { createdAt: 'desc' },
+    select: { title: true, contentMd: true, isSecret: true, isSpoiler: true },
+  })
+  if (!post) return { title: '글 없음 · Leesh' }
+  const description =
+    post.isSecret || post.isSpoiler
+      ? '비공개 또는 열람 주의 글입니다.'
+      : toExcerpt(post.contentMd, 160)
+  return {
+    title: `${post.title} · Leesh`,
+    description,
+    openGraph: { title: post.title, description, type: 'article' },
+    twitter: { card: 'summary', title: post.title, description },
+  }
+}
+
 export default async function BlogDetailPage({
   params,
 }: {
@@ -112,6 +154,7 @@ export default async function BlogDetailPage({
     authorId: true,
     isSecret: true,
     isSpoiler: true,
+    tags: true,
     board: { select: { ownerId: true } },
   } as const
 
@@ -167,6 +210,40 @@ export default async function BlogDetailPage({
 
   const locked = post.isSecret && !isPrivileged && !unlockedByPassword
   const spoilerGated = post.isSpoiler && !isPrivileged
+
+  const readingMinutes = locked
+    ? null
+    : estimateReadingMinutes(post.contentMd ?? '')
+
+  let prevPost: { id: string; title: string } | null = null
+  let nextPost: { id: string; title: string } | null = null
+  let relatedPosts: { id: string; title: string; blogCategory: BlogPostType }[] =
+    []
+  if (!locked) {
+    try {
+      ;[prevPost, nextPost, relatedPosts] = await Promise.all([
+        prisma.post.findFirst({
+          where: adjacentWhere('BLOG', post.createdAt, 'older'),
+          orderBy: { createdAt: adjacentOrder('older') },
+          select: { id: true, title: true },
+        }),
+        prisma.post.findFirst({
+          where: adjacentWhere('BLOG', post.createdAt, 'newer'),
+          orderBy: { createdAt: adjacentOrder('newer') },
+          select: { id: true, title: true },
+        }),
+        prisma.post.findMany({
+          where: relatedWhere('BLOG', post.id, post.blogCategory),
+          orderBy: { createdAt: 'desc' },
+          take: 3,
+          select: { id: true, title: true, blogCategory: true },
+        }),
+      ])
+    } catch (error) {
+      console.error('[BLOG_DETAIL_NAV]', error)
+    }
+  }
+
   const tocHeadings = extractMarkdownHeadings(post.contentMd ?? '')
   const headingIdQueue = [...tocHeadings.map((h) => h.id)]
   const nextHeadingId = () => headingIdQueue.shift() ?? undefined
@@ -228,7 +305,23 @@ export default async function BlogDetailPage({
                     <span>{formatReviewRatingHalf(post.reviewRatingHalf)}</span>
                   </span>
                 ) : null}
+                {readingMinutes != null ? (
+                  <span> · {readingMinutes}분 읽기</span>
+                ) : null}
               </div>
+              {post.tags.length > 0 ? (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {post.tags.map((t) => (
+                    <Link
+                      key={t}
+                      href={`/blog?tag=${encodeURIComponent(t)}`}
+                      className="rounded-full border border-black/10 bg-black/[0.04] px-2 py-0.5 text-xs no-underline opacity-80 hover:opacity-100"
+                    >
+                      #{t}
+                    </Link>
+                  ))}
+                </div>
+              ) : null}
             </div>
 
             <div className="shrink-0">
@@ -249,7 +342,11 @@ export default async function BlogDetailPage({
                       <div className="markdown-body">
                         <ReactMarkdown
                           remarkPlugins={[remarkGfm, remarkBreaks]}
-                          rehypePlugins={[rehypeRaw, rehypeHighlight]}
+                          rehypePlugins={[
+                            rehypeRaw,
+                            [rehypeSanitize, sanitizedMarkdownSchema],
+                            rehypeHighlight,
+                          ]}
                           components={{
                             h1: headingComponent('h1'),
                             h2: headingComponent('h2'),
@@ -288,6 +385,30 @@ export default async function BlogDetailPage({
                     article
                   )
                 })()}
+
+                <PostReadingFooter
+                  prev={
+                    prevPost
+                      ? {
+                          href: postHref('BLOG', prevPost.id),
+                          title: prevPost.title,
+                        }
+                      : null
+                  }
+                  next={
+                    nextPost
+                      ? {
+                          href: postHref('BLOG', nextPost.id),
+                          title: nextPost.title,
+                        }
+                      : null
+                  }
+                  related={relatedPosts.map((r) => ({
+                    href: postHref('BLOG', r.id),
+                    title: r.title,
+                    meta: getBlogPostTypeLabel(r.blogCategory),
+                  }))}
+                />
 
                 <div className="mt-6">
                   <BlogSpoilerSideBlur>

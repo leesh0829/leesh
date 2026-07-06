@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/app/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import { toISOStringSafe } from '@/app/lib/date'
 import { z } from 'zod'
 import { badRequestFromZod, parseJsonWithSchema } from '@/app/lib/validation'
 import { aggregateHolding } from '@/app/lib/holdingAggregate'
 import { getReadableScheduleOwnerIds, toUserLabel } from '@/app/lib/scheduleShare'
+import { getCurrentUserId } from '@/app/lib/serverAuth'
 
 export const runtime = 'nodejs'
 
@@ -36,15 +35,6 @@ const holdingPatchSchema = z
   })
   .strict()
 
-async function getUser() {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email) return null
-  return prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
-  })
-}
-
 type TxRow = {
   id: string
   type: 'BUY' | 'SELL' | 'DIVIDEND' | 'FEE' | 'TAX'
@@ -62,8 +52,8 @@ export async function GET(
   _req: Request,
   { params }: { params: Promise<{ holdingId: string }> }
 ) {
-  const user = await getUser()
-  if (!user)
+  const userId = await getCurrentUserId()
+  if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
   const { holdingId } = await params
@@ -106,7 +96,7 @@ export async function GET(
   if (!holding)
     return NextResponse.json({ message: 'not found' }, { status: 404 })
 
-  const readableOwnerIds = await getReadableScheduleOwnerIds(user.id, 'STOCK')
+  const readableOwnerIds = await getReadableScheduleOwnerIds(userId, 'STOCK')
   if (!readableOwnerIds.includes(holding.ownerId))
     return NextResponse.json({ message: 'forbidden' }, { status: 403 })
 
@@ -125,8 +115,8 @@ export async function GET(
     id: holding.id,
     ownerId: holding.ownerId,
     ownerLabel: toUserLabel(holding.owner.name, holding.owner.email),
-    shared: holding.ownerId !== user.id,
-    canEdit: holding.ownerId === user.id,
+    shared: holding.ownerId !== userId,
+    canEdit: holding.ownerId === userId,
     accountId: holding.accountId,
     accountName: holding.account?.name ?? null,
     accountBank: holding.account?.bankName ?? null,
@@ -162,8 +152,8 @@ export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ holdingId: string }> }
 ) {
-  const user = await getUser()
-  if (!user)
+  const userId = await getCurrentUserId()
+  if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
   const { holdingId } = await params
@@ -173,7 +163,7 @@ export async function PATCH(
   })
   if (!existing)
     return NextResponse.json({ message: 'not found' }, { status: 404 })
-  if (existing.ownerId !== user.id)
+  if (existing.ownerId !== userId)
     return NextResponse.json({ message: 'forbidden' }, { status: 403 })
 
   const parsed = await parseJsonWithSchema(req, holdingPatchSchema)
@@ -185,7 +175,7 @@ export async function PATCH(
       where: { id: parsed.data.accountId },
       select: { ownerId: true },
     })
-    if (!acc || acc.ownerId !== user.id) {
+    if (!acc || acc.ownerId !== userId) {
       return NextResponse.json(
         { message: '유효하지 않은 계좌입니다.' },
         { status: 400 }
@@ -227,8 +217,8 @@ export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ holdingId: string }> }
 ) {
-  const user = await getUser()
-  if (!user)
+  const userId = await getCurrentUserId()
+  if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
 
   const { holdingId } = await params
@@ -238,7 +228,7 @@ export async function DELETE(
   })
   if (!existing)
     return NextResponse.json({ message: 'not found' }, { status: 404 })
-  if (existing.ownerId !== user.id)
+  if (existing.ownerId !== userId)
     return NextResponse.json({ message: 'forbidden' }, { status: 403 })
 
   // 연결된 가계부 항목들도 함께 정리 (txs cascade delete 전에)
@@ -252,7 +242,7 @@ export async function DELETE(
     .filter((v): v is string => !!v)
   if (ledgerIds.length > 0) {
     await prisma.ledgerEntry.deleteMany({
-      where: { id: { in: ledgerIds }, ownerId: user.id },
+      where: { id: { in: ledgerIds }, ownerId: userId },
     })
   }
 

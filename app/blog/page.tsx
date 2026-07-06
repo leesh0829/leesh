@@ -1,16 +1,23 @@
 import Link from 'next/link'
+import type { Metadata } from 'next'
 import { prisma } from '@/app/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import { toISOStringSafe } from '@/app/lib/date'
 import type { Prisma } from '@prisma/client'
 import {
+  BLOG_POST_TYPE_VALUES,
   formatReviewRatingHalf,
   getBlogPostTypeLabel,
   parseBlogPostType,
   parseReviewRatingHalf,
   type BlogPostType,
 } from '@/app/lib/blog'
+import {
+  tallyBlogTypeCounts,
+  type BlogTypeCounts,
+} from '@/app/lib/blogCounts'
+import { collectTags, type TagCount } from '@/app/lib/blogTags'
 import { isDatabaseConnectionError } from '@/app/lib/prismaError'
 import BlogListControlsClient from './BlogListControlsClient'
 
@@ -37,11 +44,17 @@ type BlogPostRow = {
   blogCategory: BlogPostType
   reviewRatingHalf: number | null
   isSpoiler: boolean
+  tags: string[]
   author: { name: string | null; email: string | null }
 }
 
 type BlogPostListItem = Omit<BlogPostRow, 'createdAt'> & {
   createdAt: string
+}
+
+export const metadata: Metadata = {
+  title: 'Blog · Leesh',
+  alternates: { types: { 'application/rss+xml': '/blog/rss.xml' } },
 }
 
 export default async function BlogListPage(props: {
@@ -51,6 +64,7 @@ export default async function BlogListPage(props: {
     q?: string
     type?: string
     rating?: string
+    tag?: string
   }>
 }) {
   const searchParams = (await props.searchParams) ?? {}
@@ -60,6 +74,10 @@ export default async function BlogListPage(props: {
     typeof searchParams.q === 'string' ? searchParams.q.trim() : ''
   const typeFilter = parseBlogPostType(searchParams.type)
   const ratingFilter = parseReviewRatingHalf(searchParams.rating)
+  const tagFilter =
+    typeof searchParams.tag === 'string'
+      ? searchParams.tag.trim().toLowerCase()
+      : ''
   let databaseUnavailable = false
   let session = null
 
@@ -81,12 +99,23 @@ export default async function BlogListPage(props: {
       : {}),
     ...(typeFilter ? { blogCategory: typeFilter } : {}),
     ...(ratingFilter !== null ? { reviewRatingHalf: ratingFilter } : {}),
+    ...(tagFilter ? { tags: { has: tagFilter } } : {}),
+  }
+
+  const countWhere: Prisma.PostWhereInput = {
+    board: { type: 'BLOG' },
+    status: 'DONE',
+    ...(titleQuery
+      ? { title: { contains: titleQuery, mode: 'insensitive' } }
+      : {}),
   }
 
   let totalCount = 0
   let totalPages = 1
   let page = 1
   let posts: BlogPostListItem[] = []
+  let typeCounts: BlogTypeCounts = tallyBlogTypeCounts([], BLOG_POST_TYPE_VALUES)
+  let tagCounts: TagCount[] = []
 
   if (!databaseUnavailable) {
     try {
@@ -106,6 +135,7 @@ export default async function BlogListPage(props: {
           blogCategory: true,
           reviewRatingHalf: true,
           isSpoiler: true,
+          tags: true,
           author: { select: { name: true, email: true } },
         },
       })
@@ -114,6 +144,19 @@ export default async function BlogListPage(props: {
         ...p,
         createdAt: toISOStringSafe(p.createdAt),
       }))
+
+      const typeCountRows = await prisma.post.groupBy({
+        by: ['blogCategory'],
+        where: countWhere,
+        _count: { _all: true },
+      })
+      typeCounts = tallyBlogTypeCounts(typeCountRows, BLOG_POST_TYPE_VALUES)
+
+      const tagRows = await prisma.post.findMany({
+        where: countWhere,
+        select: { tags: true },
+      })
+      tagCounts = collectTags(tagRows.map((r) => r.tags))
     } catch (error) {
       if (!isDatabaseConnectionError(error)) throw error
       databaseUnavailable = true
@@ -131,6 +174,7 @@ export default async function BlogListPage(props: {
     q?: string
     type?: BlogPostType | null
     rating?: number | null
+    tag?: string | null
   }) => {
     const params = new URLSearchParams()
     params.set('sort', next.sort ?? sortOrder)
@@ -147,6 +191,9 @@ export default async function BlogListPage(props: {
 
     const rating = next.rating === undefined ? ratingFilter : next.rating
     if (typeof rating === 'number') params.set('rating', String(rating))
+
+    const tag = next.tag === undefined ? tagFilter : next.tag
+    if (tag) params.set('tag', tag)
 
     return `/blog?${params.toString()}`
   }
@@ -185,6 +232,9 @@ export default async function BlogListPage(props: {
                   value={String(ratingFilter)}
                 />
               ) : null}
+              {tagFilter ? (
+                <input type="hidden" name="tag" value={tagFilter} />
+              ) : null}
               <input
                 type="text"
                 name="q"
@@ -199,9 +249,15 @@ export default async function BlogListPage(props: {
               >
                 검색
               </button>
-              {titleQuery || typeFilter || ratingFilter !== null ? (
+              {titleQuery || typeFilter || ratingFilter !== null || tagFilter ? (
                 <Link
-                  href={toHref({ page: 1, q: '', type: null, rating: null })}
+                  href={toHref({
+                    page: 1,
+                    q: '',
+                    type: null,
+                    rating: null,
+                    tag: null,
+                  })}
                   className="btn btn-ghost"
                 >
                   초기화
@@ -214,6 +270,9 @@ export default async function BlogListPage(props: {
               typeFilter={typeFilter}
               ratingFilter={ratingFilter}
               canWrite={canWrite}
+              typeCounts={typeCounts}
+              tagCounts={tagCounts}
+              tagFilter={tagFilter}
             />
           </div>
         </div>
@@ -232,7 +291,7 @@ export default async function BlogListPage(props: {
           ) : posts.length === 0 ? (
             <div className="card card-pad">
               <div className="text-sm" style={{ color: 'var(--muted)' }}>
-                {titleQuery || typeFilter || ratingFilter !== null
+                {titleQuery || typeFilter || ratingFilter !== null || tagFilter
                   ? '조건에 맞는 글이 없습니다.'
                   : '글 없음'}
               </div>
@@ -301,6 +360,18 @@ export default async function BlogListPage(props: {
                         </>
                       ) : null}
                     </div>
+                    {p.tags.length > 0 ? (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {p.tags.map((t) => (
+                          <span
+                            key={t}
+                            className="rounded-full border border-black/10 bg-black/[0.04] px-2 py-0.5 text-[11px] opacity-80"
+                          >
+                            #{t}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                   <span className="badge">보기</span>
                 </div>

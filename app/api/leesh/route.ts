@@ -1,9 +1,25 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { prisma } from "@/app/lib/prisma";
+import {
+  getCookieValue,
+  readSignedCookieValue,
+} from "@/app/lib/signedCookie";
+import { badRequestFromZod, parseJsonWithSchema } from "@/app/lib/validation";
 
 export const runtime = "nodejs";
 
 const COOKIE_NAME = "leesh_unlocked";
+const patchSchema = z
+  .object({
+    contentMd: z.string().max(200_000, "contentMd is too large"),
+  })
+  .strict();
+
+function isUnlocked(req: Request) {
+  const raw = getCookieValue(req.headers.get("cookie"), COOKIE_NAME);
+  return readSignedCookieValue(raw) === "1";
+}
 
 async function getOwnerUserId(): Promise<string | null> {
   const u = await prisma.user.findFirst({
@@ -76,8 +92,7 @@ async function getOrCreatePortfolioPost(ownerId: string) {
  * @returns A JSON object. When an owner exists, the object contains `id`, `title`, `contentMd`, `updatedAt`, `unlocked`, and `canEdit` (`true` if the cookie indicates unlocked, `false` otherwise). When no owner exists, the object contains `unlocked`, `canEdit` (same as `unlocked`), and `contentMd` set to a default placeholder.
  */
 export async function GET(req: Request) {
-  const cookie = req.headers.get("cookie") ?? "";
-  const unlocked = cookie.includes(`${COOKIE_NAME}=1`);
+  const unlocked = isUnlocked(req);
 
   const ownerId = await getOwnerUserId();
   if (!ownerId) {
@@ -110,8 +125,7 @@ export async function GET(req: Request) {
  * @returns The updated post object containing `id`, `title`, `contentMd`, and `updatedAt`.
  */
 export async function PATCH(req: Request) {
-  const cookie = req.headers.get("cookie") ?? "";
-  const unlocked = cookie.includes(`${COOKIE_NAME}=1`);
+  const unlocked = isUnlocked(req);
   if (!unlocked) {
     return NextResponse.json({ message: "unauthorized" }, { status: 401 });
   }
@@ -121,21 +135,16 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ message: "owner not found" }, { status: 404 });
   }
 
-  const body: unknown = await req.json().catch(() => null);
-  const contentMd =
-    body && typeof body === "object"
-      ? (body as Record<string, unknown>)["contentMd"]
-      : null;
-
-  if (typeof contentMd !== "string") {
-    return NextResponse.json({ message: "invalid body" }, { status: 400 });
+  const parsed = await parseJsonWithSchema(req, patchSchema);
+  if (!parsed.success) {
+    return badRequestFromZod(parsed.error, "invalid body");
   }
 
   const { post } = await getOrCreatePortfolioPost(ownerId);
 
   const updated = await prisma.post.update({
     where: { id: post.id },
-    data: { contentMd },
+    data: { contentMd: parsed.data.contentMd },
     select: { id: true, title: true, contentMd: true, updatedAt: true },
   });
 

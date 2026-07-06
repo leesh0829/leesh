@@ -1,45 +1,46 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/app/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/options'
+import { getCurrentUserId } from '@/app/lib/serverAuth'
+import { z } from 'zod'
+import { badRequestFromZod, parseJsonWithSchema } from '@/app/lib/validation'
 
 export const runtime = 'nodejs'
 
-async function getUserId() {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email) return null
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
+const watchlistCreateSchema = z
+  .object({
+    market: z.string().trim().min(1).max(20),
+    symbol: z.string().trim().min(1).max(40),
+    name: z.string().trim().min(1).max(120),
   })
-  return user?.id ?? null
-}
+  .strict()
 
 export async function GET() {
-  const userId = await getUserId()
+  const userId = await getCurrentUserId()
   if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
   const items = await prisma.watchlist.findMany({
     where: { userId },
     orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
+    select: {
+      id: true,
+      market: true,
+      symbol: true,
+      name: true,
+      position: true,
+      createdAt: true,
+    },
   })
   return NextResponse.json({ items })
 }
 
 export async function POST(req: Request) {
-  const userId = await getUserId()
+  const userId = await getCurrentUserId()
   if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
-  const body = (await req.json()) as {
-    market?: string
-    symbol?: string
-    name?: string
-  }
-  const market = body.market?.trim()
-  const symbol = body.symbol?.trim()
-  const name = body.name?.trim()
-  if (!market || !symbol || !name)
-    return NextResponse.json({ message: 'invalid body' }, { status: 400 })
+  const parsed = await parseJsonWithSchema(req, watchlistCreateSchema)
+  if (!parsed.success) return badRequestFromZod(parsed.error, 'invalid body')
+
+  const { market, symbol, name } = parsed.data
   try {
     const last = await prisma.watchlist.findFirst({
       where: { userId },
@@ -58,6 +59,14 @@ export async function POST(req: Request) {
         position: (last?.position ?? -1) + 1,
       },
       update: { name },
+      select: {
+        id: true,
+        market: true,
+        symbol: true,
+        name: true,
+        position: true,
+        createdAt: true,
+      },
     })
     return NextResponse.json({ item })
   } catch (e) {
@@ -67,7 +76,7 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  const userId = await getUserId()
+  const userId = await getCurrentUserId()
   if (!userId)
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
   const url = new URL(req.url)

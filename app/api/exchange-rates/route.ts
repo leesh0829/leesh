@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { fetchWithTimeout } from '@/app/lib/fetchWithTimeout'
 
 export const runtime = 'nodejs'
 // 30분 캐시
@@ -13,9 +14,10 @@ type FrankfurterResponse = {
 
 async function fetchRate(from: string, to: string): Promise<number | null> {
   try {
-    const r = await fetch(
+    const r = await fetchWithTimeout(
       `https://api.frankfurter.app/latest?from=${from}&to=${to}`,
-      { next: { revalidate: 1800 } }
+      { next: { revalidate: 1800 } },
+      { timeoutMs: 8_000 }
     )
     if (!r.ok) return null
     const data = (await r.json()) as FrankfurterResponse

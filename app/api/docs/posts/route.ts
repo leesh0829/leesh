@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/app/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { badRequestFromZod, parseJsonWithSchema } from '@/app/lib/validation'
+import { getCurrentUserId } from '@/app/lib/serverAuth'
 
 export const runtime = 'nodejs'
 
@@ -16,6 +15,8 @@ const createDocsPostSchema = z
     publish: z.boolean().optional().default(false),
     isSecret: z.boolean().optional().default(false),
     secretPassword: z.union([z.string(), z.null()]).optional(),
+    docsCategory: z.string().trim().max(60).optional(),
+    isSpoiler: z.boolean().optional().default(false),
   })
   .strict()
   .superRefine((value, ctx) => {
@@ -45,17 +46,9 @@ function slugify(input: string): string {
 }
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email) {
+  const userId = await getCurrentUserId()
+  if (!userId) {
     return NextResponse.json({ message: 'unauthorized' }, { status: 401 })
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
-  })
-  if (!user) {
-    return NextResponse.json({ message: 'user not found' }, { status: 404 })
   }
 
   const parsed = await parseJsonWithSchema(req, createDocsPostSchema)
@@ -78,7 +71,7 @@ export async function POST(req: Request) {
     : null
 
   const board = await prisma.board.findFirst({
-    where: { id: boardId, ownerId: user.id, type: 'DOCS' },
+    where: { id: boardId, ownerId: userId, type: 'DOCS' },
     select: { id: true },
   })
   if (!board) {
@@ -99,7 +92,7 @@ export async function POST(req: Request) {
   const post = await prisma.post.create({
     data: {
       boardId,
-      authorId: user.id,
+      authorId: userId,
       title,
       contentMd,
       slug,
@@ -108,6 +101,8 @@ export async function POST(req: Request) {
       secretPasswordHash,
       priority: 0,
       allDay: false,
+      docsCategory: parsed.data.docsCategory || null,
+      isSpoiler: parsed.data.isSpoiler,
     },
     select: { id: true, slug: true },
   })

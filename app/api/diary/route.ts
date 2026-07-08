@@ -4,6 +4,7 @@ import { toISOStringSafe } from "@/app/lib/date";
 import { z } from "zod";
 import { badRequestFromZod, parseJsonWithSchema } from "@/app/lib/validation";
 import { getCurrentUserId } from "@/app/lib/serverAuth";
+import { getDiaryLockState } from "@/app/lib/diaryLockServer";
 
 export const runtime = "nodejs";
 
@@ -32,6 +33,11 @@ export async function GET(req: Request) {
   const userId = await getCurrentUserId();
   if (!userId) return NextResponse.json({ message: "unauthorized" }, { status: 401 });
 
+  const lock = await getDiaryLockState(userId);
+  if (lock.enabled && !lock.unlocked) {
+    return NextResponse.json({ message: "locked" }, { status: 423 });
+  }
+
   const url = new URL(req.url);
   const parsedDate = dateSchema.safeParse(url.searchParams.get("date"));
   if (!parsedDate.success) {
@@ -54,6 +60,11 @@ export async function GET(req: Request) {
 export async function PUT(req: Request) {
   const userId = await getCurrentUserId();
   if (!userId) return NextResponse.json({ message: "unauthorized" }, { status: 401 });
+
+  const lock = await getDiaryLockState(userId);
+  if (lock.enabled && !lock.unlocked) {
+    return NextResponse.json({ message: "locked" }, { status: 423 });
+  }
 
   const parsed = await parseJsonWithSchema(req, diaryUpsertSchema);
   if (!parsed.success) {

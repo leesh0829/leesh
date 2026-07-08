@@ -5,6 +5,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import MarkdownEditor from '@/app/components/MarkdownEditor'
 import DiaryHeatmap from '@/app/components/DiaryHeatmap'
+import DiaryLockScreen from '@/app/components/DiaryLockScreen'
+import DiaryLockSettings from '@/app/components/DiaryLockSettings'
 import { useToast } from '@/app/components/ToastProvider'
 import { useAsyncLock } from '@/app/lib/useAsyncLock'
 import { toHumanHttpError } from '@/app/lib/httpErrorText'
@@ -74,6 +76,10 @@ export default function DiaryClient() {
   const [savedAt, setSavedAt] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
 
+  // 잠금 상태(null=조회중). enabled && !unlocked 이면 잠금 화면 표시.
+  const [lock, setLock] = useState<{ enabled: boolean; unlocked: boolean } | null>(null)
+  const canView = !!lock && (!lock.enabled || lock.unlocked)
+
   const { pending: saving, run: runSave } = useAsyncLock()
 
   const dateInputRef = useRef<HTMLInputElement | null>(null)
@@ -99,6 +105,11 @@ export default function DiaryClient() {
           cache: 'no-store',
         })
         if (reqId !== reqIdRef.current) return
+        if (r.status === 423) {
+          // 세션 중 잠금 해제가 만료됨 → 잠금 화면으로 복귀
+          setLock({ enabled: true, unlocked: false })
+          return
+        }
         if (!r.ok) {
           const msg = await readApiMessage(r)
           const message = toHumanHttpError(r.status, msg) ?? `${r.status} · ${msg ?? '불러오기 실패'}`
@@ -118,10 +129,29 @@ export default function DiaryClient() {
     [toast],
   )
 
+  // 진입 시 잠금 상태 조회 (조회 실패 시 잠금 없음으로 취급 — 내용 API가 최종 방어)
   useEffect(() => {
     if (status !== 'authenticated') return
+    let aborted = false
+    ;(async () => {
+      try {
+        const r = await fetch('/api/diary/lock', { cache: 'no-store' })
+        if (!r.ok) throw new Error('failed')
+        const data = (await r.json()) as { enabled: boolean; unlocked: boolean }
+        if (!aborted) setLock(data)
+      } catch {
+        if (!aborted) setLock({ enabled: false, unlocked: true })
+      }
+    })()
+    return () => {
+      aborted = true
+    }
+  }, [status])
+
+  useEffect(() => {
+    if (status !== 'authenticated' || !canView) return
     void load(date)
-  }, [date, status, load])
+  }, [date, status, load, canView])
 
   // 현재 날짜의 변경분 저장 (변경 없으면 건너뜀). silent=true면 성공 토스트 생략
   const saveCurrent = useCallback(
@@ -228,6 +258,28 @@ export default function DiaryClient() {
           </div>
         </div>
       </main>
+    )
+  }
+
+  // 잠금 상태 조회 전: 스켈레톤
+  if (lock === null) {
+    return (
+      <main className="w-full px-3 py-6 sm:px-4 lg:px-6">
+        <div className="surface card-pad mx-auto max-w-3xl">
+          <div className="h-7 w-32 rounded-md skeleton" />
+          <div className="mt-4 h-64 rounded-lg skeleton" />
+        </div>
+      </main>
+    )
+  }
+
+  // 잠금 켜짐 + 미해제: 잠금 화면 (일기 본문/히트맵을 렌더하지 않음)
+  if (lock.enabled && !lock.unlocked) {
+    return (
+      <DiaryLockScreen
+        onUnlocked={() => setLock({ enabled: true, unlocked: true })}
+        onDisabled={() => setLock({ enabled: false, unlocked: true })}
+      />
     )
   }
 
@@ -350,6 +402,12 @@ export default function DiaryClient() {
           </button>
         </div>
       </div>
+
+      <DiaryLockSettings
+        enabled={lock.enabled}
+        onEnabled={() => setLock({ enabled: true, unlocked: true })}
+        onDisabled={() => setLock({ enabled: false, unlocked: true })}
+      />
     </main>
   )
 }

@@ -25,6 +25,8 @@ model User {
   password String? // credentials 사용 시 필요
   role     Role    @default(USER)
 
+  diaryLockHash String? // 일기장 2차 잠금 해시(null=꺼짐). bcryptjs
+
   accounts      Account[]
   sessions      Session[]
   emailVerified DateTime?

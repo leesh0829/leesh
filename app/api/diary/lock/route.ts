@@ -7,8 +7,7 @@ import { badRequestFromZod, parseJsonWithSchema } from "@/app/lib/validation";
 import { validateDiaryPassword, passwordsMatch } from "@/app/lib/diaryLock";
 import {
   getDiaryLockState,
-  setDiaryUnlockCookie,
-  clearDiaryUnlockCookie,
+  buildDiaryUnlockToken,
 } from "@/app/lib/diaryLockServer";
 
 export const runtime = "nodejs";
@@ -27,13 +26,13 @@ const disableSchema = z
   })
   .strict();
 
-// 현재 잠금 상태 (화면 분기용)
+// 현재 잠금 켜짐 여부 (화면 분기용). 해제 여부는 클라이언트가 보유한 토큰으로 판단.
 export async function GET() {
   const userId = await getCurrentUserId();
   if (!userId) return NextResponse.json({ message: "unauthorized" }, { status: 401 });
 
-  const { enabled, unlocked } = await getDiaryLockState(userId);
-  return NextResponse.json({ enabled, unlocked });
+  const { enabled } = await getDiaryLockState(userId);
+  return NextResponse.json({ enabled });
 }
 
 // 잠금 켜기: { password, confirm }
@@ -62,8 +61,9 @@ export async function POST(req: Request) {
   const hash = await bcrypt.hash(password, 10);
   await prisma.user.update({ where: { id: userId }, data: { diaryLockHash: hash } });
 
-  const res = NextResponse.json({ enabled: true, unlocked: true });
-  return setDiaryUnlockCookie(res, userId, hash);
+  // 설정한 세션은 현재 화면을 유지하도록 토큰을 함께 준다(재진입 시엔 다시 잠김).
+  const token = buildDiaryUnlockToken(userId, hash);
+  return NextResponse.json({ enabled: true, token });
 }
 
 // 잠금 끄기/초기화: { mode: 'diary'|'account', password }
@@ -96,6 +96,5 @@ export async function DELETE(req: Request) {
 
   await prisma.user.update({ where: { id: userId }, data: { diaryLockHash: null } });
 
-  const res = NextResponse.json({ enabled: false });
-  return clearDiaryUnlockCookie(res);
+  return NextResponse.json({ enabled: false });
 }

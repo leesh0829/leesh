@@ -24,7 +24,7 @@ export default function DiaryLockSettings({
   onDisabled,
 }: {
   enabled: boolean
-  onEnabled: () => void
+  onEnabled: (token: string) => void
   onDisabled: () => void
 }) {
   const toast = useToast()
@@ -59,9 +59,14 @@ export default function DiaryLockSettings({
         toast.error(toHumanHttpError(r.status, msg) ?? msg ?? '잠금 설정에 실패했습니다.')
         return
       }
+      const data = (await r.json()) as { token?: string }
+      if (!data.token) {
+        toast.error('잠금 설정에 실패했습니다.')
+        return
+      }
       toast.success('일기장 잠금을 설정했습니다.')
       reset()
-      onEnabled()
+      onEnabled(data.token)
     })
   }
 

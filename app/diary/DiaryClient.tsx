@@ -76,9 +76,15 @@ export default function DiaryClient() {
   const [savedAt, setSavedAt] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
 
-  // 잠금 상태(null=조회중). enabled && !unlocked 이면 잠금 화면 표시.
-  const [lock, setLock] = useState<{ enabled: boolean; unlocked: boolean } | null>(null)
-  const canView = !!lock && (!lock.enabled || lock.unlocked)
+  // 잠금 켜짐 여부(null=조회중). 해제 증표(unlockToken)는 메모리에만 보관한다.
+  // 페이지를 벗어나거나 새로고침하면 토큰이 사라져 재진입 시 다시 잠긴다.
+  const [lock, setLock] = useState<{ enabled: boolean } | null>(null)
+  const [unlockToken, setUnlockToken] = useState<string | null>(null)
+  const canView = !!lock && (!lock.enabled || !!unlockToken)
+
+  // 요청 헤더에 쓸 최신 토큰을 콜백에서 안전하게 참조하기 위한 ref
+  const unlockTokenRef = useRef<string | null>(unlockToken)
+  unlockTokenRef.current = unlockToken
 
   const { pending: saving, run: runSave } = useAsyncLock()
 
@@ -101,13 +107,16 @@ export default function DiaryClient() {
       setLoading(true)
       setErr(null)
       try {
+        const token = unlockTokenRef.current
         const r = await fetch(`/api/diary?date=${encodeURIComponent(target)}`, {
           cache: 'no-store',
+          headers: token ? { 'x-diary-unlock': token } : undefined,
         })
         if (reqId !== reqIdRef.current) return
         if (r.status === 423) {
-          // 세션 중 잠금 해제가 만료됨 → 잠금 화면으로 복귀
-          setLock({ enabled: true, unlocked: false })
+          // 해제 토큰이 없거나 무효 → 잠금 화면으로 복귀
+          setUnlockToken(null)
+          setLock({ enabled: true })
           return
         }
         if (!r.ok) {
@@ -137,10 +146,10 @@ export default function DiaryClient() {
       try {
         const r = await fetch('/api/diary/lock', { cache: 'no-store' })
         if (!r.ok) throw new Error('failed')
-        const data = (await r.json()) as { enabled: boolean; unlocked: boolean }
-        if (!aborted) setLock(data)
+        const data = (await r.json()) as { enabled: boolean }
+        if (!aborted) setLock({ enabled: data.enabled })
       } catch {
-        if (!aborted) setLock({ enabled: false, unlocked: true })
+        if (!aborted) setLock({ enabled: false })
       }
     })()
     return () => {
@@ -161,11 +170,21 @@ export default function DiaryClient() {
       if (body === baselineRef.current) return true
 
       const result = await runSave(async () => {
+        const token = unlockTokenRef.current
         const r = await fetch('/api/diary', {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'x-diary-unlock': token } : {}),
+          },
           body: JSON.stringify({ date: targetDate, contentMd: body }),
         })
+        if (r.status === 423) {
+          // 해제 토큰이 없거나 무효 → 잠금 화면으로 복귀(작성 내용은 유지)
+          setUnlockToken(null)
+          setLock({ enabled: true })
+          return false
+        }
         if (!r.ok) {
           const msg = await readApiMessage(r)
           const message = toHumanHttpError(r.status, msg) ?? `${r.status} · ${msg ?? '저장 실패'}`
@@ -273,12 +292,15 @@ export default function DiaryClient() {
     )
   }
 
-  // 잠금 켜짐 + 미해제: 잠금 화면 (일기 본문/히트맵을 렌더하지 않음)
-  if (lock.enabled && !lock.unlocked) {
+  // 잠금 켜짐 + 토큰 없음: 잠금 화면 (일기 본문/히트맵을 렌더하지 않음)
+  if (lock.enabled && !unlockToken) {
     return (
       <DiaryLockScreen
-        onUnlocked={() => setLock({ enabled: true, unlocked: true })}
-        onDisabled={() => setLock({ enabled: false, unlocked: true })}
+        onUnlocked={(token) => setUnlockToken(token)}
+        onDisabled={() => {
+          setUnlockToken(null)
+          setLock({ enabled: false })
+        }}
       />
     )
   }
@@ -286,7 +308,7 @@ export default function DiaryClient() {
   return (
     <main className="w-full px-3 py-6 sm:px-4 lg:px-6">
       <div className="mx-auto mb-4 w-full max-w-3xl">
-        <DiaryHeatmap onSelectDate={(d) => void goToDate(d)} />
+        <DiaryHeatmap onSelectDate={(d) => void goToDate(d)} unlockToken={unlockToken} />
       </div>
       <div className="mx-auto w-full max-w-3xl surface card-pad card-hover-border-only">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -405,8 +427,14 @@ export default function DiaryClient() {
 
       <DiaryLockSettings
         enabled={lock.enabled}
-        onEnabled={() => setLock({ enabled: true, unlocked: true })}
-        onDisabled={() => setLock({ enabled: false, unlocked: true })}
+        onEnabled={(token) => {
+          setLock({ enabled: true })
+          setUnlockToken(token)
+        }}
+        onDisabled={() => {
+          setLock({ enabled: false })
+          setUnlockToken(null)
+        }}
       />
     </main>
   )

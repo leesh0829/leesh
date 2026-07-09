@@ -1,7 +1,8 @@
 import crypto from "node:crypto";
 
-// 일기장 잠금 해제 세션 쿠키 이름
-export const DIARY_UNLOCK_COOKIE = "leesh_diary_unlock";
+// 일기장 잠금 해제 토큰을 담는 요청 헤더 이름.
+// 쿠키가 아닌 헤더로 전달해 브라우저에 지속 저장되지 않게 한다(메모리 전용).
+export const DIARY_UNLOCK_HEADER = "x-diary-unlock";
 
 // 비밀번호 길이 한계 (72 = bcrypt 유효 바이트 한계)
 export const DIARY_PW_MIN = 4;
@@ -24,8 +25,8 @@ export function passwordsMatch(a: string, b: string): boolean {
   return a.length > 0 && a === b;
 }
 
-// 잠금 해제 쿠키의 서명 전 평문 payload.
-// 해시 지문을 포함해 비번 변경 시 옛 쿠키가 자동 무효화되고, userId로 사용자별 격리.
+// 잠금 해제 토큰의 서명 전 평문 payload.
+// 해시 지문을 포함해 비번 변경 시 옛 토큰이 자동 무효화되고, userId로 사용자별 격리.
 export function diaryUnlockPayload(userId: string, hash: string): string {
   const fingerprint = crypto.createHash("sha256").update(hash).digest("hex").slice(0, 16);
   return `${userId}:${fingerprint}`;

@@ -25,8 +25,11 @@ function todayKstYmd(): string {
 
 export default function DiaryHeatmap({
   onSelectDate,
+  unlockToken,
 }: {
   onSelectDate?: (date: string) => void
+  // 잠금이 켜진 경우 히트맵 API도 잠금 대상이므로 해제 토큰을 헤더로 전달한다.
+  unlockToken?: string | null
 }) {
   const [dates, setDates] = useState<string[] | null>(null)
   const [failed, setFailed] = useState(false)
@@ -36,7 +39,10 @@ export default function DiaryHeatmap({
     let aborted = false
     ;(async () => {
       try {
-        const r = await fetch('/api/diary/heatmap', { cache: 'no-store' })
+        const r = await fetch('/api/diary/heatmap', {
+          cache: 'no-store',
+          headers: unlockToken ? { 'x-diary-unlock': unlockToken } : undefined,
+        })
         if (!r.ok) throw new Error('failed')
         const data = (await r.json()) as { dates: string[] }
         if (!aborted) setDates(data.dates)
@@ -47,7 +53,7 @@ export default function DiaryHeatmap({
     return () => {
       aborted = true
     }
-  }, [])
+  }, [unlockToken])
 
   const today = useMemo(() => todayKstYmd(), [])
   const grid = useMemo<HeatmapWeek[]>(

@@ -22,7 +22,7 @@ export default function DiaryLockScreen({
   onUnlocked,
   onDisabled,
 }: {
-  onUnlocked: () => void
+  onUnlocked: (token: string) => void
   onDisabled: () => void
 }) {
   const toast = useToast()
@@ -44,8 +44,13 @@ export default function DiaryLockScreen({
         toast.error(toHumanHttpError(r.status, msg) ?? msg ?? '잠금 해제에 실패했습니다.')
         return
       }
+      const data = (await r.json()) as { token?: string }
+      if (!data.token) {
+        toast.error('잠금 해제에 실패했습니다.')
+        return
+      }
       setPassword('')
-      onUnlocked()
+      onUnlocked(data.token)
     })
   }
 

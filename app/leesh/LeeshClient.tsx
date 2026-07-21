@@ -948,114 +948,157 @@ export default function LeeshClient() {
         </div>
       </section>
 
-      <section className="surface card-pad scroll-reveal">
-        <h2 className="text-xl font-semibold">Direction</h2>
-        <p className="mt-2 text-sm leading-7 opacity-85 sm:text-base">
+      <section id="s07" className="leesh-section inv rv">
+        <div className="leesh-head">
+          <span className="no">§07</span>
+          <span className="kick">Direction · 지향</span>
+          <span className="dim">SHEET 07</span>
+        </div>
+        <h2 className="rv">Direction</h2>
+        <p className="leesh-lead rv">
           현재는 웹 개발에 가장 큰 관심을 두고 있으며, 데이터 처리와 시스템 구조
           이해를 기반으로 확장 가능한 웹 서비스를 만들고자 합니다.
         </p>
       </section>
 
-      <section className="surface card-pad scroll-reveal">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-2xl font-semibold">Contact Me</h2>
-          <span className="badge">문의 폼</span>
+      <section id="s08" className="leesh-section rv">
+        <div className="leesh-head">
+          <span className="no">§08</span>
+          <span className="kick">Contact · 문의</span>
+          <span className="dim">SHEET 08</span>
         </div>
-        <p className="mt-1 text-sm opacity-70">
+        <h2 className="rv">Contact Me</h2>
+        <p className="leesh-lead rv">
           협업, 프로젝트, 채용 관련 문의를 남겨주세요.
         </p>
 
-        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        <div className="leesh-form rv">
+          <div className="frow">
+            <div>
+              <label className="flabel">Name</label>
+              <input
+                className="leesh-input"
+                value={contactName}
+                onChange={(e) => {
+                  setContactName(e.target.value)
+                  setContactErr(null)
+                  setContactDone(null)
+                }}
+                placeholder="이름 (선택)"
+                maxLength={60}
+              />
+            </div>
+            <div>
+              <label className="flabel">Email *</label>
+              <input
+                className="leesh-input"
+                type="email"
+                value={contactEmail}
+                onChange={(e) => {
+                  setContactEmail(e.target.value)
+                  setContactErr(null)
+                  setContactDone(null)
+                }}
+                placeholder="회신 받을 이메일 *"
+                maxLength={120}
+              />
+            </div>
+          </div>
+
+          <label className="flabel">Subject</label>
           <input
-            className="input"
-            value={contactName}
+            className="leesh-input"
+            value={contactSubject}
             onChange={(e) => {
-              setContactName(e.target.value)
+              setContactSubject(e.target.value)
               setContactErr(null)
               setContactDone(null)
             }}
-            placeholder="이름 (선택)"
-            maxLength={60}
-          />
-          <input
-            className="input"
-            type="email"
-            value={contactEmail}
-            onChange={(e) => {
-              setContactEmail(e.target.value)
-              setContactErr(null)
-              setContactDone(null)
-            }}
-            placeholder="회신 받을 이메일 *"
+            placeholder="제목 (선택)"
             maxLength={120}
           />
-        </div>
 
-        <input
-          className="input mt-2"
-          value={contactSubject}
-          onChange={(e) => {
-            setContactSubject(e.target.value)
-            setContactErr(null)
-            setContactDone(null)
-          }}
-          placeholder="제목 (선택)"
-          maxLength={120}
-        />
+          <label className="flabel">Message</label>
+          <textarea
+            className="leesh-textarea"
+            value={contactMessage}
+            onChange={(e) => {
+              setContactMessage(e.target.value)
+              setContactErr(null)
+              setContactDone(null)
+            }}
+            placeholder="메시지 내용을 입력해 주세요. (10자 이상)"
+            rows={5}
+            maxLength={2000}
+            style={{ resize: 'vertical' }}
+          />
 
-        <textarea
-          className="textarea mt-2"
-          value={contactMessage}
-          onChange={(e) => {
-            setContactMessage(e.target.value)
-            setContactErr(null)
-            setContactDone(null)
-          }}
-          placeholder="메시지 내용을 입력해 주세요. (10자 이상)"
-          rows={5}
-          maxLength={2000}
-          style={{ resize: 'vertical' }}
-        />
-
-        <div className="mt-2 flex items-center justify-between gap-3">
-          <div className="text-xs opacity-60">
-            {contactMessage.trim().length}/2000
-          </div>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={submitContact}
-            disabled={contactSending}
+          <div
+            style={{
+              marginTop: 12,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+            }}
           >
-            {contactSending ? '전송중...' : '문의 보내기'}
-          </button>
-        </div>
+            <div
+              style={{
+                fontFamily: 'var(--mono)',
+                fontSize: 11,
+                color: 'var(--muted)',
+              }}
+            >
+              {contactMessage.trim().length}/2000
+            </div>
+            <button
+              type="button"
+              className="leesh-btn primary"
+              onClick={submitContact}
+              disabled={contactSending}
+            >
+              {contactSending ? '전송중...' : '문의 보내기'}
+            </button>
+          </div>
 
-        {contactErr ? (
-          <p className="mt-2 text-sm text-red-600">{contactErr}</p>
-        ) : null}
-        {contactDone ? (
-          <p className="mt-2 text-sm text-green-600">{contactDone}</p>
-        ) : null}
+          {contactErr ? (
+            <p className="text-sm text-red-600" style={{ marginTop: 10 }}>
+              {contactErr}
+            </p>
+          ) : null}
+          {contactDone ? (
+            <p className="text-sm text-green-600" style={{ marginTop: 10 }}>
+              {contactDone}
+            </p>
+          ) : null}
+        </div>
       </section>
 
-      <section className="card card-pad scroll-reveal">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
-            <p className="mt-1 text-sm opacity-70">추가로 하고픈 말</p>
-
-            {err ? <p className="mt-3 text-sm text-red-600">{err}</p> : null}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <button type="button" className="btn btn-outline" onClick={load}>
+      <section id="s09" className="leesh-section rv">
+        <div className="leesh-head">
+          <span className="no">§09</span>
+          <span className="kick">Notes · 추가로 하고픈 말</span>
+          <span className="dim">SHEET 09</span>
+        </div>
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+          }}
+        >
+          <h2 className="rv">Notes</h2>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            <button type="button" className="leesh-btn" onClick={load}>
               새로고침
             </button>
 
             {!unlocked ? (
               <button
                 type="button"
-                className="btn btn-outline"
+                className="leesh-btn"
                 onClick={() => setShowUnlockModal(true)}
               >
                 로그인
@@ -1065,7 +1108,7 @@ export default function LeeshClient() {
             {doc?.canEdit ? (
               <button
                 type="button"
-                className="btn btn-outline"
+                className="leesh-btn"
                 onClick={() => setEditing((v) => !v)}
               >
                 {editing ? '편집 닫기' : '편집'}
@@ -1073,22 +1116,26 @@ export default function LeeshClient() {
             ) : null}
 
             {doc?.canEdit && editing ? (
-              <>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={save}
-                  disabled={saving}
-                >
-                  {saving ? '저장중...' : '저장'}
-                </button>
-              </>
+              <button
+                type="button"
+                className="leesh-btn primary"
+                onClick={save}
+                disabled={saving}
+              >
+                {saving ? '저장중...' : '저장'}
+              </button>
             ) : null}
           </div>
         </div>
 
+        {err ? (
+          <p className="text-sm text-red-600" style={{ marginTop: 10 }}>
+            {err}
+          </p>
+        ) : null}
+
         {editing ? (
-          <div className="mt-4 grid gap-3">
+          <div className="leesh-block" style={{ marginTop: 20 }}>
             <MarkdownEditor
               value={draft}
               onChange={setDraft}
@@ -1098,7 +1145,7 @@ export default function LeeshClient() {
             />
           </div>
         ) : (
-          <article className="markdown-body mt-4">
+          <article className="markdown-body leesh-block" style={{ marginTop: 20 }}>
             <ReactMarkdown
               remarkPlugins={[remarkGfm, remarkBreaks]}
               rehypePlugins={[
@@ -1115,34 +1162,39 @@ export default function LeeshClient() {
       </section>
       </div>
 
+      <footer className="leesh-footer">
+        <div className="mk">◱ LEESH · PORTFOLIO</div>
+        <div className="sm">
+          이승현 · 웹을 중심으로 시스템과 데이터를 연결하는 개발자
+        </div>
+      </footer>
+
       {showUnlockModal ? (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+        <div className="leesh-modal-overlay">
           <button
             type="button"
-            className="absolute inset-0 bg-black/45"
+            className="leesh-modal-scrim"
             aria-label="로그인 팝업 닫기"
             onClick={() => setShowUnlockModal(false)}
           />
-          <div className="surface card-pad modal-enter relative z-[71] w-full max-w-md">
-            <div className="flex items-center justify-between gap-2">
+          <div className="leesh-modal">
+            <div className="mhead">
               <div>
-                <h2 className="text-lg font-semibold">로그인</h2>
-                <p className="mt-1 text-sm opacity-70">
-                  비밀번호를 입력하세요.
-                </p>
+                <div className="mtitle">로그인</div>
+                <div className="msub">비밀번호를 입력하세요.</div>
               </div>
               <button
                 type="button"
-                className="btn btn-outline"
+                className="leesh-btn"
                 onClick={() => setShowUnlockModal(false)}
               >
                 X
               </button>
             </div>
 
-            <div className="mt-4 grid gap-2">
+            <div style={{ marginTop: 18, display: 'grid', gap: 10 }}>
               <input
-                className="input"
+                className="leesh-input"
                 type="password"
                 value={pw}
                 autoFocus
@@ -1155,7 +1207,7 @@ export default function LeeshClient() {
 
               <button
                 type="button"
-                className="btn btn-primary"
+                className="leesh-btn primary"
                 onClick={doUnlock}
                 disabled={unlocking || !pw}
               >
@@ -1164,7 +1216,9 @@ export default function LeeshClient() {
             </div>
 
             {unlockErr ? (
-              <p className="mt-3 text-sm text-red-600">{unlockErr}</p>
+              <p className="text-sm text-red-600" style={{ marginTop: 12 }}>
+                {unlockErr}
+              </p>
             ) : null}
           </div>
         </div>

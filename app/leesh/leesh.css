@@ -845,3 +845,182 @@
 }
 .leesh-iconbtn:hover { background: var(--acc); color: #fff; border-color: var(--acc); }
 .cell:hover .leesh-iconbtn { border-color: rgba(255, 255, 255, 0.7); color: #fff; background: transparent; }
+
+/* ── §07 반전 · 폼 · 푸터 · 모달 ───────────────────────── */
+
+/* §07 반전 섹션 — 현재 테마 대비 반전 */
+.leesh-section.inv {
+  --paper: #151109;
+  --paper-2: #211b10;
+  --panel: #1b160c;
+  --ink: #f2ecda;
+  --ink-2: #cfc7b0;
+  --muted: #9a927c;
+  --faint: #6f6753;
+  --line: #f2ecda;
+  --line-soft: #4a4433;
+  --hair: #332d20;
+  background: var(--paper);
+  color: var(--ink);
+  border-top: 2px solid var(--line);
+}
+/* 다크 테마일 때 반전 = 라이트(크림) 팔레트 강제 */
+[data-theme='dark'] .leesh-section.inv,
+.dark .leesh-section.inv {
+  --paper: #ece5d4;
+  --paper-2: #e3dcc7;
+  --panel: #ece5d4;
+  --ink: #151109;
+  --ink-2: #3d372a;
+  --muted: #6f6753;
+  --faint: #9a927c;
+  --line: #151109;
+  --line-soft: #c8c0a8;
+  --hair: #d3cbb2;
+}
+/* full-bleed 배경 */
+.leesh-section.inv::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  bottom: 0;
+  left: calc(50% - 50vw);
+  width: 100vw;
+  background: var(--paper);
+  z-index: -1;
+  border-top: 2px solid var(--line);
+  border-bottom: 2px solid var(--line);
+}
+
+/* 버튼 */
+.leesh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: var(--paper);
+  border: 2px solid var(--line);
+  padding: 9px 16px;
+  cursor: pointer;
+  transition: 0.14s;
+  text-decoration: none;
+}
+.leesh-btn:hover { background: var(--acc); color: #fff; border-color: var(--acc); }
+.leesh-btn.primary { background: var(--acc); color: #fff; border-color: var(--acc); }
+.leesh-btn.primary:hover { background: var(--acc-2); border-color: var(--acc-2); }
+.leesh-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* 입력 */
+.leesh-input,
+.leesh-textarea {
+  width: 100%;
+  font-family: var(--sans);
+  font-size: 14px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 2px solid var(--line);
+  padding: 11px 13px;
+}
+.leesh-input:focus,
+.leesh-textarea:focus {
+  outline: none;
+  border-color: var(--acc);
+}
+.leesh-input::placeholder,
+.leesh-textarea::placeholder { color: var(--faint); }
+
+/* 폼 */
+.leesh-form {
+  margin-top: 30px;
+  border: 2px solid var(--line);
+  background: var(--panel);
+  padding: 26px;
+}
+.leesh-form .frow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+@media (max-width: 560px) {
+  .leesh-form .frow { grid-template-columns: 1fr; }
+}
+.leesh-form .flabel {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 14px 0 6px;
+  display: block;
+}
+
+/* 푸터 */
+.leesh-footer {
+  border-top: 2px solid var(--line);
+  padding: 38px 0 64px;
+  text-align: center;
+  position: relative;
+  z-index: 2;
+}
+.leesh-footer .mk {
+  font-family: var(--disp);
+  font-size: 26px;
+  color: var(--ink);
+  font-weight: 400;
+  text-transform: uppercase;
+}
+.leesh-footer .sm {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 10px;
+  letter-spacing: 0.04em;
+}
+
+/* 잠금 모달 */
+.leesh-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.leesh-modal-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(21, 17, 9, 0.55);
+  border: none;
+  cursor: pointer;
+}
+.leesh-modal {
+  position: relative;
+  z-index: 71;
+  width: 100%;
+  max-width: 440px;
+  background: var(--paper);
+  border: 2px solid var(--line);
+  padding: 26px;
+}
+.leesh-modal .mhead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 14px;
+  border-bottom: 2px solid var(--line);
+}
+.leesh-modal .mtitle { font-size: 18px; font-weight: 800; color: var(--ink); }
+.leesh-modal .msub {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 4px;
+}

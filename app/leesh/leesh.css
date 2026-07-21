@@ -375,3 +375,330 @@
 }
 /* 앵커 스크롤 시 sticky 네비 높이만큼 오프셋 */
 .leesh-section { scroll-margin-top: 64px; }
+
+/* ── 히어로 ─────────────────────────────────────────────── */
+
+.leesh-hero {
+  position: relative;
+  border-top: none;
+  padding: clamp(28px, 6vw, 72px) 0 0;
+}
+.leesh-hero .tag {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+}
+.leesh-hero .tag::before {
+  content: '';
+  width: 44px;
+  height: 10px;
+  background: var(--acc);
+}
+.leesh-hero h1 {
+  margin-top: 20px;
+  font-size: clamp(36px, 4.7vw, 74px);
+  line-height: 0.98;
+  letter-spacing: -0.045em;
+  font-weight: 900;
+  word-break: keep-all;
+  color: var(--ink);
+}
+.leesh-hero h1 .l1,
+.leesh-hero h1 .l2 { display: block; }
+.leesh-hero h1 .ink { color: var(--acc); }
+.hero-top {
+  display: grid;
+  grid-template-columns: 1.06fr 0.94fr;
+  gap: clamp(18px, 2.6vw, 36px);
+  align-items: stretch;
+  margin-top: 24px;
+}
+.hero-copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: min(64vh, 580px);
+}
+.leesh-hero .sub {
+  margin-top: 30px;
+  font-size: clamp(16px, 2vw, 21px);
+  color: var(--ink-2);
+  max-width: 56ch;
+  line-height: 1.5;
+  font-weight: 500;
+  word-break: keep-all;
+}
+.leesh-hero .sub b { font-weight: 800; color: var(--ink); }
+@media (max-width: 820px) {
+  .hero-top { grid-template-columns: 1fr; }
+  .hero-copy { min-height: auto; }
+  .hero-3d { min-height: 340px; order: 2; }
+}
+
+/* CSS 전용 3D 카드 스택 */
+.hero-3d {
+  position: relative;
+  border: 2px solid var(--line);
+  background: #151109;
+  overflow: hidden;
+  min-height: 440px;
+  display: grid;
+  place-items: center;
+  perspective: 1400px;
+}
+.hero-3d-tag {
+  position: absolute;
+  right: 14px;
+  top: 12px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: var(--acc);
+  pointer-events: none;
+  z-index: 5;
+}
+.hero-3d-hint {
+  position: absolute;
+  left: 14px;
+  bottom: 12px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+  pointer-events: none;
+  z-index: 5;
+}
+.stack {
+  position: relative;
+  width: 210px;
+  height: 296px;
+  transform-style: preserve-3d;
+  transform: rotateX(var(--ry, 0deg)) rotateY(var(--rx, 0deg));
+  transition: transform 0.18s ease-out;
+}
+.stack .sheet {
+  position: absolute;
+  inset: 0;
+  background: #ece5d4;
+  border: 2px solid #151109;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+  transform-style: preserve-3d;
+  padding: 14px 14px 16px;
+  will-change: transform;
+}
+/* 시트 4장: 각기 다른 기본 transform + 1:1 대응하는 float keyframes */
+.stack .sheet.s1 {
+  transform: translateZ(-60px) translate(-26px, 8px) rotate(-6deg);
+  animation: leesh-float1 6s ease-in-out infinite;
+}
+.stack .sheet.s2 {
+  transform: translateZ(-20px) translate(24px, -6px) rotate(4deg);
+  animation: leesh-float2 6.6s ease-in-out infinite;
+}
+.stack .sheet.s3 {
+  transform: translateZ(24px) translate(-10px, 12px) rotate(-2deg);
+  animation: leesh-float3 7.2s ease-in-out infinite;
+}
+.stack .sheet.s4 {
+  transform: translateZ(70px) translate(10px, -10px) rotate(3deg);
+  background: var(--acc);
+  border-color: #151109;
+  animation: leesh-float4 5.8s ease-in-out infinite;
+}
+/* 미니 스펙시트 내부(선·레이블·표) */
+.sheet .sh-title {
+  font-family: var(--sans);
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  color: #151109;
+  text-align: center;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #151109;
+}
+.sheet.s4 .sh-title { color: #fff; border-color: #fff; }
+.sheet .sh-tbl {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: 22px 1fr 34px;
+  border: 1.5px solid #151109;
+}
+.sheet.s4 .sh-tbl { border-color: #fff; }
+.sheet .sh-tbl i {
+  border-right: 1px solid rgba(21, 17, 9, 0.5);
+  border-bottom: 1px solid rgba(21, 17, 9, 0.5);
+  height: 18px;
+}
+.sheet.s4 .sh-tbl i { border-color: rgba(255, 255, 255, 0.5); }
+.sheet .sh-tbl i:nth-child(3n) { border-right: none; }
+.sheet .sh-lines {
+  margin-top: 10px;
+  display: grid;
+  gap: 7px;
+}
+.sheet .sh-lines b {
+  display: block;
+  height: 3px;
+  background: rgba(21, 17, 9, 0.35);
+}
+.sheet.s4 .sh-lines b { background: rgba(255, 255, 255, 0.5); }
+.sheet .sh-lines b:nth-child(2) { width: 70%; }
+.sheet .sh-lines b:nth-child(3) { width: 50%; }
+
+/* 시트별 float — 각자의 기본 transform으로 시작/종료 */
+@keyframes leesh-float1 {
+  0%, 100% { transform: translateZ(-60px) translate(-26px, 8px) rotate(-6deg); }
+  50% { transform: translateZ(-60px) translate(-26px, -4px) rotate(-8deg); }
+}
+@keyframes leesh-float2 {
+  0%, 100% { transform: translateZ(-20px) translate(24px, -6px) rotate(4deg); }
+  50% { transform: translateZ(-20px) translate(24px, 4px) rotate(6deg); }
+}
+@keyframes leesh-float3 {
+  0%, 100% { transform: translateZ(24px) translate(-10px, 12px) rotate(-2deg); }
+  50% { transform: translateZ(24px) translate(-10px, 2px) rotate(0deg); }
+}
+@keyframes leesh-float4 {
+  0%, 100% { transform: translateZ(70px) translate(10px, -10px) rotate(3deg); }
+  50% { transform: translateZ(70px) translate(10px, 2px) rotate(5deg); }
+}
+/* reduced-motion: 부유·틸트 off */
+@media (prefers-reduced-motion: reduce) {
+  .stack { transition: none; transform: none; }
+  .stack .sheet { animation: none !important; }
+}
+
+/* marquee */
+.marq {
+  margin-top: 44px;
+  border-top: 2px solid var(--line);
+  border-bottom: 2px solid var(--line);
+  overflow: hidden;
+  white-space: nowrap;
+  background: var(--acc);
+}
+.marq .row {
+  display: inline-block;
+  padding: 10px 0;
+  will-change: transform;
+  animation: leesh-slide 22s linear infinite;
+}
+.marq b {
+  font-family: var(--disp);
+  font-weight: 400;
+  font-size: clamp(20px, 3vw, 34px);
+  letter-spacing: 0.02em;
+  color: #fff;
+  text-transform: uppercase;
+  padding: 0 24px;
+}
+.marq b span { color: var(--ink); }
+@keyframes leesh-slide {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .marq .row { animation: none; }
+}
+
+/* herometa — readout + titleblk */
+.herometa {
+  margin-top: 0;
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 0;
+  border: 2px solid var(--line);
+  border-top: none;
+  background: var(--paper);
+}
+.readout {
+  padding: 24px 26px;
+  border-right: 2px solid var(--line);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px 24px;
+}
+.readout .m .n {
+  font-family: var(--disp);
+  font-weight: 400;
+  font-size: clamp(40px, 5vw, 60px);
+  letter-spacing: 0;
+  color: var(--ink);
+  line-height: 0.8;
+}
+.readout .m .n .u {
+  color: var(--acc);
+  font-size: 0.4em;
+  vertical-align: top;
+  margin-left: 4px;
+}
+.readout .m .k {
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 9px;
+  line-height: 1.35;
+  font-family: var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.titleblk {
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.titleblk .r {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line-soft);
+  align-items: baseline;
+}
+.titleblk .r:last-child { border-bottom: none; }
+.titleblk .r span {
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 10px;
+}
+.titleblk .r b { color: var(--ink); font-weight: 700; text-align: right; }
+@media (max-width: 760px) {
+  .herometa { grid-template-columns: 1fr; }
+  .readout {
+    border-right: none;
+    border-bottom: 2px solid var(--line);
+  }
+}
+@media (max-width: 680px) {
+  .readout { grid-template-columns: 1fr 1fr; }
+}
+
+/* 진입 keyframes (로드 스태거 + Task 7 스크롤 레이어 공용) */
+@keyframes leesh-riseIn {
+  from { opacity: 0; transform: translateY(46px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes leesh-swipeIn {
+  from { opacity: 0; clip-path: inset(0 100% 0 0); }
+  to { opacity: 1; clip-path: inset(0 0 0 0); }
+}
+
+/* 히어로 로드 스태거 — 마운트 후 .js 부여 시에만 */
+@media (prefers-reduced-motion: no-preference) {
+  .leesh-page.js .leesh-hero .tag { opacity: 0; animation: leesh-riseIn 0.7s 0.05s both; }
+  .leesh-page.js .leesh-hero h1 .l1 { opacity: 0; animation: leesh-swipeIn 0.8s 0.16s both; }
+  .leesh-page.js .leesh-hero h1 .l2 { opacity: 0; animation: leesh-swipeIn 0.8s 0.34s both; }
+  .leesh-page.js .leesh-hero .sub { opacity: 0; animation: leesh-riseIn 0.8s 0.5s both; }
+  .leesh-page.js .marq { opacity: 0; animation: leesh-riseIn 0.8s 0.62s both; }
+  .leesh-page.js .herometa { opacity: 0; animation: leesh-riseIn 0.8s 0.72s both; }
+}

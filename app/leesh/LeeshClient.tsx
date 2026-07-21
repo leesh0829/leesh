@@ -85,6 +85,12 @@ export default function LeeshClient() {
   const [contactErr, setContactErr] = useState<string | null>(null)
   const [contactDone, setContactDone] = useState<string | null>(null)
 
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
   const mdComponents: Parameters<typeof ReactMarkdown>[0]['components'] =
     useMemo(
       () => ({
@@ -233,6 +239,73 @@ export default function LeeshClient() {
       window.removeEventListener('resize', onScroll)
     }
   }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    if (typeof window.IntersectionObserver === 'undefined') return
+
+    const countUp = (el: HTMLElement) => {
+      let node: ChildNode | null = null
+      for (const cn of Array.from(el.childNodes)) {
+        if (cn.nodeType === 3 && cn.nodeValue && cn.nodeValue.trim()) {
+          node = cn
+          break
+        }
+      }
+      if (!node || node.nodeValue === null) return
+      const m = node.nodeValue.trim().match(/^(\D*?)(\d+)(\D*)$/)
+      if (!m) return
+      const pre = m[1]
+      const len = m[2].length
+      const target = parseInt(m[2], 10)
+      const suf = m[3]
+      if (/[A-Za-z가-힣]/.test(pre)) return
+      const dur = 900
+      let t0: number | null = null
+      const frame = (t: number) => {
+        if (t0 === null) t0 = t
+        const p = Math.min((t - t0) / dur, 1)
+        const e = 1 - Math.pow(1 - p, 3)
+        node!.nodeValue =
+          pre + String(Math.round(target * e)).padStart(len, '0') + suf
+        if (p < 1) requestAnimationFrame(frame)
+      }
+      requestAnimationFrame(frame)
+    }
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            countUp(entry.target as HTMLElement)
+            io.unobserve(entry.target)
+          }
+        })
+      },
+      { threshold: 0.6 }
+    )
+    document
+      .querySelectorAll<HTMLElement>('.leesh-page .readout .m .n')
+      .forEach((n) => io.observe(n))
+    return () => io.disconnect()
+  }, [mounted])
+
+  const onStackMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const el = e.currentTarget.querySelector<HTMLElement>('.stack')
+    if (!el) return
+    const r = e.currentTarget.getBoundingClientRect()
+    const nx = ((e.clientX - r.left) / r.width) * 2 - 1
+    const ny = ((e.clientY - r.top) / r.height) * 2 - 1
+    el.style.setProperty('--rx', `${nx * 16}deg`)
+    el.style.setProperty('--ry', `${-ny * 12}deg`)
+  }
+  const onStackLeave = (e: React.MouseEvent<HTMLDivElement>) => {
+    const el = e.currentTarget.querySelector<HTMLElement>('.stack')
+    if (!el) return
+    el.style.setProperty('--rx', '0deg')
+    el.style.setProperty('--ry', '0deg')
+  }
 
   const doUnlock = async () => {
     if (!pw) return
@@ -513,7 +586,7 @@ export default function LeeshClient() {
   ]
 
   return (
-    <main className="leesh-page">
+    <main className={`leesh-page${mounted ? ' js' : ''}`}>
       <div className="leesh-prog" aria-hidden />
       <div className="leesh-frame" aria-hidden>
         <i className="tl" />
@@ -539,69 +612,125 @@ export default function LeeshClient() {
         </div>
       </nav>
       <div className="leesh-main">
-      <section className="surface card-pad scroll-reveal">
-        <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr] lg:items-start">
-          <div>
-            <p className="text-xs uppercase tracking-[0.18em] opacity-60">
-              Portfolio
-            </p>
-            <h1 className="mt-2 text-3xl font-semibold sm:text-4xl">이승현</h1>
-            <p className="mt-3 text-base leading-7 opacity-90 sm:text-lg">
+      <header className="leesh-hero" id="top">
+        <div className="hero-top">
+          <div className="hero-copy">
+            <div className="tag">PORTFOLIO · 이승현</div>
+            <h1>
+              <span className="l1">
+                웹을 중심으로, <span className="ink">시스템과 데이터를</span>
+              </span>
+              <span className="l2">연결하는 개발자</span>
+            </h1>
+            <p className="sub">
               안녕하세요. 사용자 문제를 제품으로 빠르게 풀어내는 개발자입니다.
-              서비스의 맥락을 이해하고, 작은 기능도 실제 사용 경험 관점에서
-              설계합니다.
+              서비스의 맥락을 이해하고, 작은 기능도{' '}
+              <b>실제 사용 경험 관점</b>에서 설계합니다.
             </p>
-            <p className="mt-3 text-base leading-7 opacity-90 sm:text-lg">
-              데이터를 수집하고, 처리하고, 시각화하며 웹을 중심으로 시스템을
-              연결하는 개발자입니다.
-            </p>
-            <p className="mt-2 text-base leading-7 opacity-90 sm:text-lg">
-              실제 운영 환경에서 동작하는 서비스를 설계하고 개선합니다.
-            </p>
-            <p className="mt-2 text-sm font-medium opacity-70">
-              웹을 중심으로, 시스템과 데이터를 연결하는 개발자
-            </p>
+          </div>
 
-            <div className="mt-4 flex flex-wrap gap-2">
-              {techStacks.map((stack) => (
-                <span key={stack} className="badge">
-                  {stack}
-                </span>
-              ))}
-            </div>
-
-            <div className="mt-5 flex flex-wrap gap-3">
-              {[
-                { n: projects.length, label: '프로젝트' },
-                { n: careers.length, label: '경력' },
-                { n: detailedTechStacks.length, label: '기술 분야' },
-              ].map((s) => (
-                <div
-                  key={s.label}
-                  className="rounded-2xl border border-black/10 bg-black/[0.03] px-4 py-2 text-center"
-                >
-                  <div className="text-2xl font-bold">{s.n}</div>
-                  <div className="text-xs opacity-70">{s.label}</div>
+          <div
+            className="hero-3d"
+            onMouseMove={onStackMove}
+            onMouseLeave={onStackLeave}
+          >
+            <span className="hero-3d-tag">◱ SPEC SHEET · 3D</span>
+            <span className="hero-3d-hint">↔ 마우스로 기울이기</span>
+            <div className="stack" aria-hidden>
+              {(['s1', 's2', 's3', 's4'] as const).map((s) => (
+                <div key={s} className={`sheet ${s}`}>
+                  <div className="sh-title">SPEC SHEET</div>
+                  <div className="sh-tbl">
+                    {Array.from({ length: 9 }).map((_, i) => (
+                      <i key={i} />
+                    ))}
+                  </div>
+                  <div className="sh-lines">
+                    <b />
+                    <b />
+                    <b />
+                  </div>
                 </div>
               ))}
             </div>
           </div>
+        </div>
 
-          <div className="rounded-2xl border border-black/10 bg-black/[0.03] p-4">
-            <h2 className="text-sm font-semibold opacity-80">About me</h2>
-            <ul className="mt-3 grid gap-2 text-sm leading-6 opacity-90">
-              {strengths.map((item) => (
-                <li key={item} className="flex gap-2">
-                  <span aria-hidden>•</span>
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
-            <p className="mt-3 text-sm leading-6 opacity-80">
-              {aboutNarrative}
-            </p>
+        <div className="marq">
+          <div className="row">
+            <b>
+              {techStacks.map((stack) => stack.toUpperCase()).join(' · ')} ✳{' '}
+            </b>
+            <b>
+              {techStacks.map((stack) => stack.toUpperCase()).join(' · ')} ✳{' '}
+            </b>
           </div>
         </div>
+
+        <div className="herometa">
+          <div className="readout">
+            <div className="m">
+              <div className="n">{String(projects.length).padStart(2, '0')}</div>
+              <div className="k">프로젝트</div>
+            </div>
+            <div className="m">
+              <div className="n">{String(careers.length).padStart(2, '0')}</div>
+              <div className="k">경력</div>
+            </div>
+            <div className="m">
+              <div className="n">
+                {String(detailedTechStacks.length).padStart(2, '0')}
+              </div>
+              <div className="k">기술 분야</div>
+            </div>
+            <div className="m">
+              <div className="n">
+                00<span className="u">↔</span>
+              </div>
+              <div className="k">진행형 성장</div>
+            </div>
+          </div>
+          <div className="titleblk">
+            <div className="r">
+              <span>Name</span>
+              <b>이승현 (leesh)</b>
+            </div>
+            <div className="r">
+              <span>Focus</span>
+              <b>Web · IoT · Data</b>
+            </div>
+            <div className="r">
+              <span>Stack</span>
+              <b>Spring · Next.js · C#</b>
+            </div>
+            <div className="r">
+              <span>Status</span>
+              <b>Open to work</b>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* About me — 히어로 아래 이어붙임 */}
+      <section id="s00" className="leesh-section rv">
+        <div className="leesh-head">
+          <span className="no">§00</span>
+          <span className="kick">About me · 소개</span>
+          <span className="dim">SHEET 00</span>
+        </div>
+        <p className="leesh-lead rv">
+          데이터를 수집하고, 처리하고, 시각화하며 웹을 중심으로 시스템을
+          연결하는 개발자입니다. 실제 운영 환경에서 동작하는 서비스를 설계하고
+          개선합니다.
+        </p>
+        <ul className="leesh-block" style={{ listStyle: 'none' }}>
+          {strengths.map((item) => (
+            <li key={item} className="leesh-lead" style={{ marginTop: 10 }}>
+              → {item}
+            </li>
+          ))}
+        </ul>
+        <p className="leesh-lead">{aboutNarrative}</p>
       </section>
 
       <section className="surface card-pad scroll-reveal">

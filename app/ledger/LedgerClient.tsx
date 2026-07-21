@@ -54,6 +54,7 @@ type AccountItem = {
   types: string[]
   memo: string | null
   entryCount: number
+  currentBalance: number // 기간과 무관한 현재(전체 누적) 잔액
 }
 
 type Totals = {
@@ -214,12 +215,9 @@ export default function LedgerClient() {
   const toast = useToast()
 
   const today = useMemo(() => new Date(), [])
-  const [periodStart, setPeriodStart] = useState<string>(() =>
-    toDateInputValue(startOfMonth(new Date()))
-  )
-  const [periodEnd, setPeriodEnd] = useState<string>(() =>
-    toDateInputValue(endOfMonth(new Date()))
-  )
+  // 기본값은 전체 기간 (빈 문자열 → start/end 파라미터 미전송 → 서버가 기간 필터 없이 조회)
+  const [periodStart, setPeriodStart] = useState<string>('')
+  const [periodEnd, setPeriodEnd] = useState<string>('')
 
   const [items, setItems] = useState<LedgerItem[]>([])
   const [totalsAll, setTotalsAll] = useState<Totals>({
@@ -820,56 +818,34 @@ export default function LedgerClient() {
     )
   }, [totalsByOwner, visibleOwnerIds])
 
-  // 계좌별 합계 — items에서 직접 계산
-  // 주의: 계좌별 잔액은 합계 제외 항목(이체 등)도 포함해야 함 (실제 cash 이동)
-  // 전체(ALL) 합계는 totalsAll/periodTotals 그대로 사용 — 합계 제외 제외
-  // 표시되는 "계좌 잔액"은 마지막 내역의 runningBalance를 사용 (전체 누적 + initialBalance 반영)
+  // 계좌별 기간 수입/지출 합계 — items에서 직접 계산 (표시용, 기간 의존)
+  // 주의: 이체 등 합계 제외 항목도 실제 cash 이동이므로 포함.
+  // 계좌 "잔액"은 여기서 계산하지 않는다 — 기간과 무관한 현재 잔액(account.currentBalance)을 사용.
   const accountTotalsMap = useMemo(() => {
-    const map = new Map<
-      string,
-      { income: number; expense: number; balance: number }
-    >()
-    // 1) 기간 income/expense 합산
+    const map = new Map<string, { income: number; expense: number }>()
     for (const it of items) {
       if (visibleOwnerIds.size > 0 && !visibleOwnerIds.has(it.ownerId)) continue
       if (!it.accountId) continue
-      const entry =
-        map.get(it.accountId) ?? { income: 0, expense: 0, balance: 0 }
+      const entry = map.get(it.accountId) ?? { income: 0, expense: 0 }
       if (it.type === 'INCOME') entry.income += it.amount
       else entry.expense += it.amount
       map.set(it.accountId, entry)
     }
-    // 2) 계좌별 마지막 internal runningBalance를 잔액으로 (initialBalance + 전체 누적 반영됨)
-    const lastBalance = new Map<string, { time: number; bal: number }>()
-    for (const it of items) {
-      if (!it.accountId) continue
-      if (it.runningBalance === null) continue
-      const t = new Date(it.occurredAt).getTime()
-      const prev = lastBalance.get(it.accountId)
-      if (!prev || t > prev.time) {
-        lastBalance.set(it.accountId, { time: t, bal: it.runningBalance })
-      }
-    }
-    for (const [accId, v] of lastBalance) {
-      const entry = map.get(accId) ?? { income: 0, expense: 0, balance: 0 }
-      entry.balance = v.bal
-      map.set(accId, entry)
-    }
-    // 3) 기간 내 내역이 전혀 없는 계좌는 잔액 0으로 유지 (initialBalance 별도 조회는 추후)
     return map
   }, [items, visibleOwnerIds])
 
   // 선택된 hero 보기 — 전체 또는 특정 계좌
+  // 수입/지출은 기간 합계, 잔액은 기간과 무관한 현재(전체 누적) 잔액으로 고정 표시.
   const heroTotals = useMemo<Totals>(() => {
     if (hoTotalsAccountId === 'ALL') return totalsAll
-    return (
-      accountTotalsMap.get(hoTotalsAccountId) ?? {
-        income: 0,
-        expense: 0,
-        balance: 0,
-      }
-    )
-  }, [hoTotalsAccountId, totalsAll, accountTotalsMap])
+    const periodAgg = accountTotalsMap.get(hoTotalsAccountId)
+    const acc = accounts.find((a) => a.id === hoTotalsAccountId)
+    return {
+      income: periodAgg?.income ?? 0,
+      expense: periodAgg?.expense ?? 0,
+      balance: acc?.currentBalance ?? 0,
+    }
+  }, [hoTotalsAccountId, totalsAll, accountTotalsMap, accounts])
 
   // segments 빌더 — 화면에 표시 가능한 owner 순서대로
   const buildSegments = (
@@ -1052,7 +1028,7 @@ export default function LedgerClient() {
                       <span>
                         {hoTotalsAccountId === 'ALL'
                           ? '현재 남은 금액 (전체 누적)'
-                          : '계좌 잔액 (해당 기간)'}
+                          : '계좌 잔액 (현재)'}
                       </span>
                       <select
                         className="input"

@@ -702,3 +702,146 @@
   .leesh-page.js .marq { opacity: 0; animation: leesh-riseIn 0.8s 0.62s both; }
   .leesh-page.js .herometa { opacity: 0; animation: leesh-riseIn 0.8s 0.72s both; }
 }
+
+/* ── 콘텐츠 컴포넌트 (§01~§06) ─────────────────────────── */
+
+/* Career 타임라인 */
+.leesh-timeline {
+  margin-top: 32px;
+  border: 2px solid var(--line);
+  list-style: none;
+  padding: 0;
+}
+.leesh-timeline .tl-item {
+  padding: 24px;
+  border-bottom: 2px solid var(--line);
+  position: relative;
+}
+.leesh-timeline .tl-item:last-child { border-bottom: none; }
+.leesh-timeline .tl-period {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #fff;
+  background: var(--acc);
+  padding: 3px 8px;
+  display: inline-block;
+}
+.leesh-timeline .tl-role {
+  margin-top: 12px;
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--ink);
+}
+.leesh-timeline .tl-co {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.leesh-timeline ul {
+  margin-top: 14px;
+  display: grid;
+  gap: 7px;
+  list-style: none;
+  padding: 0;
+}
+.leesh-timeline ul li {
+  font-size: 13.5px;
+  color: var(--ink-2);
+  padding-left: 16px;
+  position: relative;
+}
+.leesh-timeline ul li::before {
+  content: '→';
+  position: absolute;
+  left: 0;
+  color: var(--acc);
+  font-weight: 800;
+}
+
+/* Tech chips */
+.leesh-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  margin-top: 16px;
+  border: 2px solid var(--line);
+  width: fit-content;
+  max-width: 100%;
+}
+.tk {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-right: 2px solid var(--line);
+  background: var(--panel);
+  padding: 9px 14px;
+}
+.tk:last-child { border-right: none; }
+.tk .cn { font-weight: 800; font-size: 13px; color: var(--ink); }
+.tk .cv { font-family: var(--mono); font-size: 10.5px; color: var(--muted); }
+
+/* 프로젝트 태그 chip (인라인) */
+.leesh-chip {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border: 1.5px solid var(--line);
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  margin: 0 -1px -1px 0;
+}
+.cell:hover .leesh-chip { color: #fff; border-color: rgba(255, 255, 255, 0.6); }
+
+/* GitHub 잔디 리스팅 프레임 */
+.leesh-listing {
+  margin-top: 26px;
+  border: 2px solid var(--line);
+}
+.leesh-listing figcaption {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 14px;
+  background: var(--ink);
+  border-bottom: 2px solid var(--line);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--paper);
+  font-weight: 600;
+}
+.leesh-listing figcaption .d {
+  width: 10px;
+  height: 10px;
+  background: var(--acc);
+  flex: none;
+}
+.leesh-listing figcaption .lbl {
+  margin-left: auto;
+  color: var(--faint);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 10px;
+}
+.leesh-listing .body {
+  padding: 16px;
+  background: var(--panel);
+  overflow-x: auto;
+}
+
+/* GitHub 링크 버튼(아이콘) */
+.leesh-iconbtn {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 2px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+}
+.leesh-iconbtn:hover { background: var(--acc); color: #fff; border-color: var(--acc); }
+.cell:hover .leesh-iconbtn { border-color: rgba(255, 255, 255, 0.7); color: #fff; background: transparent; }

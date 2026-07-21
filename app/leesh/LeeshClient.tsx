@@ -733,38 +733,40 @@ export default function LeeshClient() {
         <p className="leesh-lead">{aboutNarrative}</p>
       </section>
 
-      <section className="surface card-pad scroll-reveal">
-        <h2 className="text-xl font-semibold">핵심 역량</h2>
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
-          {highlights.map((item) => (
-            <article
-              key={item.title}
-              className="rounded-2xl border border-black/10 bg-black/[0.03] p-4"
-            >
-              <h3 className="text-sm font-semibold">{item.title}</h3>
-              <p className="mt-2 text-sm leading-6 opacity-80">
-                {item.description}
-              </p>
+      <section id="s01" className="leesh-section rv">
+        <div className="leesh-head">
+          <span className="no">§01</span>
+          <span className="kick">Core Competency · 핵심 역량</span>
+          <span className="dim">SHEET 01</span>
+        </div>
+        <h2 className="rv">핵심 역량</h2>
+        <div className="leesh-grid g3 rv">
+          {highlights.map((item, i) => (
+            <article key={item.title} className="cell">
+              <div className="ix">{String(i + 1).padStart(2, '0')} · CAP</div>
+              <h3>{item.title}</h3>
+              <p>{item.description}</p>
             </article>
           ))}
         </div>
       </section>
 
-      <section className="surface card-pad scroll-reveal">
-        <h2 className="text-2xl font-semibold">Experience</h2>
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          {experiences.map((item) => (
-            <article
-              key={item.title}
-              className="rounded-2xl border border-black/10 bg-black/[0.03] p-4"
-            >
-              <h3 className="text-base font-semibold">
-                <span className="mr-2" aria-hidden>
-                  {item.badge}
-                </span>
-                {item.title}
-              </h3>
-              <ul className="mt-3 list-disc space-y-1 pl-5 text-sm leading-6 opacity-90">
+      <section id="s02" className="leesh-section rv">
+        <div className="leesh-head">
+          <span className="no">§02</span>
+          <span className="kick">Experience · 실무 경험</span>
+          <span className="dim">SHEET 02</span>
+        </div>
+        <h2 className="rv">Experience</h2>
+        <div className="leesh-grid g2 rv">
+          {experiences.map((item, i) => (
+            <article key={item.title} className="cell">
+              <div className="ix">
+                {String(i + 1).padStart(2, '0')} ·{' '}
+                <span aria-hidden>{item.badge}</span>
+              </div>
+              <h3>{item.title}</h3>
+              <ul>
                 {item.items.map((point) => (
                   <li key={point}>{point}</li>
                 ))}
@@ -774,77 +776,71 @@ export default function LeeshClient() {
         </div>
       </section>
 
-      <section className="surface card-pad scroll-reveal">
-        <h2 className="text-2xl font-semibold">Career</h2>
-        <div className="mt-4 space-y-4 border-l-2 border-black/10 pl-6">
+      <section id="s03" className="leesh-section rv">
+        <div className="leesh-head">
+          <span className="no">§03</span>
+          <span className="kick">Career · 경력</span>
+          <span className="dim">SHEET 03</span>
+        </div>
+        <h2 className="rv">Career</h2>
+        <ol className="leesh-timeline rv">
           {careers.map((career) => (
-            <article
-              key={`${career.company}-${career.period}`}
-              className="relative rounded-2xl border border-black/10 bg-black/[0.03] p-4"
-            >
-              <span
-                className="absolute -left-[31px] top-5 h-3 w-3 rounded-full bg-[#6d5aff]"
-                aria-hidden
-              />
-              <h3 className="text-base font-semibold">{career.title}</h3>
-              <p className="mt-1 text-sm opacity-80">{career.company}</p>
-              <p className="mt-1 text-xs opacity-65">{career.period}</p>
-              <ul className="mt-3 list-disc space-y-1 pl-5 text-sm leading-6 opacity-90">
+            <li key={`${career.company}-${career.period}`} className="tl-item">
+              <span className="tl-period">{career.period}</span>
+              <div className="tl-role">{career.title}</div>
+              <div className="tl-co">{career.company}</div>
+              <ul>
                 {career.items.map((point) => (
                   <li key={point}>{point}</li>
                 ))}
               </ul>
-            </article>
+            </li>
           ))}
-        </div>
+        </ol>
       </section>
 
-      <section className="surface card-pad scroll-reveal">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-2xl font-semibold">Projects</h2>
+      <section id="s04" className="leesh-section rv">
+        <div className="leesh-head">
+          <span className="no">§04</span>
+          <span className="kick">Projects · 프로젝트</span>
+          <span className="dim">SHEET 04</span>
         </div>
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
-          {projects.map((project) => {
+        <h2 className="rv">Projects</h2>
+        <div className="leesh-grid g3 rv">
+          {projects.map((project, i) => {
             const githubUrls = Array.isArray(project.githubUrls)
               ? project.githubUrls
               : []
 
             return (
-              <article
-                key={project.name}
-                className="rounded-2xl border border-black/10 bg-black/[0.03] p-4"
-              >
-                <h3 className="text-base font-semibold">{project.name}</h3>
-                <p className="mt-2 text-sm leading-6 opacity-80">
-                  {project.summary}
-                </p>
+              <article key={project.name} className="cell">
+                <div className="ix">{String(i + 1).padStart(2, '0')} · PROJ</div>
+                <h3>{project.name}</h3>
+                <p>{project.summary}</p>
                 {project.tags && project.tags.length > 0 ? (
-                  <div className="mt-2 flex flex-wrap gap-1.5">
+                  <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap' }}>
                     {project.tags.map((t) => (
-                      <span
-                        key={t}
-                        className="rounded-full border border-black/10 bg-black/[0.04] px-2 py-0.5 text-[11px] font-medium opacity-80"
-                      >
+                      <span key={t} className="leesh-chip">
                         {t}
                       </span>
                     ))}
                   </div>
                 ) : null}
-                <ul className="mt-3 list-disc space-y-1 pl-5 text-sm leading-6 opacity-90">
+                <ul>
                   {project.points.map((point) => (
                     <li key={point}>{point}</li>
                   ))}
                 </ul>
-                <div className="mt-4">
+                <div style={{ marginTop: 14 }}>
                   {githubUrls.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       {githubUrls.map((url, index) => (
                         <a
                           key={`${project.name}-${url}`}
                           href={url}
                           target="_blank"
                           rel="noreferrer"
-                          className="btn btn-outline h-8 w-8 p-0"
+                          className="leesh-iconbtn"
                           title={`${project.name} - Game Repo ${index + 1}`}
                           aria-label={`${project.name} - Game Repo ${index + 1}`}
                         >
@@ -857,14 +853,20 @@ export default function LeeshClient() {
                       href={project.githubUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="btn btn-outline h-8 w-8 p-0"
+                      className="leesh-iconbtn"
                       title={`${project.name} GitHub Repository`}
                       aria-label={`${project.name} GitHub Repository`}
                     >
                       <GitHubIcon />
                     </a>
                   ) : (
-                    <span className="text-xs opacity-60">
+                    <span
+                      style={{
+                        fontFamily: 'var(--mono)',
+                        fontSize: 12,
+                        color: 'var(--muted)',
+                      }}
+                    >
                       GitHub 링크 추가 예정
                     </span>
                   )}
@@ -875,17 +877,27 @@ export default function LeeshClient() {
         </div>
       </section>
 
-      <section className="surface card-pad scroll-reveal">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-2xl font-semibold">GitHub</h2>
-          </div>
-
+      <section id="s05" className="leesh-section rv">
+        <div className="leesh-head">
+          <span className="no">§05</span>
+          <span className="kick">GitHub · 활동</span>
+          <span className="dim">SHEET 05</span>
+        </div>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            flexWrap: 'wrap',
+          }}
+        >
+          <h2 className="rv">GitHub</h2>
           <a
             href="https://github.com/leesh0829"
             target="_blank"
             rel="noreferrer"
-            className="btn btn-outline"
+            className="leesh-btn"
             aria-label="leesh0829 GitHub 프로필 열기"
           >
             <GitHubIcon />
@@ -893,36 +905,44 @@ export default function LeeshClient() {
           </a>
         </div>
 
-        <div className="mt-4 rounded-2xl border border-black/10 bg-black/[0.03] p-4">
-          <div className="overflow-x-auto">
+        <figure className="leesh-listing rv">
+          <figcaption>
+            <span className="d" />
+            leesh0829 · contribution graph
+            <span className="lbl">ghchart</span>
+          </figcaption>
+          <div className="body">
             <a
               href="https://github.com/leesh0829"
               target="_blank"
               rel="noreferrer"
-              className="block min-w-[720px]"
+              style={{ display: 'block', minWidth: 720 }}
               aria-label="GitHub 잔디 크게 보기"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="https://ghchart.rshah.org/6d5aff/leesh0829"
                 alt="leesh0829 GitHub contribution chart"
-                className="h-auto w-full rounded-xl"
+                style={{ height: 'auto', width: '100%' }}
               />
             </a>
           </div>
-        </div>
+        </figure>
       </section>
 
-      <section className="surface card-pad scroll-reveal">
-        <h2 className="text-2xl font-semibold">Tech Stack</h2>
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          {detailedTechStacks.map((item) => (
-            <article
-              key={item.category}
-              className="rounded-2xl border border-black/10 bg-black/[0.03] p-4"
-            >
-              <h3 className="text-sm font-semibold">{item.category}</h3>
-              <p className="mt-2 text-sm leading-6 opacity-85">{item.stacks}</p>
+      <section id="s06" className="leesh-section rv">
+        <div className="leesh-head">
+          <span className="no">§06</span>
+          <span className="kick">Tech Stack · 기술</span>
+          <span className="dim">SHEET 06</span>
+        </div>
+        <h2 className="rv">Tech Stack</h2>
+        <div className="leesh-grid g2 rv">
+          {detailedTechStacks.map((item, i) => (
+            <article key={item.category} className="cell">
+              <div className="ix">{String(i + 1).padStart(2, '0')} · STACK</div>
+              <h3>{item.category}</h3>
+              <p>{item.stacks}</p>
             </article>
           ))}
         </div>

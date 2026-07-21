@@ -609,15 +609,15 @@ export default function LeeshClient() {
           LEESH <small>/ 포트폴리오</small>
         </div>
         <div className="lk">
-          <a href="#s01">§01</a>
-          <a href="#s02">§02</a>
-          <a href="#s03">§03</a>
-          <a href="#s04">§04</a>
-          <a href="#s05">§05</a>
-          <a href="#s06">§06</a>
-          <a href="#s07">§07</a>
-          <a href="#s08">§08</a>
-          <a href="#s09">§09</a>
+          <a href="#s01">01</a>
+          <a href="#s02">02</a>
+          <a href="#s03">03</a>
+          <a href="#s04">04</a>
+          <a href="#s05">05</a>
+          <a href="#s06">06</a>
+          <a href="#s07">07</a>
+          <a href="#s08">08</a>
+          <a href="#s09">09</a>
         </div>
       </nav>
       <div className="leesh-main">
@@ -643,22 +643,28 @@ export default function LeeshClient() {
             onMouseMove={onStackMove}
             onMouseLeave={onStackLeave}
           >
-            <span className="hero-3d-tag">◱ SPEC SHEET · 3D</span>
+            <span className="hero-3d-tag">◱ CODE STACK · 3D</span>
             <span className="hero-3d-hint">↔ 마우스로 기울이기</span>
             <div className="stack" aria-hidden>
-              {(['s1', 's2', 's3', 's4'] as const).map((s) => (
+              {(
+                [
+                  { s: 's1', file: 'schema.prisma' },
+                  { s: 's2', file: 'api/route.ts' },
+                  { s: 's3', file: 'page.tsx' },
+                  { s: 's4', file: 'leesh.dev' },
+                ] as const
+              ).map(({ s, file }) => (
                 <div key={s} className={`sheet ${s}`}>
-                  <div className="sh-title">SPEC SHEET</div>
-                  <div className="sh-tbl">
-                    {Array.from({ length: 9 }).map((_, i) => (
-                      <i key={i} />
+                  <div className="sh-bar">
+                    <i className="d" />
+                    {file}
+                  </div>
+                  <div className="sh-code">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <b key={i} />
                     ))}
                   </div>
-                  <div className="sh-lines">
-                    <b />
-                    <b />
-                    <b />
-                  </div>
+                  <div className="sh-term">$ npm run dev</div>
                 </div>
               ))}
             </div>
@@ -723,7 +729,7 @@ export default function LeeshClient() {
       {/* About me — 히어로 아래 이어붙임 */}
       <section id="s00" className="leesh-section rv">
         <div className="leesh-head">
-          <span className="no">§00</span>
+          <span className="no">00</span>
           <span className="kick">About me · 소개</span>
           <span className="dim">SHEET 00</span>
         </div>
@@ -744,7 +750,7 @@ export default function LeeshClient() {
 
       <section id="s01" className="leesh-section rv">
         <div className="leesh-head">
-          <span className="no">§01</span>
+          <span className="no">01</span>
           <span className="kick">Core Competency · 핵심 역량</span>
           <span className="dim">SHEET 01</span>
         </div>
@@ -762,7 +768,7 @@ export default function LeeshClient() {
 
       <section id="s02" className="leesh-section rv">
         <div className="leesh-head">
-          <span className="no">§02</span>
+          <span className="no">02</span>
           <span className="kick">Experience · 실무 경험</span>
           <span className="dim">SHEET 02</span>
         </div>
@@ -787,7 +793,7 @@ export default function LeeshClient() {
 
       <section id="s03" className="leesh-section rv">
         <div className="leesh-head">
-          <span className="no">§03</span>
+          <span className="no">03</span>
           <span className="kick">Career · 경력</span>
           <span className="dim">SHEET 03</span>
         </div>
@@ -810,7 +816,7 @@ export default function LeeshClient() {
 
       <section id="s04" className="leesh-section rv">
         <div className="leesh-head">
-          <span className="no">§04</span>
+          <span className="no">04</span>
           <span className="kick">Projects · 프로젝트</span>
           <span className="dim">SHEET 04</span>
         </div>
@@ -888,7 +894,7 @@ export default function LeeshClient() {
 
       <section id="s05" className="leesh-section rv">
         <div className="leesh-head">
-          <span className="no">§05</span>
+          <span className="no">05</span>
           <span className="kick">GitHub · 활동</span>
           <span className="dim">SHEET 05</span>
         </div>
@@ -941,7 +947,7 @@ export default function LeeshClient() {
 
       <section id="s06" className="leesh-section rv">
         <div className="leesh-head">
-          <span className="no">§06</span>
+          <span className="no">06</span>
           <span className="kick">Tech Stack · 기술</span>
           <span className="dim">SHEET 06</span>
         </div>
@@ -959,7 +965,7 @@ export default function LeeshClient() {
 
       <section id="s07" className="leesh-section inv rv">
         <div className="leesh-head">
-          <span className="no">§07</span>
+          <span className="no">07</span>
           <span className="kick">Direction · 지향</span>
           <span className="dim">SHEET 07</span>
         </div>
@@ -972,7 +978,7 @@ export default function LeeshClient() {
 
       <section id="s08" className="leesh-section rv">
         <div className="leesh-head">
-          <span className="no">§08</span>
+          <span className="no">08</span>
           <span className="kick">Contact · 문의</span>
           <span className="dim">SHEET 08</span>
         </div>
@@ -1085,7 +1091,7 @@ export default function LeeshClient() {
 
       <section id="s09" className="leesh-section rv">
         <div className="leesh-head">
-          <span className="no">§09</span>
+          <span className="no">09</span>
           <span className="kick">Notes · 추가로 하고픈 말</span>
           <span className="dim">SHEET 09</span>
         </div>

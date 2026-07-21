@@ -1102,3 +1102,19 @@
     transform: none;
   }
 }
+
+/* ── 반응형 마감 ───────────────────────────────────────── */
+
+/* 560px 이하: 전체 1열 리듬 */
+@media (max-width: 560px) {
+  .leesh-section { padding: clamp(40px, 12vw, 60px) 0; }
+  .leesh-head { margin-bottom: 24px; }
+}
+/* AppShell가 /leesh에서 컨테이너 여백을 제거하므로 좌우 여백은 .leesh-main이 담당 */
+.leesh-page .leesh-main { width: 100%; }
+
+/* g2 그리드 홀수 개 아이템: 마지막 셀 전체 폭 (빈 칸 방지) */
+.leesh-grid.g2 .cell:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+  border-right: none;
+}

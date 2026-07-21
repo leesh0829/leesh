@@ -1024,3 +1024,81 @@
   color: var(--muted);
   margin-top: 4px;
 }
+
+/* ── 스크롤 진입 애니메이션 레이어 ─────────────────────── */
+
+@keyframes leesh-fromL {
+  from { opacity: 0; transform: translateX(-70px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes leesh-fromR {
+  from { opacity: 0; transform: translateX(70px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes leesh-wipeUp {
+  from { opacity: 0; clip-path: inset(0 0 100% 0); transform: translateY(24px); }
+  to { opacity: 1; clip-path: inset(0 0 -20% 0); transform: none; }
+}
+@keyframes leesh-floatNo {
+  from { transform: translateY(26px); }
+  to { transform: translateY(-26px); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .leesh-page .rv,
+    .leesh-page .cell,
+    .leesh-page .leesh-timeline .tl-item,
+    .leesh-page .tk,
+    .leesh-page .leesh-block,
+    .leesh-page .leesh-form {
+      animation: leesh-riseIn linear both;
+      animation-timeline: view();
+      animation-range: entry 2% cover 30%;
+    }
+    .leesh-page h2 {
+      animation: leesh-wipeUp linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 26%;
+    }
+    .leesh-page .leesh-head .no {
+      animation: leesh-floatNo linear both;
+      animation-timeline: view();
+      animation-range: cover;
+    }
+    /* 홀수 셀 좌측, 짝수 셀 우측 진입 */
+    .leesh-page .leesh-grid .cell:nth-child(odd) { animation-name: leesh-fromL; }
+    .leesh-page .leesh-grid .cell:nth-child(even) { animation-name: leesh-fromR; }
+    /* 잔디/리스팅 프레임은 swipeIn */
+    .leesh-page .leesh-listing {
+      animation-name: leesh-swipeIn;
+      animation-range: entry 2% cover 22%;
+    }
+    /* 타임라인 아이템 stagger */
+    .leesh-page .leesh-timeline .tl-item:nth-child(2) { animation-range: entry 8% cover 32%; }
+    .leesh-page .leesh-timeline .tl-item:nth-child(3) { animation-range: entry 14% cover 34%; }
+  }
+}
+
+/* Scroll-Driven 미지원 폴백: JS가 .leesh-page에 .no-satl 부여 시에만 초기 숨김 */
+@media (prefers-reduced-motion: no-preference) {
+  .leesh-page.no-satl .rv,
+  .leesh-page.no-satl .cell,
+  .leesh-page.no-satl .leesh-timeline .tl-item,
+  .leesh-page.no-satl .leesh-listing,
+  .leesh-page.no-satl .leesh-block,
+  .leesh-page.no-satl .leesh-form {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.5s ease, transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .leesh-page.no-satl .rv.is-visible,
+  .leesh-page.no-satl .cell.is-visible,
+  .leesh-page.no-satl .leesh-timeline .tl-item.is-visible,
+  .leesh-page.no-satl .leesh-listing.is-visible,
+  .leesh-page.no-satl .leesh-block.is-visible,
+  .leesh-page.no-satl .leesh-form.is-visible {
+    opacity: 1;
+    transform: none;
+  }
+}

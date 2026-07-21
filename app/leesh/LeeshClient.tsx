@@ -176,14 +176,23 @@ export default function LeeshClient() {
   }, [showUnlockModal])
 
   useEffect(() => {
+    const root = document.querySelector<HTMLElement>('.leesh-page')
+    if (!root) return
+
+    // Scroll-Driven 지원 브라우저는 CSS 타임라인이 진입을 구동 → JS 관찰 불필요
+    const hasSatl =
+      typeof CSS !== 'undefined' && CSS.supports('animation-timeline: view()')
+    if (hasSatl) return
+
+    // 폴백 모드 진입: 초기 숨김 규칙 활성화
+    root.classList.add('no-satl')
+
     const targets = Array.from(
-      document.querySelectorAll<HTMLElement>('.leesh-page .scroll-reveal')
+      root.querySelectorAll<HTMLElement>(
+        '.rv, .cell, .leesh-timeline .tl-item, .leesh-listing, .leesh-block, .leesh-form'
+      )
     )
     if (targets.length === 0) return
-
-    targets.forEach((el, index) => {
-      el.classList.add(`reveal-delay-${(index % 3) + 1}`)
-    })
 
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       targets.forEach((el) => el.classList.add('is-visible'))
@@ -213,7 +222,7 @@ export default function LeeshClient() {
 
     targets.forEach((el) => observer.observe(el))
     return () => observer.disconnect()
-  }, [])
+  }, [mounted])
 
   useEffect(() => {
     if (

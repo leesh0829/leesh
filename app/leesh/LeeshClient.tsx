@@ -306,8 +306,8 @@ export default function LeeshClient() {
     const r = e.currentTarget.getBoundingClientRect()
     const nx = ((e.clientX - r.left) / r.width) * 2 - 1
     const ny = ((e.clientY - r.top) / r.height) * 2 - 1
-    el.style.setProperty('--rx', `${nx * 16}deg`)
-    el.style.setProperty('--ry', `${-ny * 12}deg`)
+    el.style.setProperty('--rx', `${nx * 34}deg`)
+    el.style.setProperty('--ry', `${-ny * 26}deg`)
   }
   const onStackLeave = (e: React.MouseEvent<HTMLDivElement>) => {
     const el = e.currentTarget.querySelector<HTMLElement>('.stack')
@@ -648,25 +648,32 @@ export default function LeeshClient() {
             <div className="stack" aria-hidden>
               <div className="monitor">
                 <div className="mon-screen">
-                  <div className="mon-frame">
-                    <div className="mon-bar">
-                      <span className="dot r" />
-                      <span className="dot y" />
-                      <span className="dot g" />
-                      <span className="fn">
-                        leesh/page<span className="ext">.tsx</span>
-                      </span>
+                  <div className="mon-front">
+                    <div className="mon-frame">
+                      <div className="mon-bar">
+                        <span className="dot r" />
+                        <span className="dot y" />
+                        <span className="dot g" />
+                        <span className="fn">
+                          leesh/page<span className="ext">.tsx</span>
+                        </span>
+                      </div>
+                      <div className="mon-code">
+                        <b />
+                        <b />
+                        <b />
+                        <b />
+                        <b />
+                        <b />
+                      </div>
+                      <div className="mon-term">$ npm run dev</div>
                     </div>
-                    <div className="mon-code">
-                      <b />
-                      <b />
-                      <b />
-                      <b />
-                      <b />
-                      <b />
-                    </div>
-                    <div className="mon-term">$ npm run dev</div>
                   </div>
+                  <div className="mon-back" />
+                  <div className="mon-side top" />
+                  <div className="mon-side bottom" />
+                  <div className="mon-side left" />
+                  <div className="mon-side right" />
                 </div>
                 <div className="mon-neck" />
                 <div className="mon-base" />

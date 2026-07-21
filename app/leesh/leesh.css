@@ -493,13 +493,13 @@
   pointer-events: none;
   z-index: 5;
 }
-/* CSS 전용 3D 개발자 모니터 */
+/* CSS 전용 3D 개발자 모니터 (두꺼운 3D 박스) */
 .stack {
   position: relative;
   width: 340px;
   transform-style: preserve-3d;
   transform: rotateX(var(--ry, 0deg)) rotateY(var(--rx, 0deg));
-  transition: transform 0.18s ease-out;
+  transition: transform 0.07s ease-out;
 }
 .monitor {
   position: relative;
@@ -510,29 +510,71 @@
   animation: leesh-monfloat 6.5s ease-in-out infinite;
   will-change: transform;
 }
-/* 화면 케이스(실버 베젤) */
+/* 화면 박스 — 앞면 + 뒷면 + 4측벽으로 실제 두께(32px) */
 .mon-screen {
   position: relative;
   width: 340px;
   height: 216px;
-  border-radius: 12px;
-  padding: 12px;
-  background: linear-gradient(155deg, #eef0f6, #cdd2df 60%, #bcc2d1);
-  border: 1px solid #aeb4c6;
-  box-shadow: 0 26px 50px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.9);
   transform-style: preserve-3d;
 }
-/* 뒤판(두께감) */
-.mon-screen::after {
-  content: '';
+.mon-front,
+.mon-back,
+.mon-side {
   position: absolute;
-  inset: 8px;
-  border-radius: 8px;
-  background: #a3a9bc;
-  transform: translateZ(-16px);
-  z-index: -1;
 }
-/* 실제 스크린(다크 IDE) */
+/* 앞면(실버 베젤) */
+.mon-front {
+  inset: 0;
+  transform: translateZ(16px);
+  border-radius: 12px;
+  padding: 12px;
+  background: linear-gradient(155deg, #eef0f6, #cdd2df 62%, #b9bfce);
+  border: 1px solid #aeb4c6;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+/* 뒷면 */
+.mon-back {
+  inset: 0;
+  transform: translateZ(-16px) rotateY(180deg);
+  border-radius: 12px;
+  background: linear-gradient(155deg, #474d64, #2a2f43);
+  border: 1px solid #12141f;
+}
+/* 측벽(두께) — 각 면을 앞면 모서리에 경첩(hinge)해 뒤로 접음 */
+.mon-side { background: linear-gradient(#c0c6d5, #8f95a9); }
+.mon-side.top {
+  width: 340px;
+  height: 32px;
+  top: 0;
+  left: 0;
+  transform-origin: top center;
+  transform: translateZ(16px) rotateX(-90deg);
+}
+.mon-side.bottom {
+  width: 340px;
+  height: 32px;
+  bottom: 0;
+  left: 0;
+  transform-origin: bottom center;
+  transform: translateZ(16px) rotateX(90deg);
+}
+.mon-side.left {
+  width: 32px;
+  height: 216px;
+  top: 0;
+  left: 0;
+  transform-origin: center left;
+  transform: translateZ(16px) rotateY(90deg);
+}
+.mon-side.right {
+  width: 32px;
+  height: 216px;
+  top: 0;
+  right: 0;
+  transform-origin: center right;
+  transform: translateZ(16px) rotateY(-90deg);
+}
+/* 실제 스크린(다크 IDE) — 앞면 안에 */
 .mon-frame {
   position: relative;
   height: 100%;
@@ -605,16 +647,16 @@
   border: 1px solid #aeb4c6;
   border-top: none;
   clip-path: polygon(18% 0, 82% 0, 100% 100%, 0 100%);
-  transform: translateZ(-8px);
+  transform: translateZ(-6px);
 }
 .mon-base {
-  width: 140px;
-  height: 12px;
+  width: 150px;
+  height: 13px;
   border-radius: 3px 3px 9px 9px;
   background: linear-gradient(#d3d8e4, #a7adc0);
   border: 1px solid #aeb4c6;
-  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.4);
-  transform: translateZ(-8px);
+  box-shadow: 0 16px 26px rgba(0, 0, 0, 0.45);
+  transform: translateZ(-6px);
 }
 
 @keyframes leesh-monfloat {

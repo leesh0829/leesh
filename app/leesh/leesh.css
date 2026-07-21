@@ -1,0 +1,250 @@
+/* app/leesh/leesh.css — /leesh 인쇄 판형 전용. 모두 .leesh-page 스코프. */
+
+.leesh-page {
+  --paper: #ece5d4;
+  --paper-2: #e3dcc7;
+  --panel: #ece5d4;
+  --ink: #151109;
+  --ink-2: #3d372a;
+  --muted: #6f6753;
+  --faint: #9a927c;
+  --line: #151109;
+  --line-soft: #c8c0a8;
+  --hair: #d3cbb2;
+  --acc: #ff3b12;
+  --acc-2: #e22f05;
+  --code-bg: #151109;
+  --code-ink: #ece5d4;
+
+  --sans: 'Pretendard', -apple-system, BlinkMacSystemFont,
+    'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  --disp: var(--font-anton), 'Archivo', var(--sans);
+  --mono: var(--font-plex-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* 다크: 참고 파일 .inv 팔레트를 현재 테마 토글에 매핑 */
+[data-theme='dark'] .leesh-page,
+.dark .leesh-page {
+  --paper: #151109;
+  --paper-2: #211b10;
+  --panel: #1b160c;
+  --ink: #f2ecda;
+  --ink-2: #cfc7b0;
+  --muted: #9a927c;
+  --faint: #6f6753;
+  --line: #f2ecda;
+  --line-soft: #4a4433;
+  --hair: #332d20;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .leesh-page {
+    --paper: #151109;
+    --paper-2: #211b10;
+    --panel: #1b160c;
+    --ink: #f2ecda;
+    --ink-2: #cfc7b0;
+    --muted: #9a927c;
+    --faint: #6f6753;
+    --line: #f2ecda;
+    --line-soft: #4a4433;
+    --hair: #332d20;
+  }
+}
+
+.leesh-page *,
+.leesh-page *::before,
+.leesh-page *::after {
+  box-sizing: border-box;
+}
+
+/* 종이 노이즈 — SVG feTurbulence data-URI, multiply 오버레이 */
+.leesh-page::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E");
+}
+
+.leesh-page ::selection {
+  background: var(--acc);
+  color: #fff;
+}
+
+.leesh-main {
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 0 clamp(16px, 4vw, 60px);
+  position: relative;
+  z-index: 2;
+}
+
+.leesh-section {
+  padding: clamp(54px, 7vw, 110px) 0;
+  border-top: 2px solid var(--line);
+  position: relative;
+}
+
+/* 섹션 헤드 — 거대 번호 + kicker + dim */
+.leesh-head {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: end;
+  gap: 14px 16px;
+  margin-bottom: 34px;
+  padding-bottom: 14px;
+  border-bottom: 2px solid var(--line);
+}
+.leesh-head .no {
+  font-family: var(--disp);
+  font-weight: 400;
+  font-size: clamp(40px, 7vw, 84px);
+  line-height: 0.8;
+  color: var(--acc);
+  grid-row: 1 / 2;
+}
+.leesh-head .kick {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  align-self: center;
+}
+.leesh-head .dim {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  align-self: center;
+  text-align: right;
+}
+
+.leesh-page h1 {
+  color: var(--ink);
+}
+.leesh-page h2 {
+  font-size: clamp(30px, 6vw, 68px);
+  line-height: 0.98;
+  letter-spacing: -0.03em;
+  font-weight: 800;
+  word-break: keep-all;
+  color: var(--ink);
+}
+.leesh-page h2 .accent {
+  color: var(--acc);
+}
+.leesh-lead {
+  margin-top: 20px;
+  font-size: clamp(15px, 1.7vw, 18px);
+  color: var(--ink-2);
+  max-width: 60ch;
+  font-weight: 500;
+}
+.leesh-page h3 {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  word-break: keep-all;
+  color: var(--ink);
+}
+.leesh-page p {
+  overflow-wrap: break-word;
+}
+
+/* 하드보더 그리드 */
+.leesh-grid {
+  display: grid;
+  gap: 0;
+  margin-top: 36px;
+  border: 2px solid var(--line);
+}
+.leesh-grid.g2 { grid-template-columns: repeat(2, 1fr); }
+.leesh-grid.g3 { grid-template-columns: repeat(3, 1fr); }
+.leesh-grid.g4 { grid-template-columns: repeat(4, 1fr); }
+
+.leesh-grid.g2 .cell { border-right: 2px solid var(--line); }
+.leesh-grid.g2 .cell:nth-child(2n) { border-right: none; }
+.leesh-grid.g2 .cell:nth-child(n + 3) { border-top: 2px solid var(--line); }
+
+.leesh-grid.g3 .cell { border-right: 2px solid var(--line); }
+.leesh-grid.g3 .cell:nth-child(3n) { border-right: none; }
+.leesh-grid.g3 .cell:nth-child(n + 4) { border-top: 2px solid var(--line); }
+
+.leesh-grid.g4 .cell { border-right: 2px solid var(--line); }
+.leesh-grid.g4 .cell:nth-child(4n) { border-right: none; }
+
+@media (max-width: 860px) {
+  .leesh-grid.g3,
+  .leesh-grid.g4 { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 560px) {
+  .leesh-grid.g2,
+  .leesh-grid.g3,
+  .leesh-grid.g4 { grid-template-columns: 1fr; }
+  .leesh-grid .cell {
+    border-right: none !important;
+    border-top: 2px solid var(--line);
+  }
+  .leesh-grid .cell:first-child { border-top: none; }
+}
+
+.cell {
+  background: var(--panel);
+  padding: 24px 24px 28px;
+  transition: background 0.18s;
+}
+.cell:hover { background: var(--acc); color: #fff; }
+.cell:hover h3,
+.cell:hover .ix,
+.cell:hover p,
+.cell:hover a,
+.cell:hover li { color: #fff; }
+.cell .ix {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--acc);
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.cell h3 { margin: 12px 0 9px; font-size: 17px; }
+.cell p { font-size: 13.5px; color: var(--ink-2); }
+.cell ul { margin-top: 10px; display: grid; gap: 6px; list-style: none; }
+.cell li {
+  font-size: 13px;
+  color: var(--ink-2);
+  padding-left: 14px;
+  position: relative;
+}
+.cell li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  width: 6px;
+  height: 6px;
+  background: var(--acc);
+}
+.cell:hover li::before { background: #fff; }
+
+/* 단독 블록 */
+.leesh-block {
+  border: 2px solid var(--line);
+  background: var(--panel);
+  padding: 26px;
+  margin-top: 30px;
+  position: relative;
+}

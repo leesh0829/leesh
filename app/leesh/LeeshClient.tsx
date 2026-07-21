@@ -10,6 +10,7 @@ import rehypeSanitize from 'rehype-sanitize'
 import { toHumanHttpError } from '@/app/lib/httpErrorText'
 import MarkdownEditor from '@/app/components/MarkdownEditor'
 import { sanitizedMarkdownSchema } from '@/app/lib/markdown'
+import './leesh.css'
 
 /**
  * Extracts a trimmed message string from an API-like payload object.
@@ -487,7 +488,25 @@ export default function LeeshClient() {
   ]
 
   return (
-    <main className="container-page py-6 space-y-4 leesh-page">
+    <main className="leesh-page">
+      <nav className="leesh-nav">
+        <div className="mk">
+          <span className="tgt" aria-hidden />
+          LEESH <small>/ 포트폴리오</small>
+        </div>
+        <div className="lk">
+          <a href="#s01">§01</a>
+          <a href="#s02">§02</a>
+          <a href="#s03">§03</a>
+          <a href="#s04">§04</a>
+          <a href="#s05">§05</a>
+          <a href="#s06">§06</a>
+          <a href="#s07">§07</a>
+          <a href="#s08">§08</a>
+          <a href="#s09">§09</a>
+        </div>
+      </nav>
+      <div className="leesh-main">
       <section className="surface card-pad scroll-reveal">
         <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr] lg:items-start">
           <div>
@@ -913,6 +932,7 @@ export default function LeeshClient() {
           </article>
         )}
       </section>
+      </div>
 
       {showUnlockModal ? (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">

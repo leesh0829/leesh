@@ -510,7 +510,7 @@
   animation: leesh-monfloat 6.5s ease-in-out infinite;
   will-change: transform;
 }
-/* 화면 박스 — 앞면 + 뒷면 + 4측벽으로 실제 두께(32px) */
+/* 화면 박스 — 둥근 사각형 레이어 적층(extrusion)으로 두께 표현 */
 .mon-screen {
   position: relative;
   width: 340px;
@@ -518,61 +518,23 @@
   transform-style: preserve-3d;
 }
 .mon-front,
-.mon-back,
-.mon-side {
+.mon-slab {
   position: absolute;
 }
-/* 앞면(실버 베젤) */
+/* 압출 겹(두께) — 전면과 동일한 둥근 사각형을 뒤로 적층 */
+.mon-slab {
+  inset: 0;
+  border-radius: 13px;
+}
+/* 앞면(실버 베젤 + 스크린) — 가장 앞 z */
 .mon-front {
   inset: 0;
-  transform: translateZ(16px);
-  border-radius: 12px;
+  transform: translateZ(13px);
+  border-radius: 13px;
   padding: 12px;
   background: linear-gradient(155deg, #eef0f6, #cdd2df 62%, #b9bfce);
   border: 1px solid #aeb4c6;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
-}
-/* 뒷면 */
-.mon-back {
-  inset: 0;
-  transform: translateZ(-16px) rotateY(180deg);
-  border-radius: 12px;
-  background: linear-gradient(155deg, #474d64, #2a2f43);
-  border: 1px solid #12141f;
-}
-/* 측벽(두께) — 각 면을 앞면 모서리에 경첩(hinge)해 뒤로 접음 */
-.mon-side { background: linear-gradient(#c0c6d5, #8f95a9); }
-.mon-side.top {
-  width: 340px;
-  height: 32px;
-  top: 0;
-  left: 0;
-  transform-origin: top center;
-  transform: translateZ(16px) rotateX(-90deg);
-}
-.mon-side.bottom {
-  width: 340px;
-  height: 32px;
-  bottom: 0;
-  left: 0;
-  transform-origin: bottom center;
-  transform: translateZ(16px) rotateX(90deg);
-}
-.mon-side.left {
-  width: 32px;
-  height: 216px;
-  top: 0;
-  left: 0;
-  transform-origin: center left;
-  transform: translateZ(16px) rotateY(90deg);
-}
-.mon-side.right {
-  width: 32px;
-  height: 216px;
-  top: 0;
-  right: 0;
-  transform-origin: center right;
-  transform: translateZ(16px) rotateY(-90deg);
 }
 /* 실제 스크린(다크 IDE) — 앞면 안에 */
 .mon-frame {

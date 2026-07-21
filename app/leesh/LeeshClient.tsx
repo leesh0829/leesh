@@ -648,6 +648,16 @@ export default function LeeshClient() {
             <div className="stack" aria-hidden>
               <div className="monitor">
                 <div className="mon-screen">
+                  {Array.from({ length: 13 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className="mon-slab"
+                      style={{
+                        transform: `translateZ(${11 - i * 2}px)`,
+                        background: `hsl(226 15% ${70 - i * 3.2}%)`,
+                      }}
+                    />
+                  ))}
                   <div className="mon-front">
                     <div className="mon-frame">
                       <div className="mon-bar">
@@ -669,11 +679,6 @@ export default function LeeshClient() {
                       <div className="mon-term">$ npm run dev</div>
                     </div>
                   </div>
-                  <div className="mon-back" />
-                  <div className="mon-side top" />
-                  <div className="mon-side bottom" />
-                  <div className="mon-side left" />
-                  <div className="mon-side right" />
                 </div>
                 <div className="mon-neck" />
                 <div className="mon-base" />

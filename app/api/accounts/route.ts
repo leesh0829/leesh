@@ -67,6 +67,26 @@ export async function GET() {
     },
   })
 
+  // 계좌별 현재 잔액 = initialBalance + Σ(INCOME) − Σ(EXPENSE) (전 기간)
+  // 이체 등 excludeFromTotals=true 항목도 실제 현금 이동이므로 잔액에 포함한다.
+  const balanceDeltaByAccount = new Map<string, number>()
+  if (rows.length > 0) {
+    const balanceGroups = await prisma.ledgerEntry.groupBy({
+      by: ['accountId', 'type'],
+      where: { ownerId: userId, accountId: { in: rows.map((r) => r.id) } },
+      _sum: { amount: true },
+    })
+    for (const g of balanceGroups) {
+      if (!g.accountId) continue
+      const amount = g._sum.amount ?? 0
+      const delta = g.type === 'INCOME' ? amount : -amount
+      balanceDeltaByAccount.set(
+        g.accountId,
+        (balanceDeltaByAccount.get(g.accountId) ?? 0) + delta
+      )
+    }
+  }
+
   return NextResponse.json({
     items: rows.map((row) => ({
       id: row.id,
@@ -75,6 +95,8 @@ export async function GET() {
       types: row.types,
       memo: row.memo,
       initialBalance: row.initialBalance,
+      currentBalance:
+        row.initialBalance + (balanceDeltaByAccount.get(row.id) ?? 0),
       entryCount: row._count.ledgerEntries,
       holdingCount: row._count.holdings,
       createdAt: toISOStringSafe(row.createdAt),

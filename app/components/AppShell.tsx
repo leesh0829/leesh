@@ -112,8 +112,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </Link>
           </div>
         </div>
+        {/* /leesh는 페이지 자체의 leesh-footer를 사용 — 전역 Footer 미표시 */}
         <div className="flex-1">{children}</div>
-        <Footer />
       </div>
     )
   }

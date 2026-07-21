@@ -10,6 +10,7 @@ import rehypeSanitize from 'rehype-sanitize'
 import { toHumanHttpError } from '@/app/lib/httpErrorText'
 import MarkdownEditor from '@/app/components/MarkdownEditor'
 import { sanitizedMarkdownSchema } from '@/app/lib/markdown'
+import './leesh.css'
 
 /**
  * Extracts a trimmed message string from an API-like payload object.
@@ -83,6 +84,12 @@ export default function LeeshClient() {
   const [contactSending, setContactSending] = useState(false)
   const [contactErr, setContactErr] = useState<string | null>(null)
   const [contactDone, setContactDone] = useState<string | null>(null)
+
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const mdComponents: Parameters<typeof ReactMarkdown>[0]['components'] =
     useMemo(
@@ -169,14 +176,23 @@ export default function LeeshClient() {
   }, [showUnlockModal])
 
   useEffect(() => {
+    const root = document.querySelector<HTMLElement>('.leesh-page')
+    if (!root) return
+
+    // Scroll-Driven 지원 브라우저는 CSS 타임라인이 진입을 구동 → JS 관찰 불필요
+    const hasSatl =
+      typeof CSS !== 'undefined' && CSS.supports('animation-timeline: view()')
+    if (hasSatl) return
+
+    // 폴백 모드 진입: 초기 숨김 규칙 활성화
+    root.classList.add('no-satl')
+
     const targets = Array.from(
-      document.querySelectorAll<HTMLElement>('.leesh-page .scroll-reveal')
+      root.querySelectorAll<HTMLElement>(
+        '.rv, .cell, .leesh-timeline .tl-item, .leesh-listing, .leesh-block, .leesh-form'
+      )
     )
     if (targets.length === 0) return
-
-    targets.forEach((el, index) => {
-      el.classList.add(`reveal-delay-${(index % 3) + 1}`)
-    })
 
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       targets.forEach((el) => el.classList.add('is-visible'))
@@ -206,7 +222,99 @@ export default function LeeshClient() {
 
     targets.forEach((el) => observer.observe(el))
     return () => observer.disconnect()
+  }, [mounted])
+
+  useEffect(() => {
+    if (
+      typeof window === 'undefined' ||
+      typeof CSS === 'undefined' ||
+      CSS.supports('animation-timeline: scroll()')
+    ) {
+      return
+    }
+    const bar = document.querySelector<HTMLElement>('.leesh-page .leesh-prog')
+    if (!bar) return
+    const onScroll = () => {
+      const doc = document.documentElement
+      const max = doc.scrollHeight - doc.clientHeight
+      const p = max > 0 ? doc.scrollTop / max : 0
+      bar.style.setProperty('--leesh-prog', String(p))
+    }
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('resize', onScroll)
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onScroll)
+    }
   }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    if (typeof window.IntersectionObserver === 'undefined') return
+
+    const countUp = (el: HTMLElement) => {
+      let node: ChildNode | null = null
+      for (const cn of Array.from(el.childNodes)) {
+        if (cn.nodeType === 3 && cn.nodeValue && cn.nodeValue.trim()) {
+          node = cn
+          break
+        }
+      }
+      if (!node || node.nodeValue === null) return
+      const m = node.nodeValue.trim().match(/^(\D*?)(\d+)(\D*)$/)
+      if (!m) return
+      const pre = m[1]
+      const len = m[2].length
+      const target = parseInt(m[2], 10)
+      const suf = m[3]
+      if (/[A-Za-z가-힣]/.test(pre)) return
+      const dur = 900
+      let t0: number | null = null
+      const frame = (t: number) => {
+        if (t0 === null) t0 = t
+        const p = Math.min((t - t0) / dur, 1)
+        const e = 1 - Math.pow(1 - p, 3)
+        node!.nodeValue =
+          pre + String(Math.round(target * e)).padStart(len, '0') + suf
+        if (p < 1) requestAnimationFrame(frame)
+      }
+      requestAnimationFrame(frame)
+    }
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            countUp(entry.target as HTMLElement)
+            io.unobserve(entry.target)
+          }
+        })
+      },
+      { threshold: 0.6 }
+    )
+    document
+      .querySelectorAll<HTMLElement>('.leesh-page .readout .m .n')
+      .forEach((n) => io.observe(n))
+    return () => io.disconnect()
+  }, [mounted])
+
+  const onStackMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const el = e.currentTarget.querySelector<HTMLElement>('.stack')
+    if (!el) return
+    const r = e.currentTarget.getBoundingClientRect()
+    const nx = ((e.clientX - r.left) / r.width) * 2 - 1
+    const ny = ((e.clientY - r.top) / r.height) * 2 - 1
+    el.style.setProperty('--rx', `${nx * 34}deg`)
+    el.style.setProperty('--ry', `${-ny * 26}deg`)
+  }
+  const onStackLeave = (e: React.MouseEvent<HTMLDivElement>) => {
+    const el = e.currentTarget.querySelector<HTMLElement>('.stack')
+    if (!el) return
+    el.style.setProperty('--rx', '0deg')
+    el.style.setProperty('--ry', '0deg')
+  }
 
   const doUnlock = async () => {
     if (!pw) return
@@ -487,104 +595,209 @@ export default function LeeshClient() {
   ]
 
   return (
-    <main className="container-page py-6 space-y-4 leesh-page">
-      <section className="surface card-pad scroll-reveal">
-        <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr] lg:items-start">
-          <div>
-            <p className="text-xs uppercase tracking-[0.18em] opacity-60">
-              Portfolio
-            </p>
-            <h1 className="mt-2 text-3xl font-semibold sm:text-4xl">이승현</h1>
-            <p className="mt-3 text-base leading-7 opacity-90 sm:text-lg">
+    <main className={`leesh-page${mounted ? ' js' : ''}`}>
+      <div className="leesh-prog" aria-hidden />
+      <div className="leesh-frame" aria-hidden>
+        <i className="tl" />
+        <i className="tr" />
+        <i className="bl" />
+        <i className="br" />
+      </div>
+      <nav className="leesh-nav">
+        <div className="mk">
+          <span className="tgt" aria-hidden />
+          LEESH <small>/ 포트폴리오</small>
+        </div>
+        <div className="lk">
+          <a href="#s01">01</a>
+          <a href="#s02">02</a>
+          <a href="#s03">03</a>
+          <a href="#s04">04</a>
+          <a href="#s05">05</a>
+          <a href="#s06">06</a>
+          <a href="#s07">07</a>
+          <a href="#s08">08</a>
+          <a href="#s09">09</a>
+        </div>
+      </nav>
+      <div className="leesh-main">
+      <header className="leesh-hero" id="top">
+        <div className="hero-top">
+          <div className="hero-copy">
+            <div className="tag">PORTFOLIO · 이승현</div>
+            <h1>
+              <span className="l1">
+                웹을 중심으로, <span className="ink">시스템과 데이터를</span>
+              </span>
+              <span className="l2">연결하는 개발자</span>
+            </h1>
+            <p className="sub">
               안녕하세요. 사용자 문제를 제품으로 빠르게 풀어내는 개발자입니다.
-              서비스의 맥락을 이해하고, 작은 기능도 실제 사용 경험 관점에서
-              설계합니다.
+              서비스의 맥락을 이해하고, 작은 기능도{' '}
+              <b>실제 사용 경험 관점</b>에서 설계합니다.
             </p>
-            <p className="mt-3 text-base leading-7 opacity-90 sm:text-lg">
-              데이터를 수집하고, 처리하고, 시각화하며 웹을 중심으로 시스템을
-              연결하는 개발자입니다.
-            </p>
-            <p className="mt-2 text-base leading-7 opacity-90 sm:text-lg">
-              실제 운영 환경에서 동작하는 서비스를 설계하고 개선합니다.
-            </p>
-            <p className="mt-2 text-sm font-medium opacity-70">
-              웹을 중심으로, 시스템과 데이터를 연결하는 개발자
-            </p>
-
-            <div className="mt-4 flex flex-wrap gap-2">
-              {techStacks.map((stack) => (
-                <span key={stack} className="badge">
-                  {stack}
-                </span>
-              ))}
-            </div>
-
-            <div className="mt-5 flex flex-wrap gap-3">
-              {[
-                { n: projects.length, label: '프로젝트' },
-                { n: careers.length, label: '경력' },
-                { n: detailedTechStacks.length, label: '기술 분야' },
-              ].map((s) => (
-                <div
-                  key={s.label}
-                  className="rounded-2xl border border-black/10 bg-black/[0.03] px-4 py-2 text-center"
-                >
-                  <div className="text-2xl font-bold">{s.n}</div>
-                  <div className="text-xs opacity-70">{s.label}</div>
-                </div>
-              ))}
-            </div>
           </div>
 
-          <div className="rounded-2xl border border-black/10 bg-black/[0.03] p-4">
-            <h2 className="text-sm font-semibold opacity-80">About me</h2>
-            <ul className="mt-3 grid gap-2 text-sm leading-6 opacity-90">
-              {strengths.map((item) => (
-                <li key={item} className="flex gap-2">
-                  <span aria-hidden>•</span>
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
-            <p className="mt-3 text-sm leading-6 opacity-80">
-              {aboutNarrative}
-            </p>
+          <div
+            className="hero-3d"
+            onMouseMove={onStackMove}
+            onMouseLeave={onStackLeave}
+          >
+            <span className="hero-3d-tag">◲ DEV MONITOR · 3D</span>
+            <span className="hero-3d-hint">↔ 마우스로 기울이기</span>
+            <div className="stack" aria-hidden>
+              <div className="monitor">
+                <div className="mon-screen">
+                  {Array.from({ length: 13 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className="mon-slab"
+                      style={{
+                        transform: `translateZ(${11 - i * 2}px)`,
+                        background: `hsl(226 15% ${70 - i * 3.2}%)`,
+                      }}
+                    />
+                  ))}
+                  <div className="mon-front">
+                    <div className="mon-frame">
+                      <div className="mon-bar">
+                        <span className="dot r" />
+                        <span className="dot y" />
+                        <span className="dot g" />
+                        <span className="fn">
+                          leesh/page<span className="ext">.tsx</span>
+                        </span>
+                      </div>
+                      <div className="mon-code">
+                        <b />
+                        <b />
+                        <b />
+                        <b />
+                        <b />
+                        <b />
+                      </div>
+                      <div className="mon-term">$ npm run dev</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="mon-neck" />
+                <div className="mon-base" />
+              </div>
+            </div>
           </div>
         </div>
+
+        <div className="marq">
+          <div className="row">
+            <b>
+              {techStacks.map((stack) => stack.toUpperCase()).join(' · ')} ✳{' '}
+            </b>
+            <b>
+              {techStacks.map((stack) => stack.toUpperCase()).join(' · ')} ✳{' '}
+            </b>
+          </div>
+        </div>
+
+        <div className="herometa">
+          <div className="readout">
+            <div className="m">
+              <div className="n">{String(projects.length).padStart(2, '0')}</div>
+              <div className="k">프로젝트</div>
+            </div>
+            <div className="m">
+              <div className="n">{String(careers.length).padStart(2, '0')}</div>
+              <div className="k">경력</div>
+            </div>
+            <div className="m">
+              <div className="n">
+                {String(detailedTechStacks.length).padStart(2, '0')}
+              </div>
+              <div className="k">기술 분야</div>
+            </div>
+            <div className="m">
+              <div className="n">
+                00<span className="u">↔</span>
+              </div>
+              <div className="k">진행형 성장</div>
+            </div>
+          </div>
+          <div className="titleblk">
+            <div className="r">
+              <span>Name</span>
+              <b>이승현 (leesh)</b>
+            </div>
+            <div className="r">
+              <span>Focus</span>
+              <b>Web · IoT · Data</b>
+            </div>
+            <div className="r">
+              <span>Stack</span>
+              <b>Spring · Next.js · C#</b>
+            </div>
+            <div className="r">
+              <span>Status</span>
+              <b>Open to work</b>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* About me — 히어로 아래 이어붙임 */}
+      <section id="s00" className="leesh-section rv">
+        <div className="leesh-head">
+          <span className="no">00</span>
+          <span className="kick">About me · 소개</span>
+          <span className="dim">SHEET 00</span>
+        </div>
+        <p className="leesh-lead rv">
+          데이터를 수집하고, 처리하고, 시각화하며 웹을 중심으로 시스템을
+          연결하는 개발자입니다. 실제 운영 환경에서 동작하는 서비스를 설계하고
+          개선합니다.
+        </p>
+        <ul className="leesh-block" style={{ listStyle: 'none' }}>
+          {strengths.map((item) => (
+            <li key={item} className="leesh-lead" style={{ marginTop: 10 }}>
+              → {item}
+            </li>
+          ))}
+        </ul>
+        <p className="leesh-lead">{aboutNarrative}</p>
       </section>
 
-      <section className="surface card-pad scroll-reveal">
-        <h2 className="text-xl font-semibold">핵심 역량</h2>
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
-          {highlights.map((item) => (
-            <article
-              key={item.title}
-              className="rounded-2xl border border-black/10 bg-black/[0.03] p-4"
-            >
-              <h3 className="text-sm font-semibold">{item.title}</h3>
-              <p className="mt-2 text-sm leading-6 opacity-80">
-                {item.description}
-              </p>
+      <section id="s01" className="leesh-section rv">
+        <div className="leesh-head">
+          <span className="no">01</span>
+          <span className="kick">Core Competency · 핵심 역량</span>
+          <span className="dim">SHEET 01</span>
+        </div>
+        <h2 className="rv">핵심 역량</h2>
+        <div className="leesh-grid g3 rv">
+          {highlights.map((item, i) => (
+            <article key={item.title} className="cell">
+              <div className="ix">{String(i + 1).padStart(2, '0')} · CAP</div>
+              <h3>{item.title}</h3>
+              <p>{item.description}</p>
             </article>
           ))}
         </div>
       </section>
 
-      <section className="surface card-pad scroll-reveal">
-        <h2 className="text-2xl font-semibold">Experience</h2>
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          {experiences.map((item) => (
-            <article
-              key={item.title}
-              className="rounded-2xl border border-black/10 bg-black/[0.03] p-4"
-            >
-              <h3 className="text-base font-semibold">
-                <span className="mr-2" aria-hidden>
-                  {item.badge}
-                </span>
-                {item.title}
-              </h3>
-              <ul className="mt-3 list-disc space-y-1 pl-5 text-sm leading-6 opacity-90">
+      <section id="s02" className="leesh-section rv">
+        <div className="leesh-head">
+          <span className="no">02</span>
+          <span className="kick">Experience · 실무 경험</span>
+          <span className="dim">SHEET 02</span>
+        </div>
+        <h2 className="rv">Experience</h2>
+        <div className="leesh-grid g2 rv">
+          {experiences.map((item, i) => (
+            <article key={item.title} className="cell">
+              <div className="ix">
+                {String(i + 1).padStart(2, '0')} ·{' '}
+                <span aria-hidden>{item.badge}</span>
+              </div>
+              <h3>{item.title}</h3>
+              <ul>
                 {item.items.map((point) => (
                   <li key={point}>{point}</li>
                 ))}
@@ -594,77 +807,71 @@ export default function LeeshClient() {
         </div>
       </section>
 
-      <section className="surface card-pad scroll-reveal">
-        <h2 className="text-2xl font-semibold">Career</h2>
-        <div className="mt-4 space-y-4 border-l-2 border-black/10 pl-6">
+      <section id="s03" className="leesh-section rv">
+        <div className="leesh-head">
+          <span className="no">03</span>
+          <span className="kick">Career · 경력</span>
+          <span className="dim">SHEET 03</span>
+        </div>
+        <h2 className="rv">Career</h2>
+        <ol className="leesh-timeline rv">
           {careers.map((career) => (
-            <article
-              key={`${career.company}-${career.period}`}
-              className="relative rounded-2xl border border-black/10 bg-black/[0.03] p-4"
-            >
-              <span
-                className="absolute -left-[31px] top-5 h-3 w-3 rounded-full bg-[#6d5aff]"
-                aria-hidden
-              />
-              <h3 className="text-base font-semibold">{career.title}</h3>
-              <p className="mt-1 text-sm opacity-80">{career.company}</p>
-              <p className="mt-1 text-xs opacity-65">{career.period}</p>
-              <ul className="mt-3 list-disc space-y-1 pl-5 text-sm leading-6 opacity-90">
+            <li key={`${career.company}-${career.period}`} className="tl-item">
+              <span className="tl-period">{career.period}</span>
+              <div className="tl-role">{career.title}</div>
+              <div className="tl-co">{career.company}</div>
+              <ul>
                 {career.items.map((point) => (
                   <li key={point}>{point}</li>
                 ))}
               </ul>
-            </article>
+            </li>
           ))}
-        </div>
+        </ol>
       </section>
 
-      <section className="surface card-pad scroll-reveal">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-2xl font-semibold">Projects</h2>
+      <section id="s04" className="leesh-section rv">
+        <div className="leesh-head">
+          <span className="no">04</span>
+          <span className="kick">Projects · 프로젝트</span>
+          <span className="dim">SHEET 04</span>
         </div>
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
-          {projects.map((project) => {
+        <h2 className="rv">Projects</h2>
+        <div className="leesh-grid g3 rv">
+          {projects.map((project, i) => {
             const githubUrls = Array.isArray(project.githubUrls)
               ? project.githubUrls
               : []
 
             return (
-              <article
-                key={project.name}
-                className="rounded-2xl border border-black/10 bg-black/[0.03] p-4"
-              >
-                <h3 className="text-base font-semibold">{project.name}</h3>
-                <p className="mt-2 text-sm leading-6 opacity-80">
-                  {project.summary}
-                </p>
+              <article key={project.name} className="cell">
+                <div className="ix">{String(i + 1).padStart(2, '0')} · PROJ</div>
+                <h3>{project.name}</h3>
+                <p>{project.summary}</p>
                 {project.tags && project.tags.length > 0 ? (
-                  <div className="mt-2 flex flex-wrap gap-1.5">
+                  <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap' }}>
                     {project.tags.map((t) => (
-                      <span
-                        key={t}
-                        className="rounded-full border border-black/10 bg-black/[0.04] px-2 py-0.5 text-[11px] font-medium opacity-80"
-                      >
+                      <span key={t} className="leesh-chip">
                         {t}
                       </span>
                     ))}
                   </div>
                 ) : null}
-                <ul className="mt-3 list-disc space-y-1 pl-5 text-sm leading-6 opacity-90">
+                <ul>
                   {project.points.map((point) => (
                     <li key={point}>{point}</li>
                   ))}
                 </ul>
-                <div className="mt-4">
+                <div style={{ marginTop: 14 }}>
                   {githubUrls.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       {githubUrls.map((url, index) => (
                         <a
                           key={`${project.name}-${url}`}
                           href={url}
                           target="_blank"
                           rel="noreferrer"
-                          className="btn btn-outline h-8 w-8 p-0"
+                          className="leesh-iconbtn"
                           title={`${project.name} - Game Repo ${index + 1}`}
                           aria-label={`${project.name} - Game Repo ${index + 1}`}
                         >
@@ -677,14 +884,20 @@ export default function LeeshClient() {
                       href={project.githubUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="btn btn-outline h-8 w-8 p-0"
+                      className="leesh-iconbtn"
                       title={`${project.name} GitHub Repository`}
                       aria-label={`${project.name} GitHub Repository`}
                     >
                       <GitHubIcon />
                     </a>
                   ) : (
-                    <span className="text-xs opacity-60">
+                    <span
+                      style={{
+                        fontFamily: 'var(--mono)',
+                        fontSize: 12,
+                        color: 'var(--muted)',
+                      }}
+                    >
                       GitHub 링크 추가 예정
                     </span>
                   )}
@@ -695,17 +908,27 @@ export default function LeeshClient() {
         </div>
       </section>
 
-      <section className="surface card-pad scroll-reveal">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-2xl font-semibold">GitHub</h2>
-          </div>
-
+      <section id="s05" className="leesh-section rv">
+        <div className="leesh-head">
+          <span className="no">05</span>
+          <span className="kick">GitHub · 활동</span>
+          <span className="dim">SHEET 05</span>
+        </div>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            flexWrap: 'wrap',
+          }}
+        >
+          <h2 className="rv">GitHub</h2>
           <a
             href="https://github.com/leesh0829"
             target="_blank"
             rel="noreferrer"
-            className="btn btn-outline"
+            className="leesh-btn"
             aria-label="leesh0829 GitHub 프로필 열기"
           >
             <GitHubIcon />
@@ -713,149 +936,200 @@ export default function LeeshClient() {
           </a>
         </div>
 
-        <div className="mt-4 rounded-2xl border border-black/10 bg-black/[0.03] p-4">
-          <div className="overflow-x-auto">
+        <figure className="leesh-listing rv">
+          <figcaption>
+            <span className="d" />
+            leesh0829 · contribution graph
+            <span className="lbl">ghchart</span>
+          </figcaption>
+          <div className="body">
             <a
               href="https://github.com/leesh0829"
               target="_blank"
               rel="noreferrer"
-              className="block min-w-[720px]"
+              style={{ display: 'block', minWidth: 720 }}
               aria-label="GitHub 잔디 크게 보기"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="https://ghchart.rshah.org/6d5aff/leesh0829"
                 alt="leesh0829 GitHub contribution chart"
-                className="h-auto w-full rounded-xl"
+                style={{ height: 'auto', width: '100%' }}
               />
             </a>
           </div>
-        </div>
+        </figure>
       </section>
 
-      <section className="surface card-pad scroll-reveal">
-        <h2 className="text-2xl font-semibold">Tech Stack</h2>
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          {detailedTechStacks.map((item) => (
-            <article
-              key={item.category}
-              className="rounded-2xl border border-black/10 bg-black/[0.03] p-4"
-            >
-              <h3 className="text-sm font-semibold">{item.category}</h3>
-              <p className="mt-2 text-sm leading-6 opacity-85">{item.stacks}</p>
+      <section id="s06" className="leesh-section rv">
+        <div className="leesh-head">
+          <span className="no">06</span>
+          <span className="kick">Tech Stack · 기술</span>
+          <span className="dim">SHEET 06</span>
+        </div>
+        <h2 className="rv">Tech Stack</h2>
+        <div className="leesh-grid g2 rv">
+          {detailedTechStacks.map((item, i) => (
+            <article key={item.category} className="cell">
+              <div className="ix">{String(i + 1).padStart(2, '0')} · STACK</div>
+              <h3>{item.category}</h3>
+              <p>{item.stacks}</p>
             </article>
           ))}
         </div>
       </section>
 
-      <section className="surface card-pad scroll-reveal">
-        <h2 className="text-xl font-semibold">Direction</h2>
-        <p className="mt-2 text-sm leading-7 opacity-85 sm:text-base">
+      <section id="s07" className="leesh-section inv rv">
+        <div className="leesh-head">
+          <span className="no">07</span>
+          <span className="kick">Direction · 지향</span>
+          <span className="dim">SHEET 07</span>
+        </div>
+        <h2 className="rv">Direction</h2>
+        <p className="leesh-lead rv">
           현재는 웹 개발에 가장 큰 관심을 두고 있으며, 데이터 처리와 시스템 구조
           이해를 기반으로 확장 가능한 웹 서비스를 만들고자 합니다.
         </p>
       </section>
 
-      <section className="surface card-pad scroll-reveal">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-2xl font-semibold">Contact Me</h2>
-          <span className="badge">문의 폼</span>
+      <section id="s08" className="leesh-section rv">
+        <div className="leesh-head">
+          <span className="no">08</span>
+          <span className="kick">Contact · 문의</span>
+          <span className="dim">SHEET 08</span>
         </div>
-        <p className="mt-1 text-sm opacity-70">
+        <h2 className="rv">Contact Me</h2>
+        <p className="leesh-lead rv">
           협업, 프로젝트, 채용 관련 문의를 남겨주세요.
         </p>
 
-        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        <div className="leesh-form rv">
+          <div className="frow">
+            <div>
+              <label className="flabel">Name</label>
+              <input
+                className="leesh-input"
+                value={contactName}
+                onChange={(e) => {
+                  setContactName(e.target.value)
+                  setContactErr(null)
+                  setContactDone(null)
+                }}
+                placeholder="이름 (선택)"
+                maxLength={60}
+              />
+            </div>
+            <div>
+              <label className="flabel">Email *</label>
+              <input
+                className="leesh-input"
+                type="email"
+                value={contactEmail}
+                onChange={(e) => {
+                  setContactEmail(e.target.value)
+                  setContactErr(null)
+                  setContactDone(null)
+                }}
+                placeholder="회신 받을 이메일 *"
+                maxLength={120}
+              />
+            </div>
+          </div>
+
+          <label className="flabel">Subject</label>
           <input
-            className="input"
-            value={contactName}
+            className="leesh-input"
+            value={contactSubject}
             onChange={(e) => {
-              setContactName(e.target.value)
+              setContactSubject(e.target.value)
               setContactErr(null)
               setContactDone(null)
             }}
-            placeholder="이름 (선택)"
-            maxLength={60}
-          />
-          <input
-            className="input"
-            type="email"
-            value={contactEmail}
-            onChange={(e) => {
-              setContactEmail(e.target.value)
-              setContactErr(null)
-              setContactDone(null)
-            }}
-            placeholder="회신 받을 이메일 *"
+            placeholder="제목 (선택)"
             maxLength={120}
           />
-        </div>
 
-        <input
-          className="input mt-2"
-          value={contactSubject}
-          onChange={(e) => {
-            setContactSubject(e.target.value)
-            setContactErr(null)
-            setContactDone(null)
-          }}
-          placeholder="제목 (선택)"
-          maxLength={120}
-        />
+          <label className="flabel">Message</label>
+          <textarea
+            className="leesh-textarea"
+            value={contactMessage}
+            onChange={(e) => {
+              setContactMessage(e.target.value)
+              setContactErr(null)
+              setContactDone(null)
+            }}
+            placeholder="메시지 내용을 입력해 주세요. (10자 이상)"
+            rows={5}
+            maxLength={2000}
+            style={{ resize: 'vertical' }}
+          />
 
-        <textarea
-          className="textarea mt-2"
-          value={contactMessage}
-          onChange={(e) => {
-            setContactMessage(e.target.value)
-            setContactErr(null)
-            setContactDone(null)
-          }}
-          placeholder="메시지 내용을 입력해 주세요. (10자 이상)"
-          rows={5}
-          maxLength={2000}
-          style={{ resize: 'vertical' }}
-        />
-
-        <div className="mt-2 flex items-center justify-between gap-3">
-          <div className="text-xs opacity-60">
-            {contactMessage.trim().length}/2000
-          </div>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={submitContact}
-            disabled={contactSending}
+          <div
+            style={{
+              marginTop: 12,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+            }}
           >
-            {contactSending ? '전송중...' : '문의 보내기'}
-          </button>
-        </div>
+            <div
+              style={{
+                fontFamily: 'var(--mono)',
+                fontSize: 11,
+                color: 'var(--muted)',
+              }}
+            >
+              {contactMessage.trim().length}/2000
+            </div>
+            <button
+              type="button"
+              className="leesh-btn primary"
+              onClick={submitContact}
+              disabled={contactSending}
+            >
+              {contactSending ? '전송중...' : '문의 보내기'}
+            </button>
+          </div>
 
-        {contactErr ? (
-          <p className="mt-2 text-sm text-red-600">{contactErr}</p>
-        ) : null}
-        {contactDone ? (
-          <p className="mt-2 text-sm text-green-600">{contactDone}</p>
-        ) : null}
+          {contactErr ? (
+            <p className="text-sm text-red-600" style={{ marginTop: 10 }}>
+              {contactErr}
+            </p>
+          ) : null}
+          {contactDone ? (
+            <p className="text-sm text-green-600" style={{ marginTop: 10 }}>
+              {contactDone}
+            </p>
+          ) : null}
+        </div>
       </section>
 
-      <section className="card card-pad scroll-reveal">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
-            <p className="mt-1 text-sm opacity-70">추가로 하고픈 말</p>
-
-            {err ? <p className="mt-3 text-sm text-red-600">{err}</p> : null}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <button type="button" className="btn btn-outline" onClick={load}>
+      <section id="s09" className="leesh-section rv">
+        <div className="leesh-head">
+          <span className="no">09</span>
+          <span className="kick">Notes · 추가로 하고픈 말</span>
+          <span className="dim">SHEET 09</span>
+        </div>
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+          }}
+        >
+          <h2 className="rv">Notes</h2>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            <button type="button" className="leesh-btn" onClick={load}>
               새로고침
             </button>
 
             {!unlocked ? (
               <button
                 type="button"
-                className="btn btn-outline"
+                className="leesh-btn"
                 onClick={() => setShowUnlockModal(true)}
               >
                 로그인
@@ -865,7 +1139,7 @@ export default function LeeshClient() {
             {doc?.canEdit ? (
               <button
                 type="button"
-                className="btn btn-outline"
+                className="leesh-btn"
                 onClick={() => setEditing((v) => !v)}
               >
                 {editing ? '편집 닫기' : '편집'}
@@ -873,22 +1147,26 @@ export default function LeeshClient() {
             ) : null}
 
             {doc?.canEdit && editing ? (
-              <>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={save}
-                  disabled={saving}
-                >
-                  {saving ? '저장중...' : '저장'}
-                </button>
-              </>
+              <button
+                type="button"
+                className="leesh-btn primary"
+                onClick={save}
+                disabled={saving}
+              >
+                {saving ? '저장중...' : '저장'}
+              </button>
             ) : null}
           </div>
         </div>
 
+        {err ? (
+          <p className="text-sm text-red-600" style={{ marginTop: 10 }}>
+            {err}
+          </p>
+        ) : null}
+
         {editing ? (
-          <div className="mt-4 grid gap-3">
+          <div className="leesh-block" style={{ marginTop: 20 }}>
             <MarkdownEditor
               value={draft}
               onChange={setDraft}
@@ -898,7 +1176,7 @@ export default function LeeshClient() {
             />
           </div>
         ) : (
-          <article className="markdown-body mt-4">
+          <article className="markdown-body leesh-block" style={{ marginTop: 20 }}>
             <ReactMarkdown
               remarkPlugins={[remarkGfm, remarkBreaks]}
               rehypePlugins={[
@@ -913,35 +1191,41 @@ export default function LeeshClient() {
           </article>
         )}
       </section>
+      </div>
+
+      <footer className="leesh-footer">
+        <div className="mk">◱ LEESH · PORTFOLIO</div>
+        <div className="sm">
+          이승현 · 웹을 중심으로 시스템과 데이터를 연결하는 개발자
+        </div>
+      </footer>
 
       {showUnlockModal ? (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+        <div className="leesh-modal-overlay">
           <button
             type="button"
-            className="absolute inset-0 bg-black/45"
+            className="leesh-modal-scrim"
             aria-label="로그인 팝업 닫기"
             onClick={() => setShowUnlockModal(false)}
           />
-          <div className="surface card-pad modal-enter relative z-[71] w-full max-w-md">
-            <div className="flex items-center justify-between gap-2">
+          <div className="leesh-modal">
+            <div className="mhead">
               <div>
-                <h2 className="text-lg font-semibold">로그인</h2>
-                <p className="mt-1 text-sm opacity-70">
-                  비밀번호를 입력하세요.
-                </p>
+                <div className="mtitle">로그인</div>
+                <div className="msub">비밀번호를 입력하세요.</div>
               </div>
               <button
                 type="button"
-                className="btn btn-outline"
+                className="leesh-btn"
                 onClick={() => setShowUnlockModal(false)}
               >
                 X
               </button>
             </div>
 
-            <div className="mt-4 grid gap-2">
+            <div style={{ marginTop: 18, display: 'grid', gap: 10 }}>
               <input
-                className="input"
+                className="leesh-input"
                 type="password"
                 value={pw}
                 autoFocus
@@ -954,7 +1238,7 @@ export default function LeeshClient() {
 
               <button
                 type="button"
-                className="btn btn-primary"
+                className="leesh-btn primary"
                 onClick={doUnlock}
                 disabled={unlocking || !pw}
               >
@@ -963,7 +1247,9 @@ export default function LeeshClient() {
             </div>
 
             {unlockErr ? (
-              <p className="mt-3 text-sm text-red-600">{unlockErr}</p>
+              <p className="text-sm text-red-600" style={{ marginTop: 12 }}>
+                {unlockErr}
+              </p>
             ) : null}
           </div>
         </div>

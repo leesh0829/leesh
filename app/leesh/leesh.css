@@ -493,127 +493,141 @@
   pointer-events: none;
   z-index: 5;
 }
+/* CSS 전용 3D 개발자 모니터 */
 .stack {
   position: relative;
-  width: 210px;
-  height: 296px;
+  width: 340px;
   transform-style: preserve-3d;
   transform: rotateX(var(--ry, 0deg)) rotateY(var(--rx, 0deg));
   transition: transform 0.18s ease-out;
 }
-.stack .sheet {
-  position: absolute;
-  inset: 0;
-  background: #f7f8fb;
-  border: 2px solid #0b1020;
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+.monitor {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   transform-style: preserve-3d;
-  padding: 14px 14px 16px;
+  animation: leesh-monfloat 6.5s ease-in-out infinite;
   will-change: transform;
 }
-/* 시트 4장: 각기 다른 기본 transform + 1:1 대응하는 float keyframes */
-.stack .sheet.s1 {
-  transform: translateZ(-60px) translate(-26px, 8px) rotate(-6deg);
-  animation: leesh-float1 6s ease-in-out infinite;
+/* 화면 케이스(실버 베젤) */
+.mon-screen {
+  position: relative;
+  width: 340px;
+  height: 216px;
+  border-radius: 12px;
+  padding: 12px;
+  background: linear-gradient(155deg, #eef0f6, #cdd2df 60%, #bcc2d1);
+  border: 1px solid #aeb4c6;
+  box-shadow: 0 26px 50px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transform-style: preserve-3d;
 }
-.stack .sheet.s2 {
-  transform: translateZ(-20px) translate(24px, -6px) rotate(4deg);
-  animation: leesh-float2 6.6s ease-in-out infinite;
+/* 뒤판(두께감) */
+.mon-screen::after {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  border-radius: 8px;
+  background: #a3a9bc;
+  transform: translateZ(-16px);
+  z-index: -1;
 }
-.stack .sheet.s3 {
-  transform: translateZ(24px) translate(-10px, 12px) rotate(-2deg);
-  animation: leesh-float3 7.2s ease-in-out infinite;
+/* 실제 스크린(다크 IDE) */
+.mon-frame {
+  position: relative;
+  height: 100%;
+  border-radius: 6px;
+  background: #0b1020;
+  border: 1px solid #05070f;
+  overflow: hidden;
+  padding: 11px 12px;
+  box-shadow: inset 0 0 22px rgba(0, 0, 0, 0.6);
 }
-.stack .sheet.s4 {
-  transform: translateZ(70px) translate(10px, -10px) rotate(3deg);
-  background: var(--acc);
-  border-color: #0b1020;
-  animation: leesh-float4 5.8s ease-in-out infinite;
+.mon-frame::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0.08), transparent 42%);
+  pointer-events: none;
 }
-/* 미니 코드 에디터 내부(파일명 바·코드 라인·터미널) */
-.sheet .sh-bar {
+.mon-bar {
   display: flex;
   align-items: center;
-  gap: 7px;
-  font-family: var(--mono);
-  font-weight: 700;
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  color: #0b1020;
-  padding-bottom: 8px;
-  border-bottom: 2px solid #0b1020;
-}
-.sheet .sh-bar .d {
-  width: 8px;
-  height: 8px;
-  background: #6d5aff;
-  flex: none;
-}
-.sheet.s4 .sh-bar { color: #fff; border-color: #fff; }
-.sheet.s4 .sh-bar .d { background: #26c6ff; }
-.sheet .sh-code {
-  margin-top: 12px;
-  display: grid;
-  gap: 7px;
-}
-.sheet .sh-code b {
-  display: block;
-  height: 4px;
-  background: rgba(11, 16, 32, 0.32);
-}
-.sheet .sh-code b:nth-child(1) { width: 56%; }
-.sheet .sh-code b:nth-child(2) { width: 82%; margin-left: 10%; }
-.sheet .sh-code b:nth-child(3) { width: 64%; margin-left: 10%; background: rgba(109, 90, 255, 0.75); }
-.sheet .sh-code b:nth-child(4) { width: 44%; margin-left: 20%; }
-.sheet .sh-code b:nth-child(5) { width: 70%; margin-left: 10%; }
-.sheet .sh-code b:nth-child(6) { width: 30%; }
-.sheet.s4 .sh-code b { background: rgba(255, 255, 255, 0.55); }
-.sheet.s4 .sh-code b:nth-child(3) { background: #26c6ff; }
-.sheet .sh-term {
-  margin-top: 14px;
-  padding-top: 9px;
-  border-top: 1.5px solid rgba(11, 16, 32, 0.5);
+  gap: 6px;
   font-family: var(--mono);
   font-size: 9px;
-  letter-spacing: 0.04em;
-  color: rgba(11, 16, 32, 0.75);
-  white-space: nowrap;
-  overflow: hidden;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.09);
 }
-.sheet.s4 .sh-term { border-color: rgba(255, 255, 255, 0.5); color: #fff; }
-.sheet .sh-term::after {
+.mon-bar .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.mon-bar .dot.r { background: #ff5f57; }
+.mon-bar .dot.y { background: #febc2e; }
+.mon-bar .dot.g { background: #28c840; }
+.mon-bar .fn { margin-left: 7px; color: #c3c8dc; letter-spacing: 0.05em; }
+.mon-bar .fn .ext { color: #8c7bff; }
+.mon-code {
+  margin-top: 13px;
+  display: grid;
+  gap: 8px;
+}
+.mon-code b {
+  display: block;
+  height: 5px;
+  border-radius: 2px;
+  background: rgba(231, 233, 243, 0.16);
+}
+.mon-code b:nth-child(1) { width: 42%; background: rgba(140, 123, 255, 0.75); }
+.mon-code b:nth-child(2) { width: 72%; margin-left: 16px; }
+.mon-code b:nth-child(3) { width: 54%; margin-left: 16px; background: rgba(50, 209, 255, 0.6); }
+.mon-code b:nth-child(4) { width: 64%; margin-left: 30px; }
+.mon-code b:nth-child(5) { width: 36%; margin-left: 16px; background: rgba(140, 123, 255, 0.5); }
+.mon-code b:nth-child(6) { width: 48%; }
+.mon-term {
+  margin-top: 15px;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  color: #32d1ff;
+  white-space: nowrap;
+}
+.mon-term::after {
   content: '▌';
+  color: #e7e9f3;
   margin-left: 2px;
   animation: leesh-blink 1.1s steps(2, start) infinite;
+}
+/* 스탠드 */
+.mon-neck {
+  width: 34px;
+  height: 30px;
+  margin-top: -1px;
+  background: linear-gradient(#d3d8e4, #b2b8ca);
+  border: 1px solid #aeb4c6;
+  border-top: none;
+  clip-path: polygon(18% 0, 82% 0, 100% 100%, 0 100%);
+  transform: translateZ(-8px);
+}
+.mon-base {
+  width: 140px;
+  height: 12px;
+  border-radius: 3px 3px 9px 9px;
+  background: linear-gradient(#d3d8e4, #a7adc0);
+  border: 1px solid #aeb4c6;
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.4);
+  transform: translateZ(-8px);
+}
+
+@keyframes leesh-monfloat {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-12px) rotate(-0.5deg); }
 }
 @keyframes leesh-blink {
   to { visibility: hidden; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .sheet .sh-term::after { animation: none; }
-}
-
-/* 시트별 float — 각자의 기본 transform으로 시작/종료 */
-@keyframes leesh-float1 {
-  0%, 100% { transform: translateZ(-60px) translate(-26px, 8px) rotate(-6deg); }
-  50% { transform: translateZ(-60px) translate(-26px, -4px) rotate(-8deg); }
-}
-@keyframes leesh-float2 {
-  0%, 100% { transform: translateZ(-20px) translate(24px, -6px) rotate(4deg); }
-  50% { transform: translateZ(-20px) translate(24px, 4px) rotate(6deg); }
-}
-@keyframes leesh-float3 {
-  0%, 100% { transform: translateZ(24px) translate(-10px, 12px) rotate(-2deg); }
-  50% { transform: translateZ(24px) translate(-10px, 2px) rotate(0deg); }
-}
-@keyframes leesh-float4 {
-  0%, 100% { transform: translateZ(70px) translate(10px, -10px) rotate(3deg); }
-  50% { transform: translateZ(70px) translate(10px, 2px) rotate(5deg); }
-}
-/* reduced-motion: 부유·틸트 off */
-@media (prefers-reduced-motion: reduce) {
   .stack { transition: none; transform: none; }
-  .stack .sheet { animation: none !important; }
+  .monitor { animation: none; }
+  .mon-term::after { animation: none; }
 }
 
 /* marquee */

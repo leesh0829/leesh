@@ -643,30 +643,34 @@ export default function LeeshClient() {
             onMouseMove={onStackMove}
             onMouseLeave={onStackLeave}
           >
-            <span className="hero-3d-tag">◱ CODE STACK · 3D</span>
+            <span className="hero-3d-tag">◲ DEV MONITOR · 3D</span>
             <span className="hero-3d-hint">↔ 마우스로 기울이기</span>
             <div className="stack" aria-hidden>
-              {(
-                [
-                  { s: 's1', file: 'schema.prisma' },
-                  { s: 's2', file: 'api/route.ts' },
-                  { s: 's3', file: 'page.tsx' },
-                  { s: 's4', file: 'leesh.dev' },
-                ] as const
-              ).map(({ s, file }) => (
-                <div key={s} className={`sheet ${s}`}>
-                  <div className="sh-bar">
-                    <i className="d" />
-                    {file}
+              <div className="monitor">
+                <div className="mon-screen">
+                  <div className="mon-frame">
+                    <div className="mon-bar">
+                      <span className="dot r" />
+                      <span className="dot y" />
+                      <span className="dot g" />
+                      <span className="fn">
+                        leesh/page<span className="ext">.tsx</span>
+                      </span>
+                    </div>
+                    <div className="mon-code">
+                      <b />
+                      <b />
+                      <b />
+                      <b />
+                      <b />
+                      <b />
+                    </div>
+                    <div className="mon-term">$ npm run dev</div>
                   </div>
-                  <div className="sh-code">
-                    {Array.from({ length: 6 }).map((_, i) => (
-                      <b key={i} />
-                    ))}
-                  </div>
-                  <div className="sh-term">$ npm run dev</div>
                 </div>
-              ))}
+                <div className="mon-neck" />
+                <div className="mon-base" />
+              </div>
             </div>
           </div>
         </div>

@@ -248,3 +248,130 @@
   margin-top: 30px;
   position: relative;
 }
+
+/* ── 고정 크롬 ─────────────────────────────────────────── */
+
+/* 스크롤 진행률 바 — Scroll-Driven 지원 시 CSS, 미지원 시 JS가 --leesh-prog 구동 */
+.leesh-prog {
+  position: fixed;
+  left: 0;
+  top: 0;
+  height: 5px;
+  width: 100%;
+  background: var(--acc);
+  transform: scaleX(var(--leesh-prog, 0));
+  transform-origin: 0 50%;
+  z-index: 90;
+}
+@supports (animation-timeline: scroll()) {
+  .leesh-prog {
+    transform: scaleX(0);
+    animation: leesh-grow linear both;
+    animation-timeline: scroll(root block);
+  }
+}
+@keyframes leesh-grow {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+/* 크롭마크 — 화면 4귀퉁이, difference 블렌드 */
+.leesh-frame {
+  position: fixed;
+  inset: 11px;
+  z-index: 82;
+  pointer-events: none;
+  mix-blend-mode: difference;
+}
+.leesh-frame i {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  color: #fff;
+}
+.leesh-frame i::before,
+.leesh-frame i::after {
+  content: '';
+  position: absolute;
+  background: currentColor;
+}
+.leesh-frame i::before { width: 14px; height: 2px; }
+.leesh-frame i::after { width: 2px; height: 14px; }
+.leesh-frame .tl { top: 0; left: 0; }
+.leesh-frame .tr { top: 0; right: 0; }
+.leesh-frame .tr::before { right: 0; }
+.leesh-frame .tr::after { right: 0; }
+.leesh-frame .bl { bottom: 0; left: 0; }
+.leesh-frame .bl::before { bottom: 0; }
+.leesh-frame .bl::after { bottom: 0; }
+.leesh-frame .br { bottom: 0; right: 0; }
+.leesh-frame .br::before { bottom: 0; right: 0; }
+.leesh-frame .br::after { bottom: 0; right: 0; }
+@media (max-width: 640px) {
+  .leesh-frame { display: none; }
+}
+
+/* sticky 네비 */
+.leesh-nav {
+  position: sticky;
+  top: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 0 clamp(14px, 3vw, 32px);
+  height: 52px;
+  background: var(--paper);
+  border-bottom: 2px solid var(--line);
+}
+/* AppShell 홈 버튼(좌상단 fixed)과 겹치지 않게 로고를 우측으로 밀어줌 */
+.leesh-nav .mk {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  margin-right: auto;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--ink);
+  text-transform: uppercase;
+  padding-left: 56px;
+}
+@media (max-width: 640px) {
+  .leesh-nav .mk { padding-left: 0; }
+}
+.leesh-nav .mk .tgt {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  background: var(--acc);
+}
+.leesh-nav .mk small {
+  color: var(--muted);
+  font-weight: 500;
+  text-transform: none;
+}
+.leesh-nav .lk {
+  display: flex;
+  gap: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.leesh-nav .lk a {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted);
+  text-decoration: none;
+  padding: 6px 9px;
+  letter-spacing: 0.02em;
+  transition: 0.12s;
+  border-left: 1px solid var(--line-soft);
+}
+.leesh-nav .lk a:hover { color: #fff; background: var(--acc); }
+@media (max-width: 1000px) {
+  .leesh-nav .lk { display: none; }
+}
+/* 앵커 스크롤 시 sticky 네비 높이만큼 오프셋 */
+.leesh-section { scroll-margin-top: 64px; }

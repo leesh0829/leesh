@@ -209,6 +209,31 @@ export default function LeeshClient() {
     return () => observer.disconnect()
   }, [])
 
+  useEffect(() => {
+    if (
+      typeof window === 'undefined' ||
+      typeof CSS === 'undefined' ||
+      CSS.supports('animation-timeline: scroll()')
+    ) {
+      return
+    }
+    const bar = document.querySelector<HTMLElement>('.leesh-page .leesh-prog')
+    if (!bar) return
+    const onScroll = () => {
+      const doc = document.documentElement
+      const max = doc.scrollHeight - doc.clientHeight
+      const p = max > 0 ? doc.scrollTop / max : 0
+      bar.style.setProperty('--leesh-prog', String(p))
+    }
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('resize', onScroll)
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onScroll)
+    }
+  }, [])
+
   const doUnlock = async () => {
     if (!pw) return
     setUnlocking(true)
@@ -489,6 +514,13 @@ export default function LeeshClient() {
 
   return (
     <main className="leesh-page">
+      <div className="leesh-prog" aria-hidden />
+      <div className="leesh-frame" aria-hidden>
+        <i className="tl" />
+        <i className="tr" />
+        <i className="bl" />
+        <i className="br" />
+      </div>
       <nav className="leesh-nav">
         <div className="mk">
           <span className="tgt" aria-hidden />

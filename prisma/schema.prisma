@@ -54,6 +54,8 @@ model User {
 
   budgetTargets BudgetTarget[] @relation("BudgetTargetOwner")
 
+  settlements Settlement[] @relation("SettlementOwner")
+
   diaryEntries DiaryEntry[] @relation("DiaryEntryOwner")
 }
 
@@ -208,6 +210,16 @@ enum LedgerEntryType {
   EXPENSE
 }
 
+enum SettlementKind {
+  REIMBURSEMENT // 청구 (개인카드 대납 → 회사 환급)
+  EMERGENCY     // 비상금 사용 (비상금 계좌 임시 인출 → 되갚기)
+}
+
+enum SettlementStatus {
+  PENDING // 미정산
+  SETTLED // 정산완료
+}
+
 model LedgerEntry {
   id String @id @default(cuid())
 
@@ -296,11 +308,40 @@ model FinancialAccount {
   ledgerEntries LedgerEntry[] @relation("LedgerAccount")
   holdings      Holding[]     @relation("HoldingAccount")
   budgetTargets BudgetTarget[] @relation("BudgetTargetAccount")
+  settlements   Settlement[]  @relation("SettlementAccount")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([ownerId])
+}
+
+model Settlement {
+  id String @id @default(cuid())
+
+  ownerId String
+  owner   User   @relation("SettlementOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  accountId String?
+  account   FinancialAccount? @relation("SettlementAccount", fields: [accountId], references: [id], onDelete: SetNull)
+
+  kind   SettlementKind
+  status SettlementStatus @default(PENDING)
+
+  amount      Int
+  description String
+
+  occurredAt DateTime  @default(now())
+  settledAt  DateTime?
+
+  memo String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId, status])
+  @@index([ownerId, kind])
+  @@index([accountId])
 }
 
 enum HoldingTransactionType {

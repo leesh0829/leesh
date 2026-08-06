@@ -19,6 +19,7 @@
 | 머니 챌린지(예산) | `app/ledger/budgets/*` | `/api/ledger/budgets`, `/api/ledger/budgets/[id]` | `BudgetTarget` |
 | 통계 / 분석 | `app/ledger/stats/*` | `/api/ledger/stats` | `LedgerEntry`(집계) |
 | 가계부 캘린더 | `app/ledger/calendar/*` | `/api/ledger`(재사용) | `LedgerEntry` |
+| 정산 대기함(청구·비상금) | `app/ledger/settlements/*` | `/api/ledger/settlements`, `/api/ledger/settlements/[id]` | `Settlement` |
 
 > 같은 `/ledger` 트리 아래에 투자(`stocks/*`, `market/*`, `kis-settings/*`) 화면도 있지만, 그쪽은 별도 도메인입니다([feature-investing.md](feature-investing.md) / [integration-kis.md](integration-kis.md) 참고). 이 문서는 거래·계좌·예산·통계만 다룹니다.
 
@@ -261,6 +262,17 @@
 - **응답 키**: `totals{income,expense,net,count}`, `prevTotals`, `byAccount`, `byAccountType`, `byCategoryIncome`/`byCategoryExpense`, `bySubcategoryIncome`/`bySubcategoryExpense`, `byMonth`, `byDay`, `byWeekday`, `byHour`, `topIncome`/`topExpense`(상위 5건), `categoryDiffIncome`/`categoryDiffExpense`, `transferFlows`.
 
 ---
+
+## 7-b. 정산 대기함 (`/ledger/settlements`)
+
+다음 월급에 정상화할 항목을 추적합니다. `Settlement` 모델(`prisma/schema.prisma`) 하나에 `kind`(`REIMBURSEMENT` 청구 — 개인카드 대납 / `EMERGENCY` 비상금 — 임시 인출)와 `status`(`PENDING` 미정산 / `SETTLED` 정산완료)로 구분합니다. **본인 전용**(공유 비대상, 예산과 동일), 정산은 **상태만 전환**하며 가계부 거래(`LedgerEntry`)를 자동 생성하지 않습니다 — 실제 환급 수입/되갚기 이체는 사용자가 가계부에서 직접 기입합니다.
+
+- **모델 `Settlement`**: `ownerId`(Cascade)·`accountId?`(참고용 계좌, SetNull)·`kind`·`status`·`amount`·`description`·`occurredAt`·`settledAt?`·`memo?`. 인덱스 `@@index([ownerId, status])`/`([ownerId, kind])`/`([accountId])`.
+- **라이브러리 `app/lib/settlements.ts`**: `SETTLEMENT_KIND_LABEL`/`SETTLEMENT_STATUS_LABEL` 라벨, `summarizeSettlements(items)`(미정산분만 `{ reimbursementPending, emergencyPending }` 집계), `settledAtForStatus(status, now)`(`SETTLED`이면 `now`, 아니면 `null`).
+- **페이지** `app/ledger/settlements/page.tsx` → `SettlementsClient`: 상단 요약(받을 청구/갚을 비상금 미정산 합계), 종류·상태 클라이언트 필터, 생성/수정 폼(종류·금액·내역·발생일·계좌·메모), 항목별 `[정산 완료]`/`[미정산으로]` 토글·수정·삭제.
+- **API** `GET /api/ledger/settlements?kind=&status=`(본인 항목 + `summary`, 미정산 우선 정렬), `POST`(생성), `PATCH /api/ledger/settlements/[id]`(수정·정산 토글 — `status`→`SETTLED` 시 `settledAt` 세팅, `PENDING` 시 해제), `DELETE`. 모두 `runtime='nodejs'`·본인 인증. `accountId` 지정 시 본인 소유 검증(아니면 404).
+- **메인 `/ledger` 요약 카드**: `LedgerClient`가 마운트 시 `GET /api/ledger/settlements`의 `summary`만 가볍게 불러와, 미정산 합계가 있을 때만 카드를 노출하고 클릭 시 이 페이지로 이동합니다. 네비 버튼 `LedgerNavSettlements`(`LedgerNavIcons.tsx`).
+- **권한**: 하위 페이지는 기존 `ledger` 메뉴 권한 키에 포함(별도 엔트리 없음). 다른 하위 페이지와 동일.
 
 ## 8. 가계부 캘린더 (`/ledger/calendar`)
 

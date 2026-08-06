@@ -288,6 +288,34 @@ export function LedgerNavBudgets() {
   )
 }
 
+function ReceiptIcon({ className }: IconProps) {
+  // 정산 대기함 (영수증)
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        d="M6 3h12v18l-2-1.2L14 21l-2-1.2L10 21l-2-1.2L6 21V3Z"
+        strokeLinejoin="round"
+      />
+      <path d="M9 8h6M9 12h6" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+export function LedgerNavSettlements() {
+  return (
+    <NavButton href="/ledger/settlements" label="정산 대기함">
+      <ReceiptIcon className="h-4 w-4" />
+    </NavButton>
+  )
+}
+
 export function LedgerNavKisSettings() {
   return (
     <NavButton href="/ledger/kis-settings" label="KIS API 설정">

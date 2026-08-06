@@ -1,11 +1,13 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 import {
   LedgerNavAccounts,
   LedgerNavBudgets,
   LedgerNavCalendar,
   LedgerNavMarket,
+  LedgerNavSettlements,
   LedgerNavStats,
   LedgerNavStocks,
 } from './LedgerNavIcons'
@@ -230,6 +232,12 @@ export default function LedgerClient() {
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
 
+  // 정산 대기함 미정산 요약 (없으면 카드 숨김)
+  const [settlementSummary, setSettlementSummary] = useState<{
+    reimbursementPending: number
+    emergencyPending: number
+  } | null>(null)
+
   // 입력 폼 상태
   const [formMode, setFormMode] = useState<'entry' | 'transfer'>('entry')
   const [transferFromId, setTransferFromId] = useState<string>('')
@@ -388,6 +396,19 @@ export default function LedgerClient() {
       window.clearTimeout(t)
     }
   }, [loadAccounts])
+
+  useEffect(() => {
+    let alive = true
+    fetch('/api/ledger/settlements', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (alive && j?.summary) setSettlementSummary(j.summary)
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [])
 
   const toggleFormType = () => {
     const next: LedgerEntryType = formType === 'INCOME' ? 'EXPENSE' : 'INCOME'
@@ -1159,6 +1180,7 @@ export default function LedgerClient() {
                 <LedgerNavCalendar />
                 <LedgerNavStats />
                 <LedgerNavBudgets />
+                <LedgerNavSettlements />
                 <LedgerNavAccounts />
                 <LedgerNavMarket />
                 <LedgerNavStocks />
@@ -1169,6 +1191,29 @@ export default function LedgerClient() {
               <div className="mt-4 card p-3" style={{ color: 'crimson' }}>
                 {err}
               </div>
+            ) : null}
+
+            {settlementSummary &&
+            (settlementSummary.reimbursementPending > 0 ||
+              settlementSummary.emergencyPending > 0) ? (
+              <Link
+                href="/ledger/settlements"
+                className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 card p-3 card-hover-border-only text-sm"
+              >
+                <span className="font-bold">정산 대기</span>
+                <span className="text-sky-500">
+                  받을 청구 {formatKRW(settlementSummary.reimbursementPending)}
+                </span>
+                <span className="text-amber-500">
+                  갚을 비상금 {formatKRW(settlementSummary.emergencyPending)}
+                </span>
+                <span
+                  className="ml-auto text-xs"
+                  style={{ color: 'var(--muted)' }}
+                >
+                  정산 대기함 →
+                </span>
+              </Link>
             ) : null}
           </div>
 

@@ -39,6 +39,7 @@ export default function BlogEditorClient({
   const [isSecret, setIsSecret] = useState(false)
   const [secretPassword, setSecretPassword] = useState('')
   const [isSpoiler, setIsSpoiler] = useState(false)
+  const [isPrivate, setIsPrivate] = useState(false)
   const [docsCategory, setDocsCategory] = useState('')
   const [tagsRaw, setTagsRaw] = useState('')
 
@@ -83,6 +84,7 @@ export default function BlogEditorClient({
                     ? reviewRatingHalf
                     : null,
                 tagsRaw,
+                isPrivate,
               }
             : {}),
           publish,
@@ -278,6 +280,27 @@ export default function BlogEditorClient({
             여러 사유를 한 번에 안내합니다. (작성자/보드 소유자는 자동 표시)
           </p>
         </div>
+
+        {showBlogMeta ? (
+          <div
+            className="mt-3 flex flex-col gap-1 border-t pt-3"
+            style={{ borderColor: 'var(--border)' }}
+          >
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={isPrivate}
+                onChange={(e) => setIsPrivate(e.target.checked)}
+                disabled={saving}
+              />
+              🔒 나만 보기 (비공개)
+            </label>
+            <p className="text-xs" style={{ color: 'var(--muted)' }}>
+              나(작성자)만 볼 수 있습니다. 목록·검색·RSS에 노출되지 않아요. 비밀글과
+              달리 비밀번호 없이 완전히 숨겨집니다.
+            </p>
+          </div>
+        ) : null}
       </div>
 
       {saving ? (

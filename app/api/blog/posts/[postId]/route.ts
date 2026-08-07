@@ -22,6 +22,7 @@ const updateBlogPostSchema = z
     isSecret: z.boolean().optional(),
     secretPassword: z.union([z.string(), z.null()]).optional(),
     isSpoiler: z.boolean().optional(),
+    isPrivate: z.boolean().optional(),
     tagsRaw: z.string().optional(),
   })
   .strict()
@@ -87,6 +88,7 @@ export async function PUT(
       ? parsed.data.secretPassword.trim()
       : null
   const isSpoiler = parsed.data.isSpoiler
+  const isPrivate = parsed.data.isPrivate
 
   if (
     isSecret === true &&
@@ -147,6 +149,10 @@ export async function PUT(
 
   if (typeof isSpoiler === 'boolean') {
     data.isSpoiler = isSpoiler
+  }
+
+  if (typeof isPrivate === 'boolean') {
+    data.isPrivate = isPrivate
   }
 
   if (parsed.data.tagsRaw !== undefined) {

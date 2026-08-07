@@ -39,6 +39,10 @@ const entryCreateSchema = z
           !Number.isNaN(new Date(v).getTime()),
         { message: 'invalid date' }
       ),
+    settlementKind: z
+      .enum(['REIMBURSEMENT', 'EMERGENCY'])
+      .nullable()
+      .optional(),
   })
   .strict()
 
@@ -55,6 +59,9 @@ type LedgerEntryRow = {
   occurredAt: Date
   createdAt: Date
   updatedAt: Date
+  settlementKind: 'REIMBURSEMENT' | 'EMERGENCY' | null
+  settlementStatus: 'PENDING' | 'SETTLED' | null
+  settledAt: Date | null
   owner: { id: string; name: string | null; email: string | null }
   account: {
     id: string
@@ -121,6 +128,9 @@ export async function GET(req: Request) {
       occurredAt: true,
       createdAt: true,
       updatedAt: true,
+      settlementKind: true,
+      settlementStatus: true,
+      settledAt: true,
       owner: { select: { id: true, name: true, email: true } },
       account: { select: { id: true, name: true, bankName: true, types: true } },
       holdingTransaction: { select: { id: true } },
@@ -209,6 +219,9 @@ export async function GET(req: Request) {
     occurredAt: toISOStringSafe(row.occurredAt),
     createdAt: toISOStringSafe(row.createdAt),
     updatedAt: toISOStringSafe(row.updatedAt),
+    settlementKind: row.settlementKind,
+    settlementStatus: row.settlementStatus,
+    settledAt: row.settledAt ? toISOStringSafe(row.settledAt) : null,
   }))
 
   // 전체 잔액 (기간 무관, 본인+공유 합산, 합계 제외 항목 제외)
@@ -282,10 +295,13 @@ export async function POST(req: Request) {
   const parsed = await parseJsonWithSchema(req, entryCreateSchema)
   if (!parsed.success) return badRequestFromZod(parsed.error, 'invalid body')
 
-  const { type, amount, description, category } = parsed.data
+  const { amount, description, category } = parsed.data
   const subcategory = parsed.data.subcategory ?? null
   const excludeFromTotals = parsed.data.excludeFromTotals
   const accountId = parsed.data.accountId ?? null
+  const settlementKind = parsed.data.settlementKind ?? null
+  // 청구/비상금은 지출 전용 (가정 A)
+  const type = settlementKind ? 'EXPENSE' : parsed.data.type
 
   // 계좌가 본인 소유인지 확인
   if (accountId) {
@@ -324,6 +340,9 @@ export async function POST(req: Request) {
       subcategory,
       excludeFromTotals,
       occurredAt,
+      settlementKind,
+      settlementStatus: settlementKind ? 'PENDING' : null,
+      settledAt: null,
     },
     select: { id: true },
   })

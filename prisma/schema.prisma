@@ -54,8 +54,6 @@ model User {
 
   budgetTargets BudgetTarget[] @relation("BudgetTargetOwner")
 
-  settlements Settlement[] @relation("SettlementOwner")
-
   diaryEntries DiaryEntry[] @relation("DiaryEntryOwner")
 }
 
@@ -237,6 +235,10 @@ model LedgerEntry {
 
   excludeFromTotals Boolean @default(false)
 
+  settlementKind   SettlementKind?
+  settlementStatus SettlementStatus?
+  settledAt        DateTime?
+
   occurredAt DateTime @default(now())
 
   createdAt DateTime @default(now())
@@ -247,6 +249,7 @@ model LedgerEntry {
   @@index([ownerId, occurredAt])
   @@index([ownerId, type])
   @@index([accountId])
+  @@index([ownerId, settlementKind])
 }
 
 enum AccountType {
@@ -308,40 +311,11 @@ model FinancialAccount {
   ledgerEntries LedgerEntry[] @relation("LedgerAccount")
   holdings      Holding[]     @relation("HoldingAccount")
   budgetTargets BudgetTarget[] @relation("BudgetTargetAccount")
-  settlements   Settlement[]  @relation("SettlementAccount")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([ownerId])
-}
-
-model Settlement {
-  id String @id @default(cuid())
-
-  ownerId String
-  owner   User   @relation("SettlementOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-
-  accountId String?
-  account   FinancialAccount? @relation("SettlementAccount", fields: [accountId], references: [id], onDelete: SetNull)
-
-  kind   SettlementKind
-  status SettlementStatus @default(PENDING)
-
-  amount      Int
-  description String
-
-  occurredAt DateTime  @default(now())
-  settledAt  DateTime?
-
-  memo String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([ownerId, status])
-  @@index([ownerId, kind])
-  @@index([accountId])
 }
 
 enum HoldingTransactionType {

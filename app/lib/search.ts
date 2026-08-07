@@ -38,7 +38,7 @@ export function titleFilter(q: string): Prisma.StringFilter {
 
 // 아래 where 빌더에 보안 불변식이 있다. 각 표면의 기존 목록 노출 규칙을 그대로 미러링한다.
 export function blogWhere(title: Prisma.StringFilter): Prisma.PostWhereInput {
-  return { board: { type: 'BLOG' }, status: 'DONE', title }
+  return { board: { type: 'BLOG' }, status: 'DONE', isPrivate: false, title }
 }
 
 export function docsWhere(title: Prisma.StringFilter): Prisma.PostWhereInput {

@@ -22,6 +22,7 @@ const createBlogPostSchema = z
     isSecret: z.boolean().optional().default(false),
     secretPassword: z.union([z.string(), z.null()]).optional(),
     isSpoiler: z.boolean().optional().default(false),
+    isPrivate: z.boolean().optional().default(false),
     tagsRaw: z.string().optional(),
   })
   .strict()
@@ -95,6 +96,7 @@ export async function POST(req: Request) {
       ? parsed.data.secretPassword.trim()
       : null
   const isSpoiler = parsed.data.isSpoiler
+  const isPrivate = parsed.data.isPrivate
 
   const secretPasswordHash = isSecret
     ? await bcrypt.hash(secretPassword!.trim(), 10)
@@ -133,6 +135,7 @@ export async function POST(req: Request) {
       isSecret,
       secretPasswordHash,
       isSpoiler,
+      isPrivate,
       priority: 0,
       allDay: false,
       tags: parseTags(parsed.data.tagsRaw ?? ''),

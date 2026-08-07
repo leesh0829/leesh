@@ -18,7 +18,7 @@ export async function GET(req: Request) {
   }[] = []
   try {
     posts = await prisma.post.findMany({
-      where: { board: { type: 'BLOG' }, status: 'DONE' },
+      where: { board: { type: 'BLOG' }, status: 'DONE', isPrivate: false },
       orderBy: { createdAt: 'desc' },
       take: 20,
       select: {

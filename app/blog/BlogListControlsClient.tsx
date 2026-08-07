@@ -34,6 +34,8 @@ export default function BlogListControlsClient({
   typeCounts,
   tagCounts,
   tagFilter,
+  mineFilter,
+  showMine,
 }: {
   sortOrder: SortOrder
   typeFilter: BlogPostType | null
@@ -42,13 +44,15 @@ export default function BlogListControlsClient({
   typeCounts: BlogTypeCounts
   tagCounts: TagCount[]
   tagFilter: string | null
+  mineFilter: boolean
+  showMine: boolean
 }) {
   const pathname = usePathname()
   const router = useRouter()
   const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
   const [filterOpen, setFilterOpen] = useState(
-    typeFilter !== null || ratingFilter !== null || !!tagFilter
+    typeFilter !== null || ratingFilter !== null || !!tagFilter || mineFilter
   )
 
   function buildHref(next: {
@@ -56,6 +60,7 @@ export default function BlogListControlsClient({
     type?: BlogPostType | null
     rating?: number | null
     tag?: string | null
+    mine?: boolean | null
     page?: number
   }) {
     const params = new URLSearchParams(searchParams.toString())
@@ -76,6 +81,10 @@ export default function BlogListControlsClient({
     if (nextTag) params.set('tag', nextTag)
     else params.delete('tag')
 
+    const nextMine = next.mine === undefined ? mineFilter : next.mine
+    if (nextMine) params.set('mine', '1')
+    else params.delete('mine')
+
     return `${pathname}?${params.toString()}`
   }
 
@@ -95,7 +104,8 @@ export default function BlogListControlsClient({
               sortOrder !== 'desc' ||
               typeFilter !== null ||
               ratingFilter !== null ||
-              !!tagFilter
+              !!tagFilter ||
+              mineFilter
           )}
           onClick={() => setFilterOpen((prev) => !prev)}
           aria-expanded={filterOpen}
@@ -231,6 +241,32 @@ export default function BlogListControlsClient({
                       <span className="opacity-60">({tc.count})</span>
                     </button>
                   ))}
+                </div>
+              </div>
+            ) : null}
+
+            {showMine ? (
+              <div className="space-y-2">
+                <div className="text-xs font-semibold uppercase tracking-[0.16em] opacity-60">
+                  나만 보기
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className={filterChipClass(!mineFilter)}
+                    disabled={isPending}
+                    onClick={() => navigate({ mine: null, page: 1 })}
+                  >
+                    전체
+                  </button>
+                  <button
+                    type="button"
+                    className={filterChipClass(mineFilter)}
+                    disabled={isPending}
+                    onClick={() => navigate({ mine: true, page: 1 })}
+                  >
+                    🔒 나만 보기
+                  </button>
                 </div>
               </div>
             ) : null}

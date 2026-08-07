@@ -14,6 +14,7 @@ type EditPost = {
   blogCategory?: BlogPostType
   reviewRatingHalf?: number | null
   isSpoiler?: boolean
+  isPrivate?: boolean
   docsCategory?: string | null
   tags?: string[]
 }
@@ -56,6 +57,7 @@ export default function BlogEditClient({
   )
   const [regenerateSlug, setRegenerateSlug] = useState(false)
   const [isSpoiler, setIsSpoiler] = useState(post.isSpoiler ?? false)
+  const [isPrivate, setIsPrivate] = useState(post.isPrivate ?? false)
   const [docsCategory, setDocsCategory] = useState(post.docsCategory ?? '')
   const [tagsRaw, setTagsRaw] = useState((post.tags ?? []).join(', '))
   const [msg, setMsg] = useState<string | null>(null)
@@ -84,6 +86,7 @@ export default function BlogEditClient({
                   ? reviewRatingHalf
                   : null,
               tagsRaw,
+              isPrivate,
             }
           : {}),
         publish,
@@ -269,6 +272,21 @@ export default function BlogEditClient({
           스포일러뿐 아니라 잔인/선정적 묘사, 트라우마 유발 요소, 보안·개인정보 등
           여러 사유를 한 번에 안내합니다. (작성자/보드 소유자는 자동 표시)
         </p>
+
+        {showBlogMeta ? (
+          <label
+            className="mt-3 flex items-center gap-2 border-t pt-3 text-sm"
+            style={{ borderColor: 'var(--border)' }}
+          >
+            <input
+              type="checkbox"
+              checked={isPrivate}
+              onChange={(e) => setIsPrivate(e.target.checked)}
+              disabled={saving}
+            />
+            🔒 나만 보기 (비공개) — 나만 열람, 목록·검색·RSS 미노출
+          </label>
+        ) : null}
       </div>
 
       <div className="flex flex-wrap items-center gap-2">

@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { badRequestFromZod, parseJsonWithSchema } from '@/app/lib/validation'
 import { isValidCategoryCombination } from '@/app/lib/ledgerCategories'
 import { getCurrentUserId } from '@/app/lib/serverAuth'
+import { settledAtForStatus } from '@/app/lib/settlements'
 
 export const runtime = 'nodejs'
 
@@ -38,6 +39,10 @@ const entryPatchSchema = z
           !Number.isNaN(new Date(v).getTime()),
         { message: 'invalid date' }
       ),
+    settlementKind: z
+      .union([z.enum(['REIMBURSEMENT', 'EMERGENCY']), z.null()])
+      .optional(),
+    settlementStatus: z.enum(['PENDING', 'SETTLED']).optional(),
   })
   .strict()
 
@@ -52,7 +57,15 @@ export async function PATCH(
   const { entryId } = await params
   const existing = await prisma.ledgerEntry.findUnique({
     where: { id: entryId },
-    select: { id: true, ownerId: true, type: true, category: true, subcategory: true },
+    select: {
+      id: true,
+      ownerId: true,
+      type: true,
+      category: true,
+      subcategory: true,
+      settlementKind: true,
+      settlementStatus: true,
+    },
   })
   if (!existing)
     return NextResponse.json({ message: 'not found' }, { status: 404 })
@@ -76,7 +89,36 @@ export async function PATCH(
     }
   }
 
-  const nextType = parsed.data.type ?? existing.type
+  // 정산 태그/상태 전이
+  const kindProvided = parsed.data.settlementKind !== undefined
+  const nextKind = kindProvided
+    ? parsed.data.settlementKind
+    : existing.settlementKind
+  const statusProvided = parsed.data.settlementStatus !== undefined
+
+  if (statusProvided && !nextKind) {
+    return NextResponse.json(
+      { message: '정산 항목이 아닙니다.' },
+      { status: 400 }
+    )
+  }
+
+  let nextStatus: 'PENDING' | 'SETTLED' | null
+  if (!nextKind) {
+    nextStatus = null
+  } else if (statusProvided) {
+    nextStatus = parsed.data.settlementStatus!
+  } else if (kindProvided && !existing.settlementKind) {
+    nextStatus = 'PENDING'
+  } else {
+    nextStatus = existing.settlementStatus ?? 'PENDING'
+  }
+  const nextSettledAt = nextStatus
+    ? settledAtForStatus(nextStatus, new Date())
+    : null
+
+  // 청구/비상금은 지출 전용 (가정 A)
+  const nextType = nextKind ? 'EXPENSE' : (parsed.data.type ?? existing.type)
   const nextCategory = parsed.data.category ?? existing.category
   const nextSubcategory =
     parsed.data.subcategory === undefined
@@ -84,7 +126,7 @@ export async function PATCH(
       : parsed.data.subcategory
 
   if (
-    parsed.data.type !== undefined ||
+    nextType !== existing.type ||
     parsed.data.category !== undefined ||
     parsed.data.subcategory !== undefined
   ) {
@@ -106,7 +148,7 @@ export async function PATCH(
   await prisma.ledgerEntry.update({
     where: { id: entryId },
     data: {
-      ...(parsed.data.type !== undefined ? { type: parsed.data.type } : {}),
+      type: nextType,
       ...(parsed.data.amount !== undefined
         ? { amount: parsed.data.amount }
         : {}),
@@ -128,6 +170,9 @@ export async function PATCH(
       ...(occurredAt !== undefined
         ? { occurredAt: occurredAt ?? new Date() }
         : {}),
+      settlementKind: nextKind,
+      settlementStatus: nextStatus,
+      settledAt: nextSettledAt,
     },
   })
 

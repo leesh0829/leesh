@@ -14,6 +14,10 @@
 
 $ErrorActionPreference = "Stop"
 
+# 어디서 실행하든 프로젝트 루트로 이동 (scripts\ 안/밖 어디서 호출해도 동일 동작)
+# $PSScriptRoot = ...\leesh\scripts → 부모가 프로젝트 루트(...\leesh)
+Set-Location (Split-Path $PSScriptRoot -Parent)
+
 $EnvFile = ".env.prod"
 
 # 1) .env.prod 존재 확인

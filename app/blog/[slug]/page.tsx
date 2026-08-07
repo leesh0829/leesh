@@ -120,9 +120,15 @@ export async function generateMetadata({
       status: 'DONE',
     },
     orderBy: { createdAt: 'desc' },
-    select: { title: true, contentMd: true, isSecret: true, isSpoiler: true },
+    select: {
+      title: true,
+      contentMd: true,
+      isSecret: true,
+      isSpoiler: true,
+      isPrivate: true,
+    },
   })
-  if (!post) return { title: '글 없음 · Leesh' }
+  if (!post || post.isPrivate) return { title: '글 없음 · Leesh' }
   const description =
     post.isSecret || post.isSpoiler
       ? '비공개 또는 열람 주의 글입니다.'
@@ -154,6 +160,7 @@ export default async function BlogDetailPage({
     authorId: true,
     isSecret: true,
     isSpoiler: true,
+    isPrivate: true,
     tags: true,
     board: { select: { ownerId: true } },
   } as const
@@ -201,6 +208,19 @@ export default async function BlogDetailPage({
 
   const isPrivileged =
     !!me?.id && (me.id === post.authorId || me.id === post.board.ownerId)
+
+  // 나만 보기(비공개) 글은 작성자/보드주인 외에는 존재 자체를 숨긴다 (글 없음 처리).
+  if (post.isPrivate && !isPrivileged) {
+    return (
+      <main className="container-page py-8">
+        <div className="surface card-pad">
+          <div className="text-sm" style={{ color: 'var(--muted)' }}>
+            글 없음
+          </div>
+        </div>
+      </main>
+    )
+  }
 
   const cookieStore = await cookies()
   const unlocked = readUnlockedPostIds(

@@ -26,6 +26,10 @@ import {
   getCategoriesByType,
   type LedgerEntryType,
 } from '@/app/lib/ledgerCategories'
+import {
+  SETTLEMENT_KIND_LABEL,
+  type SettlementKind,
+} from '@/app/lib/settlements'
 
 type LedgerItem = {
   id: string
@@ -47,6 +51,9 @@ type LedgerItem = {
   occurredAt: string
   createdAt: string
   updatedAt: string
+  settlementKind: SettlementKind | null
+  settlementStatus: 'PENDING' | 'SETTLED' | null
+  settledAt: string | null
 }
 
 type AccountItem = {
@@ -255,6 +262,8 @@ export default function LedgerClient() {
   const [formExcludeFromTotals, setFormExcludeFromTotals] =
     useState<boolean>(false)
   const [formAccountId, setFormAccountId] = useState<string>('')
+  const [formSettlementKind, setFormSettlementKind] =
+    useState<SettlementKind | null>(null)
   const { pending: creating, run: runCreate } = useAsyncLock()
 
   // 계좌 목록
@@ -271,6 +280,8 @@ export default function LedgerClient() {
   const [editExcludeFromTotals, setEditExcludeFromTotals] =
     useState<boolean>(false)
   const [editAccountId, setEditAccountId] = useState<string>('')
+  const [editSettlementKind, setEditSettlementKind] =
+    useState<SettlementKind | null>(null)
   const [editSaving, setEditSaving] = useState<boolean>(false)
 
   // 정렬/필터/검색
@@ -397,18 +408,20 @@ export default function LedgerClient() {
     }
   }, [loadAccounts])
 
-  useEffect(() => {
-    let alive = true
-    fetch('/api/ledger/settlements', { cache: 'no-store' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j) => {
-        if (alive && j?.summary) setSettlementSummary(j.summary)
-      })
-      .catch(() => {})
-    return () => {
-      alive = false
-    }
+  const loadSettlementSummary = useCallback(async () => {
+    try {
+      const r = await fetch('/api/ledger/settlements', { cache: 'no-store' })
+      if (!r.ok) return
+      const j = (await r.json()) as {
+        summary?: { reimbursementPending: number; emergencyPending: number }
+      }
+      if (j?.summary) setSettlementSummary(j.summary)
+    } catch {}
   }, [])
+
+  useEffect(() => {
+    void loadSettlementSummary()
+  }, [loadSettlementSummary])
 
   const toggleFormType = () => {
     const next: LedgerEntryType = formType === 'INCOME' ? 'EXPENSE' : 'INCOME'
@@ -416,6 +429,16 @@ export default function LedgerClient() {
     setFormType(next)
     setFormCategory(list[0]?.key ?? '')
     setFormSubcategory('')
+  }
+
+  const changeFormSettlementKind = (next: SettlementKind | null) => {
+    setFormSettlementKind(next)
+    if (next && formType !== 'EXPENSE') {
+      const list = getCategoriesByType('EXPENSE')
+      setFormType('EXPENSE')
+      setFormCategory(list[0]?.key ?? '')
+      setFormSubcategory('')
+    }
   }
 
   const changeFormCategory = (nextKey: string) => {
@@ -555,6 +578,7 @@ export default function LedgerClient() {
         accountId: formAccountId || null,
         excludeFromTotals: formExcludeFromTotals,
         occurredAt: isoFromDatetimeLocal(formOccurredAt) ?? null,
+        settlementKind: formSettlementKind,
       }
 
       const r = await fetch('/api/ledger', {
@@ -575,7 +599,9 @@ export default function LedgerClient() {
       setFormDesc('')
       setFormOccurredAt(dateTimeLocalNow())
       setFormExcludeFromTotals(false)
+      setFormSettlementKind(null)
       await load()
+      void loadSettlementSummary()
       toast.success('항목을 저장했습니다.')
     })
   }
@@ -657,6 +683,7 @@ export default function LedgerClient() {
     setEditOccurredAt(datetimeLocalFromIso(it.occurredAt))
     setEditExcludeFromTotals(it.excludeFromTotals)
     setEditAccountId(it.accountId ?? '')
+    setEditSettlementKind(it.settlementKind)
   }
 
   const cancelEdit = () => {
@@ -669,6 +696,16 @@ export default function LedgerClient() {
     setEditType(next)
     setEditCategory(list[0]?.key ?? '')
     setEditSubcategory('')
+  }
+
+  const changeEditSettlementKind = (next: SettlementKind | null) => {
+    setEditSettlementKind(next)
+    if (next && editType !== 'EXPENSE') {
+      const list = getCategoriesByType('EXPENSE')
+      setEditType('EXPENSE')
+      setEditCategory(list[0]?.key ?? '')
+      setEditSubcategory('')
+    }
   }
 
   const changeEditCategory = (nextKey: string) => {
@@ -708,6 +745,7 @@ export default function LedgerClient() {
       accountId: editAccountId || null,
       excludeFromTotals: editExcludeFromTotals,
       occurredAt: isoFromDatetimeLocal(editOccurredAt) ?? null,
+      settlementKind: editSettlementKind,
     }
 
     const r = await fetch(`/api/ledger/${editingId}`, {
@@ -727,6 +765,7 @@ export default function LedgerClient() {
 
     setEditingId(null)
     await load()
+    void loadSettlementSummary()
     toast.success('항목을 수정했습니다.')
   }
 
@@ -1475,6 +1514,7 @@ export default function LedgerClient() {
                     type="button"
                     className="btn"
                     onClick={toggleFormType}
+                    disabled={creating || formSettlementKind !== null}
                     aria-label="수입/지출 전환"
                     title="클릭해서 수입/지출 전환"
                     style={{
@@ -1581,6 +1621,42 @@ export default function LedgerClient() {
                       </option>
                     ))}
                   </select>
+
+                  <div className="flex flex-wrap items-center gap-1">
+                    <span
+                      className="mr-1 text-xs"
+                      style={{ color: 'var(--muted)' }}
+                    >
+                      정산
+                    </span>
+                    {(
+                      [
+                        { key: null, label: '일반' },
+                        { key: 'REIMBURSEMENT', label: '청구' },
+                        { key: 'EMERGENCY', label: '비상금' },
+                      ] as { key: SettlementKind | null; label: string }[]
+                    ).map((opt) => (
+                      <button
+                        key={opt.label}
+                        type="button"
+                        className={
+                          'btn text-xs ' +
+                          (formSettlementKind === opt.key
+                            ? 'btn-primary'
+                            : 'btn-outline')
+                        }
+                        onClick={() => changeFormSettlementKind(opt.key)}
+                        disabled={creating}
+                        title={
+                          opt.key
+                            ? '청구/비상금은 지출로 기록되고 정산 대기함에 모여요'
+                            : '일반 내역'
+                        }
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
                 </>
               )}
 
@@ -1898,6 +1974,37 @@ export default function LedgerClient() {
                                 합계 제외
                               </span>
                             ) : null}
+                            {it.settlementKind ? (
+                              <span
+                                className="badge"
+                                title={`${SETTLEMENT_KIND_LABEL[it.settlementKind]} · ${
+                                  it.settlementStatus === 'SETTLED'
+                                    ? '정산완료'
+                                    : '미정산'
+                                }`}
+                                style={{
+                                  background:
+                                    it.settlementStatus === 'SETTLED'
+                                      ? 'color-mix(in srgb, var(--foreground) 6%, var(--card))'
+                                      : it.settlementKind === 'REIMBURSEMENT'
+                                        ? 'color-mix(in srgb, #0ea5e9 16%, var(--card))'
+                                        : 'color-mix(in srgb, #f59e0b 16%, var(--card))',
+                                  borderColor:
+                                    it.settlementStatus === 'SETTLED'
+                                      ? 'var(--border)'
+                                      : it.settlementKind === 'REIMBURSEMENT'
+                                        ? 'color-mix(in srgb, #0ea5e9 50%, var(--border))'
+                                        : 'color-mix(in srgb, #f59e0b 50%, var(--border))',
+                                  opacity:
+                                    it.settlementStatus === 'SETTLED' ? 0.65 : 1,
+                                }}
+                              >
+                                {SETTLEMENT_KIND_LABEL[it.settlementKind]} ·{' '}
+                                {it.settlementStatus === 'SETTLED'
+                                  ? '정산완료'
+                                  : '미정산'}
+                              </span>
+                            ) : null}
                             {it.linkedToHolding ? (
                               <span
                                 className="badge"
@@ -2055,6 +2162,7 @@ export default function LedgerClient() {
                                   : 'btn-outline')
                               }
                               onClick={toggleEditType}
+                              disabled={editSaving || editSettlementKind !== null}
                               aria-label="수입/지출 전환"
                             >
                               {editType === 'INCOME' ? '+ 수입' : '− 지출'}
@@ -2150,6 +2258,40 @@ export default function LedgerClient() {
                               </option>
                             ))}
                           </select>
+
+                          <div className="flex flex-wrap items-center gap-1">
+                            <span
+                              className="mr-1 text-xs"
+                              style={{ color: 'var(--muted)' }}
+                            >
+                              정산
+                            </span>
+                            {(
+                              [
+                                { key: null, label: '일반' },
+                                { key: 'REIMBURSEMENT', label: '청구' },
+                                { key: 'EMERGENCY', label: '비상금' },
+                              ] as {
+                                key: SettlementKind | null
+                                label: string
+                              }[]
+                            ).map((opt) => (
+                              <button
+                                key={opt.label}
+                                type="button"
+                                className={
+                                  'btn text-xs ' +
+                                  (editSettlementKind === opt.key
+                                    ? 'btn-primary'
+                                    : 'btn-outline')
+                                }
+                                onClick={() => changeEditSettlementKind(opt.key)}
+                                disabled={editSaving}
+                              >
+                                {opt.label}
+                              </button>
+                            ))}
+                          </div>
 
                           <input
                             className="input"

@@ -136,6 +136,8 @@ model Post {
 
   isSpoiler          Boolean @default(false)
 
+  isPrivate          Boolean @default(false) // 나만 보기(비공개) — 작성자/보드주인만 열람
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

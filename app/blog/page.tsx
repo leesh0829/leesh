@@ -44,6 +44,7 @@ type BlogPostRow = {
   blogCategory: BlogPostType
   reviewRatingHalf: number | null
   isSpoiler: boolean
+  isPrivate: boolean
   tags: string[]
   author: { name: string | null; email: string | null }
 }
@@ -65,6 +66,7 @@ export default async function BlogListPage(props: {
     type?: string
     rating?: string
     tag?: string
+    mine?: string
   }>
 }) {
   const searchParams = (await props.searchParams) ?? {}
@@ -91,6 +93,30 @@ export default async function BlogListPage(props: {
 
   const canWrite = !!session?.user?.email
 
+  let meId: string | null = null
+  if (!databaseUnavailable && session?.user?.email) {
+    try {
+      const me = await prisma.user.findUnique({
+        where: { email: session.user.email },
+        select: { id: true },
+      })
+      meId = me?.id ?? null
+    } catch (error) {
+      if (!isDatabaseConnectionError(error)) throw error
+      databaseUnavailable = true
+      console.error('[BLOG_PAGE_DB_UNAVAILABLE][ME]', error)
+    }
+  }
+
+  const mineFilter = searchParams.mine === '1'
+  // 비공개(나만 보기) 글은 작성자에게만 보인다.
+  const privacyClause: Prisma.PostWhereInput = meId
+    ? { OR: [{ isPrivate: false }, { authorId: meId }] }
+    : { isPrivate: false }
+  // "나만 보기" 필터 켜면 내 비공개 글만 좁혀서 표시.
+  const visibilityWhere: Prisma.PostWhereInput =
+    mineFilter && meId ? { isPrivate: true, authorId: meId } : privacyClause
+
   const where: Prisma.PostWhereInput = {
     board: { type: 'BLOG' },
     status: 'DONE',
@@ -100,6 +126,7 @@ export default async function BlogListPage(props: {
     ...(typeFilter ? { blogCategory: typeFilter } : {}),
     ...(ratingFilter !== null ? { reviewRatingHalf: ratingFilter } : {}),
     ...(tagFilter ? { tags: { has: tagFilter } } : {}),
+    ...visibilityWhere,
   }
 
   const countWhere: Prisma.PostWhereInput = {
@@ -108,6 +135,7 @@ export default async function BlogListPage(props: {
     ...(titleQuery
       ? { title: { contains: titleQuery, mode: 'insensitive' } }
       : {}),
+    ...privacyClause,
   }
 
   let totalCount = 0
@@ -135,6 +163,7 @@ export default async function BlogListPage(props: {
           blogCategory: true,
           reviewRatingHalf: true,
           isSpoiler: true,
+          isPrivate: true,
           tags: true,
           author: { select: { name: true, email: true } },
         },
@@ -175,6 +204,7 @@ export default async function BlogListPage(props: {
     type?: BlogPostType | null
     rating?: number | null
     tag?: string | null
+    mine?: boolean | null
   }) => {
     const params = new URLSearchParams()
     params.set('sort', next.sort ?? sortOrder)
@@ -194,6 +224,9 @@ export default async function BlogListPage(props: {
 
     const tag = next.tag === undefined ? tagFilter : next.tag
     if (tag) params.set('tag', tag)
+
+    const mine = next.mine === undefined ? mineFilter : next.mine
+    if (mine) params.set('mine', '1')
 
     return `/blog?${params.toString()}`
   }
@@ -235,6 +268,9 @@ export default async function BlogListPage(props: {
               {tagFilter ? (
                 <input type="hidden" name="tag" value={tagFilter} />
               ) : null}
+              {mineFilter ? (
+                <input type="hidden" name="mine" value="1" />
+              ) : null}
               <input
                 type="text"
                 name="q"
@@ -249,7 +285,7 @@ export default async function BlogListPage(props: {
               >
                 검색
               </button>
-              {titleQuery || typeFilter || ratingFilter !== null || tagFilter ? (
+              {titleQuery || typeFilter || ratingFilter !== null || tagFilter || mineFilter ? (
                 <Link
                   href={toHref({
                     page: 1,
@@ -257,6 +293,7 @@ export default async function BlogListPage(props: {
                     type: null,
                     rating: null,
                     tag: null,
+                    mine: false,
                   })}
                   className="btn btn-ghost"
                 >
@@ -273,6 +310,8 @@ export default async function BlogListPage(props: {
               typeCounts={typeCounts}
               tagCounts={tagCounts}
               tagFilter={tagFilter}
+              mineFilter={mineFilter}
+              showMine={!!meId}
             />
           </div>
         </div>
@@ -291,7 +330,7 @@ export default async function BlogListPage(props: {
           ) : posts.length === 0 ? (
             <div className="card card-pad">
               <div className="text-sm" style={{ color: 'var(--muted)' }}>
-                {titleQuery || typeFilter || ratingFilter !== null || tagFilter
+                {titleQuery || typeFilter || ratingFilter !== null || tagFilter || mineFilter
                   ? '조건에 맞는 글이 없습니다.'
                   : '글 없음'}
               </div>
@@ -341,6 +380,19 @@ export default async function BlogListPage(props: {
                           title="열람 주의 — 스포일러/민감 콘텐츠/기밀 정보 등 포함 가능"
                         >
                           ⚠️ 열람 주의
+                        </span>
+                      ) : null}
+                      {p.isPrivate ? (
+                        <span
+                          className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold"
+                          style={{
+                            borderColor: 'rgba(124, 109, 255, 0.4)',
+                            background: 'rgba(124, 109, 255, 0.12)',
+                            color: '#6d5dff',
+                          }}
+                          title="나만 보기 — 작성자에게만 보이는 비공개 글"
+                        >
+                          🔒 나만 보기
                         </span>
                       ) : null}
                     </div>

@@ -420,7 +420,12 @@ export default function LedgerClient() {
   }, [])
 
   useEffect(() => {
-    void loadSettlementSummary()
+    const t = window.setTimeout(() => {
+      void loadSettlementSummary()
+    }, 0)
+    return () => {
+      window.clearTimeout(t)
+    }
   }, [loadSettlementSummary])
 
   const toggleFormType = () => {

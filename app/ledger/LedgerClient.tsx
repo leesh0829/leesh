@@ -352,6 +352,10 @@ export default function LedgerClient() {
     setAccounts(data.items)
   }, [])
 
+  const loadLedgerAndAccounts = useCallback(async () => {
+    await Promise.all([load(), loadAccounts()])
+  }, [load, loadAccounts])
+
   const loadShares = useCallback(async () => {
     setShareLoading(true)
     const res = await fetch('/api/schedule-shares', { cache: 'no-store' })
@@ -605,7 +609,7 @@ export default function LedgerClient() {
       setFormOccurredAt(dateTimeLocalNow())
       setFormExcludeFromTotals(false)
       setFormSettlementKind(null)
-      await load()
+      await loadLedgerAndAccounts()
       void loadSettlementSummary()
       toast.success('항목을 저장했습니다.')
     })
@@ -654,7 +658,7 @@ export default function LedgerClient() {
       setFormAmount('')
       setFormDesc('')
       setFormOccurredAt(dateTimeLocalNow())
-      await load()
+      await loadLedgerAndAccounts()
       toast.success('이체를 등록했습니다.')
     })
   }
@@ -674,7 +678,7 @@ export default function LedgerClient() {
       toast.error(message)
       return
     }
-    await load()
+    await loadLedgerAndAccounts()
     toast.success('항목을 삭제했습니다.')
   }
 
@@ -769,7 +773,7 @@ export default function LedgerClient() {
     }
 
     setEditingId(null)
-    await load()
+    await loadLedgerAndAccounts()
     void loadSettlementSummary()
     toast.success('항목을 수정했습니다.')
   }
@@ -1099,7 +1103,10 @@ export default function LedgerClient() {
                         className="input"
                         style={{ height: 'auto', padding: '2px 8px', fontSize: '11px' }}
                         value={hoTotalsAccountId}
-                        onChange={(e) => setHoTotalsAccountId(e.target.value)}
+                        onChange={(e) => {
+                          setHoTotalsAccountId(e.target.value)
+                          void loadAccounts()
+                        }}
                         aria-label="계좌 필터"
                       >
                         <option value="ALL">전체</option>
